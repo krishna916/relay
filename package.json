@@ -20,24 +20,36 @@
     "format:check": "prettier --check .",
     "build:node": "tsup",
     "dev:mcp": "node --import tsx/esm src/interfaces/mcp/main.ts",
-    "dev:http": "node --import tsx/esm src/interfaces/http/main.ts"
+    "dev:http": "node --import tsx/esm src/interfaces/http/main.ts",
+    "dev:web": "vite",
+    "dev:ui": "concurrently -k -p name -c \"blue,green\" \"pnpm dev:http\" \"pnpm dev:web\""
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^26.1.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.65.0",
     "@typescript-eslint/parser": "^8.65.0",
+    "@vitejs/plugin-react": "^6.0.4",
+    "concurrently": "^10.0.4",
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
+    "jsdom": "^29.1.1",
     "tsup": "^8.5.1",
     "tsx": "^4.23.1",
     "typescript": "^5.9.3",
+    "vite": "^8.1.5",
     "vitest": "^4.1.10"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "better-sqlite3": "^13.0.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "zod": "^4.4.3"
   }
 }
