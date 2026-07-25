@@ -10,6 +10,7 @@ In PowerShell, create a new temporary location and start both development proces
 $tempRelay = Join-Path ([System.IO.Path]::GetTempPath()) ("relay-" + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $tempRelay | Out-Null
 $env:RELAY_DB_PATH = Join-Path $tempRelay "relay.db"
+Write-Output "Temporary Relay directory: $tempRelay"
 pnpm dev:ui
 ```
 
@@ -52,8 +53,16 @@ Expected: the HTTP service reports `http://127.0.0.1:43110`, Vite reports `http:
 
 1. Stop both development processes cleanly.
    Expected: the HTTP and Vite processes exit without deleting the database.
-2. In a new PowerShell session, set `RELAY_DB_PATH` to the same `$tempRelay\relay.db` path and run `pnpm dev:ui` again.
+2. In a new PowerShell session, restore the printed temporary directory and database path, then run `pnpm dev:ui` again.
+
+   ```powershell
+   $tempRelay = "C:\path\printed\by\the\first\session"
+   $env:RELAY_DB_PATH = Join-Path $tempRelay "relay.db"
+   pnpm dev:ui
+   ```
+
    Expected: all non-archived tasks, edits, statuses, and timestamps appear in their correct views after restart.
+
 3. Confirm archived tasks are not in normal lists.
    Expected: archived rows remain in SQLite but are hidden from Inbox, Active, Backlog, and Completed.
 4. Stop Relay, then remove only the disposable directory.
