@@ -202,6 +202,15 @@ describe('http tasks integration', () => {
     await action(server.url, created.id, 'start');
     await action(server.url, created.id, 'move-to-backlog');
     await action(server.url, created.id, 'move-to-inbox');
+
+    const invalidTransition = await fetch(`${server.url}/api/tasks/${created.id}/start`, {
+      method: 'POST',
+    });
+    expect(invalidTransition.status).toBe(409);
+    await expect(invalidTransition.json()).resolves.toMatchObject({
+      error: { code: 'INVALID_TASK_TRANSITION' },
+    });
+
     await action(server.url, created.id, 'activate');
     await action(server.url, created.id, 'complete');
     await action(server.url, created.id, 'archive');
