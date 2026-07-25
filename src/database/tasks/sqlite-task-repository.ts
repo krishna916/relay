@@ -6,7 +6,7 @@ import {
 } from '../../application/tasks/task-repository-errors.js';
 import type { TaskListQuery, TaskRepository } from '../../application/tasks/task-repository.js';
 import type { Task } from '../../domain/task/task.js';
-import { isTaskStatus } from '../../domain/task/task-status.js';
+import { isTaskStatus, TASK_STATUSES } from '../../domain/task/task-status.js';
 import {
   TASK_COLUMN_LIST,
   taskRowToDomain,
@@ -173,6 +173,12 @@ function validateListQuery(query: TaskListQuery): void {
   }
   if (query.statuses.length === 0 || query.statuses.some((status) => !isTaskStatus(status))) {
     throw new TaskRepositoryError('At least one valid task status is required.');
+  }
+  if (query.statuses.length > TASK_STATUSES.length) {
+    throw new TaskRepositoryError('Task status filters exceed the supported status count.');
+  }
+  if (new Set(query.statuses).size !== query.statuses.length) {
+    throw new TaskRepositoryError('Task status filters must not contain duplicates.');
   }
   if (!Number.isInteger(query.limit) || query.limit < 1 || query.limit > 200) {
     throw new TaskRepositoryError('Task list limit must be an integer from 1 through 200.');

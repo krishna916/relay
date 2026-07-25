@@ -379,6 +379,24 @@ describe('SQLite task repository list', () => {
     expect(() => repository.list(query)).toThrow(TaskRepositoryError);
   });
 
+  it('rejects duplicate statuses', () => {
+    const repository = createRepository();
+
+    expect(() => repository.list({ statuses: ['INBOX', 'INBOX'], limit: 1 })).toThrow(
+      TaskRepositoryError,
+    );
+  });
+
+  it('rejects more statuses than the domain supports', () => {
+    const repository = createRepository();
+    const query = {
+      statuses: ['INBOX', 'ACTIVE', 'IN_PROGRESS', 'BACKLOG', 'DONE', 'ARCHIVED', 'INBOX'],
+      limit: 1,
+    } as const;
+
+    expect(() => repository.list(query)).toThrow(TaskRepositoryError);
+  });
+
   it.each([undefined, null, {}, { statuses: null, limit: 1 }])(
     'rejects a malformed runtime list query: %s',
     (query) => {
