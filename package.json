@@ -19,6 +19,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "build:node": "tsup",
+    "build:web": "vite build",
+    "build": "pnpm build:node && pnpm build:web",
     "dev:mcp": "node --import tsx/esm src/interfaces/mcp/main.ts",
     "dev:http": "node --import tsx/esm src/interfaces/http/main.ts",
     "dev:web": "vite",
