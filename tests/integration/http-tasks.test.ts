@@ -256,6 +256,82 @@ describe('http tasks integration', () => {
     await expect(oversize.json()).resolves.toMatchObject({ error: { code: 'PAYLOAD_TOO_LARGE' } });
   });
 
+  it('persists an edited completed task across a real runtime restart and hides it after archiving', async () => {
+    const temporary = createTemporaryDatabase();
+    let firstRuntime: ReturnType<typeof createTaskRuntime> | null = null;
+    let firstServer: HttpServerInstance | null = null;
+    let secondRuntime: ReturnType<typeof createTaskRuntime> | null = null;
+    let secondServer: HttpServerInstance | null = null;
+
+    try {
+      temporary.db.close();
+      firstRuntime = createTaskRuntime({ databasePath: temporary.dbPath });
+      firstServer = await createHttpServer({
+        host: '127.0.0.1',
+        port: 0,
+        taskApplication: firstRuntime.taskApplication,
+      });
+      const created = await createTask(firstServer.url, 'Persisted workflow task');
+
+      const edit = await fetch(`${firstServer.url}/api/tasks/${created.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Persisted edited task',
+          description: 'Survives a runtime restart',
+          priority: 'HIGH',
+          workspace: 'relay',
+          sourceContext: 'issue-10',
+        }),
+      });
+      expect(edit.status).toBe(200);
+      await action(firstServer.url, created.id, 'activate');
+      const started = await action(firstServer.url, created.id, 'start');
+      await action(firstServer.url, created.id, 'complete');
+
+      await firstServer.stop();
+      firstServer = null;
+      firstRuntime.close();
+      firstRuntime = null;
+
+      secondRuntime = createTaskRuntime({ databasePath: temporary.dbPath });
+      secondServer = await createHttpServer({
+        host: '127.0.0.1',
+        port: 0,
+        taskApplication: secondRuntime.taskApplication,
+      });
+      const retrieved = await fetch(`${secondServer.url}/api/tasks/${created.id}`);
+      expect(retrieved.status).toBe(200);
+      await expect(retrieved.json()).resolves.toMatchObject({
+        task: {
+          id: created.id,
+          title: 'Persisted edited task',
+          description: 'Survives a runtime restart',
+          priority: 'HIGH',
+          workspace: 'relay',
+          sourceContext: 'issue-10',
+          status: 'DONE',
+          startedAt: started.startedAt,
+          completedAt: expect.any(String),
+        },
+      });
+      const completed = await fetch(`${secondServer.url}/api/tasks?view=completed`);
+      await expect(completed.json()).resolves.toMatchObject({
+        tasks: [expect.objectContaining({ id: created.id })],
+      });
+
+      await action(secondServer.url, created.id, 'archive');
+      const afterArchive = await fetch(`${secondServer.url}/api/tasks?view=completed`);
+      await expect(afterArchive.json()).resolves.toMatchObject({ tasks: [] });
+    } finally {
+      if (firstServer) await firstServer.stop();
+      firstRuntime?.close();
+      if (secondServer) await secondServer.stop();
+      secondRuntime?.close();
+      temporary.cleanup();
+    }
+  });
+
   it('creates a migrated production runtime and closes it idempotently', () => {
     const temporary = createTemporaryDatabase();
     temporary.cleanup();
