@@ -11,7 +11,7 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       include: [
         'src/application/**/*.ts',
-        'src/database/*.ts',
+        'src/database/**/*.ts',
         'src/interfaces/mcp/create-mcp-server.ts',
         'src/interfaces/http/create-http-server.ts',
         'web/src/api/**/*.ts',

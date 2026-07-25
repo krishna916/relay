@@ -31,9 +31,10 @@ describe('database-migrations integration', () => {
       version: number;
       name: string;
     }[];
-    expect(migrations).toHaveLength(1);
-    expect(migrations[0]?.version).toBe(1);
-    expect(migrations[0]?.name).toBe('scaffold');
+    expect(migrations).toEqual([
+      { version: 1, name: 'scaffold' },
+      { version: 2, name: 'tasks' },
+    ]);
 
     // Verify relay_metadata table scaffolded by 0001_scaffold.sql
     const meta = db
@@ -44,8 +45,97 @@ describe('database-migrations integration', () => {
     };
     expect(meta).toEqual({ key: 'schema_version', value: '1' });
 
+    const taskColumns = db.prepare('PRAGMA table_info(tasks)').all() as {
+      name: string;
+      type: string;
+      notnull: number;
+      pk: number;
+    }[];
+    expect(taskColumns).toEqual([
+      expect.objectContaining({ name: 'id', type: 'TEXT', notnull: 0, pk: 1 }),
+      expect.objectContaining({ name: 'title', type: 'TEXT', notnull: 1, pk: 0 }),
+      expect.objectContaining({ name: 'description', type: 'TEXT', notnull: 0, pk: 0 }),
+      expect.objectContaining({ name: 'status', type: 'TEXT', notnull: 1, pk: 0 }),
+      expect.objectContaining({ name: 'priority', type: 'TEXT', notnull: 0, pk: 0 }),
+      expect.objectContaining({ name: 'workspace', type: 'TEXT', notnull: 0, pk: 0 }),
+      expect.objectContaining({ name: 'source_context', type: 'TEXT', notnull: 0, pk: 0 }),
+      expect.objectContaining({ name: 'created_by_type', type: 'TEXT', notnull: 1, pk: 0 }),
+      expect.objectContaining({ name: 'created_by_name', type: 'TEXT', notnull: 0, pk: 0 }),
+      expect.objectContaining({ name: 'created_at', type: 'TEXT', notnull: 1, pk: 0 }),
+      expect.objectContaining({ name: 'updated_at', type: 'TEXT', notnull: 1, pk: 0 }),
+      expect.objectContaining({ name: 'started_at', type: 'TEXT', notnull: 0, pk: 0 }),
+      expect.objectContaining({ name: 'completed_at', type: 'TEXT', notnull: 0, pk: 0 }),
+      expect.objectContaining({ name: 'archived_at', type: 'TEXT', notnull: 0, pk: 0 }),
+    ]);
+
+    const indexes = db.prepare('PRAGMA index_list(tasks)').all() as { name: string }[];
+    expect(indexes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'idx_tasks_status_updated_at' })]),
+    );
+
     // Idempotence test
     expect(() => runMigrations(db)).not.toThrow();
+    expect(
+      db.prepare('SELECT version, name FROM _relay_migrations ORDER BY version').all(),
+    ).toHaveLength(2);
+  });
+
+  it.each([
+    ['blank title', { title: '   ' }],
+    ['title longer than 300 characters', { title: 't'.repeat(301) }],
+    ['description longer than 10,000 characters', { description: 'd'.repeat(10_001) }],
+    ['workspace longer than 255 characters', { workspace: 'w'.repeat(256) }],
+    ['source context longer than 1,000 characters', { source_context: 's'.repeat(1_001) }],
+    ['creator name longer than 100 characters', { created_by_name: 'c'.repeat(101) }],
+    ['unsupported status', { status: 'UNKNOWN' }],
+    ['unsupported priority', { priority: 'URGENT' }],
+    ['unsupported creator type', { created_by_type: 'SYSTEM' }],
+    ['agent without a name', { created_by_type: 'AGENT', created_by_name: null }],
+    ['done without completion time', { status: 'DONE', completed_at: null }],
+    [
+      'completion time on an active task',
+      { status: 'ACTIVE', completed_at: '2026-07-25T10:00:00.000Z' },
+    ],
+    ['archived without archive time', { status: 'ARCHIVED', archived_at: null }],
+    ['archive time on an inbox task', { status: 'INBOX', archived_at: '2026-07-25T10:00:00.000Z' }],
+  ])('rejects a task with %s', (_scenario, changes) => {
+    tempDb = createTemporaryDatabase();
+    const { db } = tempDb;
+    runMigrations(db);
+
+    const task = {
+      id: 'task-1',
+      title: 'Valid title',
+      description: null,
+      status: 'INBOX',
+      priority: null,
+      workspace: null,
+      source_context: null,
+      created_by_type: 'HUMAN',
+      created_by_name: null,
+      created_at: '2026-07-25T09:00:00.000Z',
+      updated_at: '2026-07-25T09:00:00.000Z',
+      started_at: null,
+      completed_at: null,
+      archived_at: null,
+      ...changes,
+    };
+
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO tasks (
+            id, title, description, status, priority, workspace, source_context,
+            created_by_type, created_by_name, created_at, updated_at, started_at,
+            completed_at, archived_at
+          ) VALUES (
+            @id, @title, @description, @status, @priority, @workspace, @source_context,
+            @created_by_type, @created_by_name, @created_at, @updated_at, @started_at,
+            @completed_at, @archived_at
+          )`,
+        )
+        .run(task),
+    ).toThrow();
   });
 
   it('detects migration file tampering and throws RelayError', () => {
