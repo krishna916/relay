@@ -77,7 +77,20 @@ function validateJsonFiles(files: readonly string[]): void {
 function validatePlaceholders(files: readonly string[]): void {
   const placeholderTokens = ['TO' + 'DO', 'TB' + 'D'];
   const placeholderPattern = new RegExp(`\\b(?:${placeholderTokens.join('|')})\\b`);
-  const textExtensions = new Set(['.md', '.ts', '.tsx', '.js', '.json', '.yml', '.yaml', '.sql']);
+  const textExtensions = new Set([
+    '.md',
+    '.ts',
+    '.tsx',
+    '.js',
+    '.json',
+    '.yml',
+    '.yaml',
+    '.sql',
+    '.html',
+    '.css',
+    '.mjs',
+    '.cjs',
+  ]);
 
   for (const filePath of files) {
     const extension = filePath.slice(filePath.lastIndexOf('.'));

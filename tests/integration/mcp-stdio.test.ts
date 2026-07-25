@@ -8,7 +8,7 @@ import { execSync } from 'node:child_process';
 
 describe('mcp-stdio integration', () => {
   beforeAll(() => {
-    execSync('pnpm.cmd build:node', { stdio: 'inherit' });
+    execSync('pnpm build:node', { stdio: 'inherit' });
   });
 
   it('spawns built MCP stdio process and calls relay_health tool cleanly', async () => {

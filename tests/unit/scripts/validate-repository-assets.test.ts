@@ -82,4 +82,13 @@ describe('validateRepositoryAssets', () => {
 
     expect(() => validateRepositoryAssets({ rootDir })).toThrow(new RegExp('TO' + 'DO', 'i'));
   });
+
+  it('rejects unresolved placeholder markers in committed html assets', () => {
+    const rootDir = createFixtureRoot();
+    createdRoots.push(rootDir);
+
+    writeFileSync(join(rootDir, 'web', 'index.html'), `<!-- ${'TO' + 'DO'} -->\n`);
+
+    expect(() => validateRepositoryAssets({ rootDir })).toThrow(new RegExp('TO' + 'DO', 'i'));
+  });
 });

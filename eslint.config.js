@@ -2,7 +2,8 @@ import tsParser from '@typescript-eslint/parser';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
 import reactHooks from 'eslint-plugin-react-hooks';
 
-export default [
+/** @type {import('eslint').Linter.Config[]} */
+const config = [
   {
     ignores: ['dist/**', 'coverage/**', 'node_modules/**'],
   },
@@ -28,6 +29,8 @@ export default [
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-misused-promises': 'error',
       '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'error',
       'no-console': 'off',
     },
   },
@@ -38,3 +41,5 @@ export default [
     },
   },
 ];
+
+export default config;

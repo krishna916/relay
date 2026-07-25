@@ -141,9 +141,6 @@ Local task sidecar for human–AI workflows.
 corepack enable
 pnpm install
 ```
-````
-
-````
 
 - [ ] **Step 7: Install initial dependencies and lock file**
 

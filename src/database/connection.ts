@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { RelayError } from '../shared/errors.js';
 import { resolveDatabasePath } from './database-config.js';
 
 export interface DatabaseConnectionOptions {
@@ -20,7 +21,11 @@ export function createDatabaseConnection(
   const db = new Database(dbPath, { readonly: options.readonly ?? false });
 
   db.pragma('foreign_keys = ON');
-  db.pragma('journal_mode = WAL');
+  const journalMode = db.pragma('journal_mode = WAL', { simple: true });
+  if (!db.readonly && dbPath !== ':memory:' && String(journalMode).toLowerCase() !== 'wal') {
+    db.close();
+    throw new RelayError(`Failed to enable WAL journal mode for database at ${dbPath}.`);
+  }
   db.pragma('busy_timeout = 5000');
 
   return db;

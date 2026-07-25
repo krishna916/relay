@@ -9,7 +9,7 @@ describe('http-health integration', () => {
   let serverInstance: HttpServerInstance | null = null;
 
   beforeAll(() => {
-    execSync('pnpm.cmd build:web', { stdio: 'inherit' });
+    execSync('pnpm build:web', { stdio: 'inherit' });
   });
 
   afterEach(async () => {

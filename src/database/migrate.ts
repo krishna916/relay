@@ -30,6 +30,18 @@ export function runMigrations(db: Database.Database, options: MigrationOptions =
 
   const appliedMap = new Map(appliedRows.map((r) => [r.version, r]));
   const migrationFiles = loadMigrationFiles(migrationsDir);
+  const availableVersions = new Set(migrationFiles.map((file) => file.version));
+
+  for (const applied of appliedRows) {
+    if (availableVersions.has(applied.version)) {
+      continue;
+    }
+
+    throw new RelayError(
+      `Migration mismatch for version ${applied.version} (${String(applied.version).padStart(4, '0')}_${applied.name}.sql). ` +
+        `Applied checksum/name does not match repository SQL file. Applied SQL files are immutable.`,
+    );
+  }
 
   for (const file of migrationFiles) {
     const applied = appliedMap.get(file.version);

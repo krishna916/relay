@@ -7,7 +7,14 @@ async function main(): Promise<void> {
 
     const shutdown = () => {
       process.stderr.write('[INFO] Stopping HTTP server...\n');
-      void instance.stop().then(() => process.exit(0));
+      void instance
+        .stop()
+        .then(() => process.exit(0))
+        .catch((error: unknown) => {
+          const msg = error instanceof Error ? error.message : String(error);
+          process.stderr.write(`[ERROR] Failed to stop HTTP server cleanly: ${msg}\n`);
+          process.exit(1);
+        });
     };
 
     process.on('SIGINT', shutdown);

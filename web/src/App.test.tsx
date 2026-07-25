@@ -45,4 +45,32 @@ describe('App component', () => {
     });
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
+
+  it('aborts the active retry request when the component unmounts', async () => {
+    const abortError = Object.assign(new Error('Aborted'), { name: 'AbortError' });
+    vi.spyOn(healthClient, 'fetchHealth')
+      .mockRejectedValueOnce(new Error('Connection refused'))
+      .mockImplementationOnce(
+        (signal?: AbortSignal) =>
+          new Promise((_, reject) => {
+            signal?.addEventListener('abort', () => reject(abortError), { once: true });
+          }),
+      );
+
+    const { unmount } = render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('status-error')).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByText('Retry'));
+    unmount();
+
+    await waitFor(() => {
+      expect(healthClient.fetchHealth).toHaveBeenCalledTimes(2);
+    });
+
+    const retrySignal = vi.mocked(healthClient.fetchHealth).mock.calls[1]?.[0];
+    expect(retrySignal?.aborted).toBe(true);
+  });
 });

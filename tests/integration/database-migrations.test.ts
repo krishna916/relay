@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTemporaryDatabase } from '../support/temporary-database.js';
 import { runMigrations } from '../../src/database/migrate.js';
@@ -66,6 +66,23 @@ describe('database-migrations integration', () => {
     writeFileSync(sqlPath, 'CREATE TABLE test_table (id INT PRIMARY KEY, name TEXT);');
 
     // Attempting re-migration must fail due to SHA-256 mismatch
+    expect(() => runMigrations(db, { migrationsDir })).toThrow(RelayError);
+    expect(() => runMigrations(db, { migrationsDir })).toThrow(/Migration mismatch/);
+  });
+
+  it('rejects startup when an already-applied migration file is missing', () => {
+    tempDb = createTemporaryDatabase();
+    const { db, dir } = tempDb;
+
+    const migrationsDir = join(dir, 'migrations');
+    mkdirSync(migrationsDir, { recursive: true });
+
+    const sqlPath = join(migrationsDir, '0001_initial.sql');
+    writeFileSync(sqlPath, 'CREATE TABLE test_table (id INT PRIMARY KEY);');
+
+    runMigrations(db, { migrationsDir });
+    rmSync(sqlPath);
+
     expect(() => runMigrations(db, { migrationsDir })).toThrow(RelayError);
     expect(() => runMigrations(db, { migrationsDir })).toThrow(/Migration mismatch/);
   });

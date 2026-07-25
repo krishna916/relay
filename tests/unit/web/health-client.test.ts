@@ -30,4 +30,16 @@ describe('health-client', () => {
 
     await expect(fetchHealth()).rejects.toThrow('Health check failed with status 500');
   });
+
+  it('throws on malformed 200 response payload', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ status: 'ok', version: 1 }),
+      }),
+    );
+
+    await expect(fetchHealth()).rejects.toThrow('Invalid health check response schema');
+  });
 });

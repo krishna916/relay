@@ -13,15 +13,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: 'pnpm'
-
-      - name: Enable Corepack
-        run: corepack enable
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

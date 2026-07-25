@@ -22,8 +22,6 @@ async function main(): Promise<void> {
       } catch (error) {
         mcpLogger.error('Failed during MCP shutdown', error);
         process.exitCode = 1;
-      } finally {
-        process.exit();
       }
     };
 
