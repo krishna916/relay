@@ -1,4 +1,5 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { execSync } from 'node:child_process';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
   createHttpServer,
   type HttpServerInstance,
@@ -6,6 +7,10 @@ import {
 
 describe('http-health integration', () => {
   let serverInstance: HttpServerInstance | null = null;
+
+  beforeAll(() => {
+    execSync('pnpm.cmd build:web', { stdio: 'inherit' });
+  });
 
   afterEach(async () => {
     if (serverInstance) {
@@ -43,5 +48,34 @@ describe('http-health integration', () => {
     expect(res.status).toBe(404);
     const body = (await res.json()) as { error: string };
     expect(body).toEqual({ error: 'not_found' });
+  });
+
+  it('serves the built web shell from GET / when present', async () => {
+    serverInstance = await createHttpServer({ host: '127.0.0.1', port: 0 });
+    const { url } = serverInstance;
+
+    const res = await fetch(`${url}/`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/html');
+    await expect(res.text()).resolves.toContain('<div id="root"></div>');
+  });
+
+  it('serves built JavaScript assets and supports HEAD for static files', async () => {
+    serverInstance = await createHttpServer({ host: '127.0.0.1', port: 0 });
+    const { url } = serverInstance;
+
+    const html = await fetch(`${url}/`).then((response) => response.text());
+    const assetPath = html.match(/src="([^"]+assets\/[^"]+\.js)"/)?.[1];
+
+    expect(assetPath).toBeDefined();
+
+    const headResponse = await fetch(`${url}/`, { method: 'HEAD' });
+    expect(headResponse.status).toBe(200);
+    expect(await headResponse.text()).toBe('');
+
+    const assetResponse = await fetch(`${url}${assetPath}`);
+    expect(assetResponse.status).toBe(200);
+    expect(assetResponse.headers.get('content-type')).toContain('text/javascript');
   });
 });

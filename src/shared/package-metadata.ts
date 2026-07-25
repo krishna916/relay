@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { resolveFromPackageRoot } from './runtime-paths.js';
 
 export interface PackageMetadata {
   readonly name: string;
@@ -11,7 +11,7 @@ let cachedMetadata: PackageMetadata | null = null;
 export function getPackageMetadata(): PackageMetadata {
   if (cachedMetadata) return cachedMetadata;
 
-  const pkgPath = join(process.cwd(), 'package.json');
+  const pkgPath = resolveFromPackageRoot('package.json');
   const content = readFileSync(pkgPath, 'utf-8');
   const parsed = JSON.parse(content) as { name: string; version: string };
 

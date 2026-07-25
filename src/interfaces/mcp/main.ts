@@ -6,15 +6,33 @@ async function main(): Promise<void> {
   try {
     const server = createMcpServer();
     const transport = new StdioServerTransport();
+    let shuttingDown = false;
+
+    const shutdown = async (signal: 'SIGINT' | 'SIGTERM'): Promise<void> => {
+      if (shuttingDown) {
+        return;
+      }
+
+      shuttingDown = true;
+      mcpLogger.info(`Received ${signal}, shutting down MCP server...`);
+
+      try {
+        await server.close();
+        process.exitCode = 0;
+      } catch (error) {
+        mcpLogger.error('Failed during MCP shutdown', error);
+        process.exitCode = 1;
+      } finally {
+        process.exit();
+      }
+    };
 
     process.on('SIGINT', () => {
-      mcpLogger.info('Received SIGINT, shutting down MCP server...');
-      process.exit(0);
+      void shutdown('SIGINT');
     });
 
     process.on('SIGTERM', () => {
-      mcpLogger.info('Received SIGTERM, shutting down MCP server...');
-      process.exit(0);
+      void shutdown('SIGTERM');
     });
 
     await server.connect(transport);

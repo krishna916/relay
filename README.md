@@ -7,14 +7,18 @@ Local task sidecar for human–AI workflows.
 ## Prerequisites
 
 - Node.js `24.x` LTS (`.nvmrc`)
+  - Supported release line as of `2026-07-25`: Node `24.x` (`26.x` is Current, `25.x` is EOL)
 - pnpm `10.2.0` (managed via Corepack)
 
 ## Setup
 
 ```bash
 corepack enable
+nvm use
 pnpm install --frozen-lockfile
 ```
+
+If you use `fnm`, `asdf`, or another version manager, switch to Node `24` before running install or verification.
 
 ## Available Scripts
 
@@ -111,4 +115,4 @@ Boundary rules:
 ## Troubleshooting
 
 - **`better-sqlite3` build issues:** Ensure Python and a C++ compiler build toolchain are installed if prebuilt binaries are unavailable.
-- **Node version mismatch:** Relay requires Node.js `24.x`. Use `nvm use` or `fnm use` to switch Node versions according to `.nvmrc`.
+- **Node version mismatch:** Relay supports Node.js `24.x` only. If your shell is on Node `25.x` or `26.x`, switch to Node `24` with `nvm use`, `fnm use 24`, or the equivalent command for your version manager before running `pnpm install` or `pnpm verify`.

@@ -6,3 +6,12 @@ coverage/
 *.tmp
 package-lock.json
 *.tsbuildinfo
+.idea/
+.superpowers/
+.vscode/
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*.bak
+*.orig

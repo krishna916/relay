@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3';
-import { join } from 'node:path';
 import { loadMigrationFiles } from './migration.js';
 import { RelayError } from '../shared/errors.js';
+import { resolveFromPackageRoot } from '../shared/runtime-paths.js';
 
 export interface MigrationOptions {
   readonly migrationsDir?: string;
@@ -9,7 +9,7 @@ export interface MigrationOptions {
 
 export function runMigrations(db: Database.Database, options: MigrationOptions = {}): void {
   const migrationsDir =
-    options.migrationsDir || join(process.cwd(), 'src', 'database', 'migrations');
+    options.migrationsDir || resolveFromPackageRoot('src', 'database', 'migrations');
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS _relay_migrations (

@@ -1,6 +1,9 @@
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { extname, relative, resolve } from 'node:path';
 import { getHealth } from '../../application/health/get-health.js';
 import { RelayError } from '../../shared/errors.js';
+import { resolveFromPackageRoot } from '../../shared/runtime-paths.js';
 
 export interface HttpServerOptions {
   readonly host?: string;
@@ -13,6 +16,55 @@ export interface HttpServerInstance {
   readonly port: number;
   readonly url: string;
   readonly stop: () => Promise<void>;
+}
+
+const webBuildDirectory = resolveFromPackageRoot('dist', 'web');
+
+export function getContentType(filePath: string): string {
+  switch (extname(filePath)) {
+    case '.html':
+      return 'text/html; charset=utf-8';
+    case '.js':
+      return 'text/javascript; charset=utf-8';
+    case '.css':
+      return 'text/css; charset=utf-8';
+    case '.json':
+      return 'application/json; charset=utf-8';
+    case '.svg':
+      return 'image/svg+xml';
+    case '.ico':
+      return 'image/x-icon';
+    default:
+      return 'application/octet-stream';
+  }
+}
+
+export function resolveStaticAsset(pathname: string): string | null {
+  if (!existsSync(webBuildDirectory)) {
+    return null;
+  }
+
+  const relativePath = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
+  if (!relativePath) {
+    return null;
+  }
+
+  const candidatePath = resolve(webBuildDirectory, relativePath);
+  const relativeToBuildDir = relative(webBuildDirectory, candidatePath);
+
+  if (
+    relativeToBuildDir.startsWith('..') ||
+    relativeToBuildDir.includes('..\\') ||
+    relativeToBuildDir.includes('../')
+  ) {
+    return null;
+  }
+
+  if (!existsSync(candidatePath) || !statSync(candidatePath).isFile()) {
+    return null;
+  }
+
+  return candidatePath;
 }
 
 export function resolveHttpPort(explicitPort?: number): number {
@@ -64,6 +116,20 @@ export function createHttpServer(options: HttpServerOptions = {}): Promise<HttpS
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(health));
       return;
+    }
+
+    if (req.method === 'GET' || req.method === 'HEAD') {
+      const staticAssetPath = resolveStaticAsset(url.pathname);
+      if (staticAssetPath) {
+        res.writeHead(200, { 'Content-Type': getContentType(staticAssetPath) });
+        if (req.method === 'HEAD') {
+          res.end();
+          return;
+        }
+
+        res.end(readFileSync(staticAssetPath));
+        return;
+      }
     }
 
     res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
