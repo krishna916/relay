@@ -24,7 +24,8 @@
     "dev:mcp": "node --import tsx/esm src/interfaces/mcp/main.ts",
     "dev:http": "node --import tsx/esm src/interfaces/http/main.ts",
     "dev:web": "vite",
-    "dev:ui": "concurrently -k -p name -c \"blue,green\" \"pnpm dev:http\" \"pnpm dev:web\""
+    "dev:ui": "concurrently -k -p name -c \"blue,green\" \"pnpm dev:http\" \"pnpm dev:web\"",
+    "validate:assets": "node --import tsx/esm scripts/validate-repository-assets.ts"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.0",
