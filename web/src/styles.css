@@ -1,0 +1,85 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  color: #172033;
+  background: #f4f6f9;
+}
+.app {
+  max-width: 1280px;
+  margin: auto;
+  padding: 24px;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: start;
+}
+nav {
+  display: flex;
+  gap: 8px;
+  margin: 20px 0;
+}
+button {
+  cursor: pointer;
+  padding: 8px 12px;
+}
+nav button[aria-current='page'] {
+  background: #183d78;
+  color: white;
+}
+main {
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) minmax(320px, 0.8fr);
+  gap: 20px;
+}
+section,
+.composer {
+  background: white;
+  border: 1px solid #d7dde7;
+  border-radius: 8px;
+  padding: 16px;
+}
+label {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0;
+}
+input,
+textarea,
+select {
+  font: inherit;
+  padding: 7px;
+}
+textarea {
+  min-height: 70px;
+}
+.task-list {
+  list-style: none;
+  padding: 0;
+}
+.task-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 8px;
+  text-align: left;
+  margin: 6px 0;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+@media (max-width: 800px) {
+  main {
+    grid-template-columns: 1fr;
+  }
+  header {
+    display: block;
+  }
+}

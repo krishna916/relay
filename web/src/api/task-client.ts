@@ -42,7 +42,10 @@ export async function listTasks(
 ): Promise<readonly TaskDto[]> {
   const params = new URLSearchParams({ view });
   if (limit !== undefined) params.set('limit', String(limit));
-  const response = await request(`/api/tasks?${params.toString()}`, signal === undefined ? {} : { signal });
+  const response = await request(
+    `/api/tasks?${params.toString()}`,
+    signal === undefined ? {} : { signal },
+  );
   const payload = await responsePayload(response);
   const parsed = TaskListResponseSchema.safeParse(payload);
   if (!parsed.success) throw invalidResponse(false);

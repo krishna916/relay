@@ -9,9 +9,9 @@ import {
   listTasks,
   moveTaskToBacklog,
   moveTaskToInbox,
-  RelayApiError,
   startTask,
 } from '../../../web/src/api/task-client.js';
+import type { RelayApiError } from '../../../web/src/api/task-client.js';
 
 const task = {
   id: 'task / 1',
