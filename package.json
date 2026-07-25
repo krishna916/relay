@@ -25,7 +25,9 @@
     "dev:http": "node --import tsx/esm src/interfaces/http/main.ts",
     "dev:web": "vite",
     "dev:ui": "concurrently -k -p name -c \"blue,green\" \"pnpm dev:http\" \"pnpm dev:web\"",
-    "validate:assets": "node --import tsx/esm scripts/validate-repository-assets.ts"
+    "validate:assets": "node --import tsx/esm scripts/validate-repository-assets.ts",
+    "audit": "pnpm audit --audit-level high",
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm build && pnpm validate:assets && pnpm audit --audit-level high"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.0",
@@ -37,6 +39,7 @@
     "@typescript-eslint/eslint-plugin": "^8.65.0",
     "@typescript-eslint/parser": "^8.65.0",
     "@vitejs/plugin-react": "^6.0.4",
+    "@vitest/coverage-v8": "^4.1.10",
     "concurrently": "^10.0.4",
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",

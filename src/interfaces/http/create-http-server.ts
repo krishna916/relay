@@ -37,12 +37,17 @@ export function resolveHttpPort(explicitPort?: number): number {
 
 export function createHttpServer(options: HttpServerOptions = {}): Promise<HttpServerInstance> {
   const host = options.host || '127.0.0.1';
-  const port = resolveHttpPort(options.port);
+  let port: number;
 
-  if (host !== '127.0.0.1' && host !== 'localhost') {
-    throw new RelayError(
-      `Loopback security restriction: HTTP server host must be 127.0.0.1 or localhost (got ${host}).`,
-    );
+  try {
+    port = resolveHttpPort(options.port);
+    if (host !== '127.0.0.1' && host !== 'localhost') {
+      throw new RelayError(
+        `Loopback security restriction: HTTP server host must be 127.0.0.1 or localhost (got ${host}).`,
+      );
+    }
+  } catch (err) {
+    return Promise.reject(err);
   }
 
   const requestHandler = (req: IncomingMessage, res: ServerResponse) => {

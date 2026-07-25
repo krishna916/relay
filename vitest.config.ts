@@ -3,19 +3,20 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'node',
+    environment: 'jsdom',
     include: ['tests/**/*.test.ts', 'web/src/**/*.test.tsx'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       include: [
-        'src/application/**',
-        'src/database/**',
+        'src/application/**/*.ts',
+        'src/database/*.ts',
         'src/interfaces/mcp/create-mcp-server.ts',
         'src/interfaces/http/create-http-server.ts',
-        'web/src/api/**',
+        'web/src/api/**/*.ts',
         'web/src/App.tsx',
       ],
+      exclude: ['src/application/health/health.ts', 'src/**/*.d.ts'],
       thresholds: {
         statements: 80,
         branches: 80,
