@@ -12,11 +12,19 @@
     "relay-mcp": "./dist/mcp/main.js"
   },
   "scripts": {
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --build --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
-    "typescript": "^7.0.2"
+    "@typescript-eslint/eslint-plugin": "^8.65.0",
+    "@typescript-eslint/parser": "^8.65.0",
+    "eslint": "^10.8.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
   }
 }
