@@ -168,6 +168,9 @@ function isSqliteConstraintError(error: unknown): error is Error & { readonly co
 }
 
 function validateListQuery(query: TaskListQuery): void {
+  if (query === null || typeof query !== 'object' || !Array.isArray(query.statuses)) {
+    throw new TaskRepositoryError('Task list query is invalid.');
+  }
   if (query.statuses.length === 0 || query.statuses.some((status) => !isTaskStatus(status))) {
     throw new TaskRepositoryError('At least one valid task status is required.');
   }

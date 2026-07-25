@@ -12,6 +12,7 @@ import {
   TaskRepositoryError,
   TaskRepositoryNotFoundError,
 } from '../../src/application/tasks/task-repository-errors.js';
+import type { TaskListQuery } from '../../src/application/tasks/task-repository.js';
 import { SqliteTaskRepository } from '../../src/database/tasks/sqlite-task-repository.js';
 import {
   createMigratedTemporaryDatabase,
@@ -291,6 +292,27 @@ describe('SQLite task repository list', () => {
     ]);
   });
 
+  it.each([
+    ['INBOX', null, null, null],
+    ['ACTIVE', null, null, null],
+    ['IN_PROGRESS', '2026-07-25T09:30:00.000Z', null, null],
+    ['BACKLOG', null, null, null],
+    ['DONE', null, '2026-07-25T10:30:00.000Z', null],
+    ['ARCHIVED', null, null, '2026-07-25T11:30:00.000Z'],
+  ] as const)('lists tasks with the %s status', (status, startedAt, completedAt, archivedAt) => {
+    const repository = createRepository();
+    const task = taskFixture({
+      id: `list-${status.toLowerCase()}`,
+      status,
+      startedAt,
+      completedAt,
+      archivedAt,
+    });
+    repository.create(task);
+
+    expect(repository.list({ statuses: [status], limit: 1 })).toEqual([task]);
+  });
+
   it('orders by updated time, creation time, and ascending ID', () => {
     const repository = createRepository();
     const older = taskFixture({
@@ -349,6 +371,22 @@ describe('SQLite task repository list', () => {
 
     expect(() => repository.list(query)).toThrow(TaskRepositoryError);
   });
+
+  it('rejects an unsupported runtime status with a stable repository error', () => {
+    const repository = createRepository();
+    const query = { statuses: ['UNKNOWN'], limit: 1 } as unknown as TaskListQuery;
+
+    expect(() => repository.list(query)).toThrow(TaskRepositoryError);
+  });
+
+  it.each([undefined, null, {}, { statuses: null, limit: 1 }])(
+    'rejects a malformed runtime list query: %s',
+    (query) => {
+      const repository = createRepository();
+
+      expect(() => repository.list(query as unknown as TaskListQuery)).toThrow(TaskRepositoryError);
+    },
+  );
 });
 
 describe('SQLite task repository failure translation', () => {
