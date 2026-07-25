@@ -32,6 +32,7 @@ export class InMemoryTaskRepository implements TaskRepository {
   public findCalls = 0;
   public updateCalls = 0;
   public listCalls = 0;
+  public lastListQuery: TaskListQuery | null = null;
   public createFailure: Error | null = null;
   public findFailure: Error | null = null;
   public updateFailure: Error | null = null;
@@ -59,6 +60,7 @@ export class InMemoryTaskRepository implements TaskRepository {
 
   public list(query: TaskListQuery): readonly Task[] {
     this.listCalls += 1;
+    this.lastListQuery = query;
     if (this.listFailure !== null) throw this.listFailure;
     return [...this.tasks.values()]
       .filter((task) => query.statuses.includes(task.status))

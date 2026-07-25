@@ -141,6 +141,10 @@ describe('TaskApplication', () => {
     repository.tasks.set(inbox.id, inbox);
     repository.tasks.set(active.id, active);
     expect(application.list({ statuses: ['ACTIVE', 'INBOX', 'ACTIVE'] })).toEqual([inbox, active]);
+    expect(repository.lastListQuery).toEqual({
+      statuses: ['ACTIVE', 'INBOX'],
+      limit: 100,
+    });
     expect(application.list({ statuses: ['INBOX'], limit: 1 })).toEqual([inbox]);
     expect(application.list({ statuses: ['INBOX'] })).toEqual([inbox]);
     expect(repository.listCalls).toBe(3);
