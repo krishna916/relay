@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    fileParallelism: false,
     include: ['tests/**/*.test.ts', 'web/src/**/*.test.tsx'],
     coverage: {
       provider: 'v8',

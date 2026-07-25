@@ -157,6 +157,7 @@ Expected: `All matched files use Prettier code style!`
 ```bash
 git add .nvmrc .editorconfig .gitignore .prettierignore .prettierrc.json package.json pnpm-lock.yaml README.md
 git commit -m "chore: initialize repository scaffold and package metadata"
+```
 ````
 
 ---
