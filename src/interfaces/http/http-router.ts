@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { readFileSync } from 'node:fs';
 import type { TaskApplication } from '../../application/tasks/task-application.js';
+import { TaskApplicationError } from '../../application/tasks/task-application-errors.js';
 import { getHealth } from '../../application/health/get-health.js';
 import { toHttpError, HttpError } from './http-errors.js';
 import { sendError, sendJson } from './http-json.js';
@@ -46,7 +47,8 @@ export async function routeHttpRequest(
     throw new HttpError(404, 'NOT_FOUND', 'Route was not found.');
   } catch (error) {
     const mapped = toHttpError(error);
-    if (mapped.status === 500) process.stderr.write('[ERROR] Unhandled HTTP request failure.\n');
+    if (mapped.status === 500 && !(error instanceof TaskApplicationError))
+      process.stderr.write('[ERROR] Unhandled HTTP request failure.\n');
     sendError(response, mapped);
   }
 }

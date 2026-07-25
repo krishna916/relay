@@ -33,11 +33,13 @@
 ### Task 1: Add browser task contracts and HTTP client
 
 **Files:**
+
 - Create: `web/src/api/task-contracts.ts`
 - Create: `web/src/api/task-client.ts`
 - Create: `tests/unit/web/task-client.test.ts`
 
 **Interfaces:**
+
 - Produces `TaskDto`, `TaskView`, `CreateTaskInput`, `EditTaskInput`, and `RelayApiError`.
 - Produces `createTask`, `getTask`, `listTasks`, `editTask`, and one `POST` helper per lifecycle endpoint.
 
@@ -69,6 +71,7 @@ git commit -m "Add browser task API client"
 ### Task 2: Establish the semantic UI shell and task-view loading hook
 
 **Files:**
+
 - Create: `web/src/components/ViewNavigation.tsx`
 - Create: `web/src/components/ErrorBanner.tsx`
 - Create: `web/src/hooks/useTaskView.ts`
@@ -78,6 +81,7 @@ git commit -m "Add browser task API client"
 - Modify: `web/src/App.test.tsx`
 
 **Interfaces:**
+
 - `useTaskView(view)` returns `{ tasks, loading, error, reload, replaceTask, removeTask }`.
 - `ViewNavigation` accepts the selected `TaskView` and view-change callback.
 
@@ -100,6 +104,7 @@ Run: `pnpm.cmd test -- web/src/App.test.tsx`
 ### Task 3: Implement task list, status display, and read-only detail selection
 
 **Files:**
+
 - Create: `web/src/components/TaskStatusBadge.tsx`
 - Create: `web/src/components/TaskRow.tsx`
 - Create: `web/src/components/TaskList.tsx`
@@ -108,6 +113,7 @@ Run: `pnpm.cmd test -- web/src/App.test.tsx`
 - Modify: `web/src/App.test.tsx`
 
 **Interfaces:**
+
 - `TaskList` receives a view, `readonly TaskDto[]`, selected task ID, and `onSelect`.
 - `TaskDetailsPanel` receives one selected `TaskDto | null`, task callbacks, and pending/error state.
 
@@ -130,11 +136,13 @@ Run: `pnpm.cmd test -- web/src/App.test.tsx`
 ### Task 4: Add quick task capture and authoritative create reconciliation
 
 **Files:**
+
 - Create: `web/src/components/TaskComposer.tsx`
 - Modify: `web/src/App.tsx`
 - Modify: `web/src/App.test.tsx`
 
 **Interfaces:**
+
 - `TaskComposer` submits `CreateTaskInput` and receives `pending`, error/details, and success notification callbacks.
 
 - [ ] **Step 1: Write failing tests for create success, validation failure, and duplicate submission**
@@ -156,11 +164,13 @@ Run: `pnpm.cmd test -- web/src/App.test.tsx`
 ### Task 5: Add metadata editing and app-owned dirty-discard confirmation
 
 **Files:**
+
 - Modify: `web/src/components/TaskDetailsPanel.tsx`
 - Modify: `web/src/App.tsx`
 - Modify: `web/src/App.test.tsx`
 
 **Interfaces:**
+
 - `onEdit(id, EditTaskInput): Promise<void>` supplies the complete server-returned task to view reconciliation.
 - Details panel exposes `Edit task`, `Save changes`, `Cancel`, and discard-confirmation controls.
 
@@ -183,11 +193,13 @@ Run: `pnpm.cmd test -- web/src/App.test.tsx`
 ### Task 6: Add lifecycle actions, archive confirmation, and conflict reconciliation
 
 **Files:**
+
 - Modify: `web/src/components/TaskDetailsPanel.tsx`
 - Modify: `web/src/App.tsx`
 - Modify: `web/src/App.test.tsx`
 
 **Interfaces:**
+
 - `onAction(task, action)` calls the matching client function and reconciles only with its returned `TaskDto`.
 
 - [ ] **Step 1: Write failing lifecycle tests**
@@ -209,6 +221,7 @@ Run: `pnpm.cmd test -- web/src/App.test.tsx`
 ### Task 7: Complete coverage configuration and quality verification
 
 **Files:**
+
 - Modify: `vitest.config.ts`
 - Modify: `web/src/App.test.tsx`
 
