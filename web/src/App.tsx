@@ -129,7 +129,7 @@ export function App() {
           {serviceError ? (
             <>
               <strong>Relay service unavailable</strong>{' '}
-              <button onClick={checkHealth} type="button">
+              <button aria-label="Retry connection" onClick={checkHealth} type="button">
                 Retry
               </button>
             </>

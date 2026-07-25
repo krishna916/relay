@@ -63,7 +63,9 @@ describe('App', () => {
     render(<App />);
     await screen.findByText('Unable to load tasks.');
     expect(screen.getByText('Relay service unavailable')).toBeDefined();
-    fireEvent.click(screen.getAllByRole('button', { name: 'Retry' })[0]!);
+    expect(screen.getByRole('button', { name: 'Retry connection' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await screen.findByText('No active work.');
   });
 
