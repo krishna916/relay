@@ -7,6 +7,12 @@ import {
   resolveStaticAsset,
 } from '../../../../src/interfaces/http/create-http-server.js';
 import { RelayError } from '../../../../src/shared/errors.js';
+import { createTaskApplication } from '../../../../src/application/tasks/task-application.js';
+import { SqliteTaskRepository } from '../../../../src/database/tasks/sqlite-task-repository.js';
+import {
+  createMigratedTemporaryDatabase,
+  type TemporaryDatabaseContext,
+} from '../../../support/temporary-database.js';
 
 describe('resolveHttpPort', () => {
   const origEnv = process.env.RELAY_HTTP_PORT;
@@ -49,8 +55,23 @@ beforeAll(() => {
 });
 
 describe('createHttpServer security restrictions', () => {
+  let database: TemporaryDatabaseContext | null = null;
+
+  afterEach(() => {
+    database?.cleanup();
+    database = null;
+  });
+
   it('throws RelayError if host is not loopback', async () => {
-    await expect(createHttpServer({ host: '0.0.0.0' })).rejects.toThrow(RelayError);
+    database = createMigratedTemporaryDatabase();
+    await expect(
+      createHttpServer({
+        host: '0.0.0.0',
+        taskApplication: createTaskApplication({
+          repository: new SqliteTaskRepository(database.db),
+        }),
+      }),
+    ).rejects.toThrow(RelayError);
   });
 });
 

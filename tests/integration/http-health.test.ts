@@ -4,9 +4,16 @@ import {
   createHttpServer,
   type HttpServerInstance,
 } from '../../src/interfaces/http/create-http-server.js';
+import { createTaskApplication } from '../../src/application/tasks/task-application.js';
+import { SqliteTaskRepository } from '../../src/database/tasks/sqlite-task-repository.js';
+import {
+  createMigratedTemporaryDatabase,
+  type TemporaryDatabaseContext,
+} from '../support/temporary-database.js';
 
 describe('http-health integration', () => {
   let serverInstance: HttpServerInstance | null = null;
+  let database: TemporaryDatabaseContext | null = null;
 
   beforeAll(() => {
     execSync('pnpm build:web', { stdio: 'inherit' });
@@ -17,10 +24,21 @@ describe('http-health integration', () => {
       await serverInstance.stop();
       serverInstance = null;
     }
+    database?.cleanup();
+    database = null;
   });
 
+  function createServer(): Promise<HttpServerInstance> {
+    database = createMigratedTemporaryDatabase();
+    return createHttpServer({
+      host: '127.0.0.1',
+      port: 0,
+      taskApplication: createTaskApplication({ repository: new SqliteTaskRepository(database.db) }),
+    });
+  }
+
   it('starts on 127.0.0.1 and returns 200 for GET /api/health', async () => {
-    serverInstance = await createHttpServer({ host: '127.0.0.1', port: 0 });
+    serverInstance = await createServer();
     const { url } = serverInstance;
 
     const res = await fetch(`${url}/api/health`);
@@ -32,7 +50,7 @@ describe('http-health integration', () => {
   });
 
   it('returns 405 Method Not Allowed for POST /api/health', async () => {
-    serverInstance = await createHttpServer({ host: '127.0.0.1', port: 0 });
+    serverInstance = await createServer();
     const { url } = serverInstance;
 
     const res = await fetch(`${url}/api/health`, { method: 'POST' });
@@ -41,17 +59,17 @@ describe('http-health integration', () => {
   });
 
   it('returns 404 Not Found for unknown routes', async () => {
-    serverInstance = await createHttpServer({ host: '127.0.0.1', port: 0 });
+    serverInstance = await createServer();
     const { url } = serverInstance;
 
     const res = await fetch(`${url}/unknown-route`);
     expect(res.status).toBe(404);
-    const body = (await res.json()) as { error: string };
-    expect(body).toEqual({ error: 'not_found' });
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body).toEqual({ error: { code: 'NOT_FOUND', message: 'Route was not found.' } });
   });
 
   it('serves the built web shell from GET / when present', async () => {
-    serverInstance = await createHttpServer({ host: '127.0.0.1', port: 0 });
+    serverInstance = await createServer();
     const { url } = serverInstance;
 
     const res = await fetch(`${url}/`);
@@ -62,7 +80,7 @@ describe('http-health integration', () => {
   });
 
   it('serves built JavaScript assets and supports HEAD for static files', async () => {
-    serverInstance = await createHttpServer({ host: '127.0.0.1', port: 0 });
+    serverInstance = await createServer();
     const { url } = serverInstance;
 
     const html = await fetch(`${url}/`).then((response) => response.text());

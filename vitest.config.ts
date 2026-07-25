@@ -13,7 +13,7 @@ export default defineConfig({
         'src/application/**/*.ts',
         'src/database/**/*.ts',
         'src/interfaces/mcp/create-mcp-server.ts',
-        'src/interfaces/http/create-http-server.ts',
+        'src/interfaces/http/**/*.ts',
         'web/src/api/**/*.ts',
         'web/src/App.tsx',
       ],

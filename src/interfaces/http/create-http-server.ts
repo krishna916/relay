@@ -1,13 +1,15 @@
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { extname, relative, resolve } from 'node:path';
-import { getHealth } from '../../application/health/get-health.js';
+import type { TaskApplication } from '../../application/tasks/task-application.js';
 import { RelayError } from '../../shared/errors.js';
 import { resolveFromPackageRoot } from '../../shared/runtime-paths.js';
+import { routeHttpRequest } from './http-router.js';
 
 export interface HttpServerOptions {
   readonly host?: string;
   readonly port?: number;
+  readonly taskApplication: TaskApplication;
 }
 
 export interface HttpServerInstance {
@@ -87,7 +89,7 @@ export function resolveHttpPort(explicitPort?: number): number {
   return 43110;
 }
 
-export function createHttpServer(options: HttpServerOptions = {}): Promise<HttpServerInstance> {
+export function createHttpServer(options: HttpServerOptions): Promise<HttpServerInstance> {
   const host = options.host || '127.0.0.1';
   let port: number;
 
@@ -103,37 +105,11 @@ export function createHttpServer(options: HttpServerOptions = {}): Promise<HttpS
   }
 
   const requestHandler = (req: IncomingMessage, res: ServerResponse) => {
-    const url = new URL(req.url || '/', `http://${req.headers.host || '127.0.0.1'}`);
-
-    if (url.pathname === '/api/health') {
-      if (req.method !== 'GET') {
-        res.writeHead(405, { 'Content-Type': 'application/json; charset=utf-8', Allow: 'GET' });
-        res.end(JSON.stringify({ error: 'method_not_allowed' }));
-        return;
-      }
-
-      const health = getHealth();
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify(health));
-      return;
-    }
-
-    if (req.method === 'GET' || req.method === 'HEAD') {
-      const staticAssetPath = resolveStaticAsset(url.pathname);
-      if (staticAssetPath) {
-        res.writeHead(200, { 'Content-Type': getContentType(staticAssetPath) });
-        if (req.method === 'HEAD') {
-          res.end();
-          return;
-        }
-
-        res.end(readFileSync(staticAssetPath));
-        return;
-      }
-    }
-
-    res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({ error: 'not_found' }));
+    void routeHttpRequest(req, res, {
+      taskApplication: options.taskApplication,
+      getStaticAsset: resolveStaticAsset,
+      getContentType,
+    });
   };
 
   const server = createServer(requestHandler);
