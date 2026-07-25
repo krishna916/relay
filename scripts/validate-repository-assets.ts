@@ -38,7 +38,9 @@ function validateAssets(): void {
   };
   const binRelayMcp = pkg.bin?.['relay-mcp'];
   if (binRelayMcp !== './dist/mcp/main.js') {
-    fail(`package.json#bin.relay-mcp must point to ./dist/mcp/main.js (got ${String(binRelayMcp)})`);
+    fail(
+      `package.json#bin.relay-mcp must point to ./dist/mcp/main.js (got ${String(binRelayMcp)})`,
+    );
   }
 
   // 3. Built MCP file existence after build

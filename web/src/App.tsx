@@ -51,9 +51,7 @@ export function App() {
             </button>
           </div>
         )}
-        {!loading && health && (
-          <p data-testid="status-success">Connected (v{health.version})</p>
-        )}
+        {!loading && health && <p data-testid="status-success">Connected (v{health.version})</p>}
       </div>
     </div>
   );

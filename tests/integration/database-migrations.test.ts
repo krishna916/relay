@@ -36,7 +36,9 @@ describe('database-migrations integration', () => {
     expect(migrations[0]?.name).toBe('scaffold');
 
     // Verify relay_metadata table scaffolded by 0001_scaffold.sql
-    const meta = db.prepare('SELECT key, value FROM relay_metadata WHERE key = ?').get('schema_version') as {
+    const meta = db
+      .prepare('SELECT key, value FROM relay_metadata WHERE key = ?')
+      .get('schema_version') as {
       key: string;
       value: string;
     };

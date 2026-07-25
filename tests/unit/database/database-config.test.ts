@@ -1,5 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { resolveDatabasePath, getDefaultDatabasePath } from '../../../src/database/database-config.js';
+import {
+  resolveDatabasePath,
+  getDefaultDatabasePath,
+} from '../../../src/database/database-config.js';
 
 describe('resolveDatabasePath', () => {
   const origEnv = process.env.RELAY_DB_PATH;
