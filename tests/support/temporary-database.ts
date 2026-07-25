@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type Database from 'better-sqlite3';
 import { createDatabaseConnection } from '../../src/database/connection.js';
+import { runMigrations } from '../../src/database/migrate.js';
 
 export interface TemporaryDatabaseContext {
   readonly dir: string;
@@ -26,4 +27,10 @@ export function createTemporaryDatabase(): TemporaryDatabaseContext {
   };
 
   return { dir, dbPath, db, cleanup };
+}
+
+export function createMigratedTemporaryDatabase(): TemporaryDatabaseContext {
+  const context = createTemporaryDatabase();
+  runMigrations(context.db);
+  return context;
 }
