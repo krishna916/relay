@@ -1,118 +1,105 @@
 # Relay
 
-Local task sidecar for human–AI workflows.
+Relay is a local task sidecar for human–AI workflows. The current MVP is usable directly through its local web UI: it stores tasks on this computer and exposes a loopback-only HTTP API behind the UI. Production MCP task tools and companion skills are future work tracked separately under issue #2.
 
-> **Status:** Scaffold stage (Issue #1). Task tracking, companion skills, vendor integration configs, and packaging are explicitly deferred to subsequent issues (Issue #2+).
+## Prerequisites and setup
 
-## Prerequisites
+- Node.js `24.x` (see `.nvmrc`)
+- pnpm `10.2.0`, managed by Corepack
 
-- Node.js `24.x` LTS (`.nvmrc`)
-  - Supported release line as of `2026-07-25`: Node `24.x` (`26.x` is Current, `25.x` is EOL)
-- pnpm `10.2.0` (managed via Corepack)
-
-## Setup
+From a clean checkout:
 
 ```bash
 corepack enable
 nvm use
 pnpm install --frozen-lockfile
+pnpm verify
 ```
 
-If you use `fnm`, `asdf`, or another version manager, switch to Node `24` before running install or verification.
+If you use `fnm`, `asdf`, or another version manager, select Node 24 before installing. `pnpm verify` is the authoritative non-mutating quality gate: it runs formatting, linting, TypeScript checks, coverage tests, builds, repository-asset validation, and a high-severity dependency audit.
 
-## Available Scripts
+## Run Relay
 
-- `pnpm verify` — **Non-mutating** aggregate quality gate. Executes `format:check -> lint -> typecheck -> test:coverage -> build -> validate:assets -> audit --audit-level high`.
-- `pnpm format` — **Mutating**. Format codebase with Prettier.
-- `pnpm format:check` — **Non-mutating**. Check formatting with Prettier.
-- `pnpm lint` — **Non-mutating**. Run ESLint (`--max-warnings=0`).
-- `pnpm typecheck` — **Non-mutating**. Perform strict TypeScript type checking (`tsc --build --noEmit`).
-- `pnpm test` — **Non-mutating**. Run Vitest unit & integration tests once.
-- `pnpm test:coverage` — **Non-mutating**. Run Vitest tests with V8 coverage threshold enforcement.
-- `pnpm build:node` — **Mutating (dist/)**. Build Node backend entry points (`dist/mcp/main.js`, `dist/http/main.js`).
-- `pnpm build:web` — **Mutating (dist/)**. Build Vite React web UI (`dist/web`).
-- `pnpm build` — **Mutating (dist/)**. Run `build:node` and `build:web`.
-- `pnpm dev:mcp` — **Non-mutating**. Run MCP stdio entry point from source via `tsx`.
-- `pnpm dev:http` — **Non-mutating**. Run HTTP server from source (`http://127.0.0.1:43110`).
-- `pnpm dev:web` — **Non-mutating**. Run Vite development server with proxy `/api` -> `http://127.0.0.1:43110`.
-- `pnpm dev:ui` — **Non-mutating**. Run HTTP server and Vite development server concurrently.
-- `pnpm validate:assets` — **Non-mutating**. Validate repository assets, package `bin`, and configuration.
+For local development, start the UI and API together:
 
-## Development Servers & Ports
+```bash
+pnpm dev:ui
+```
 
-- Default HTTP loopback address: `127.0.0.1`
-- Default HTTP port: `43110` (`GET /api/health`)
-- Vite dev server port: `5173` (proxies `/api` to `http://127.0.0.1:43110`)
+The HTTP service listens only on `http://127.0.0.1:43110`; the Vite development UI is served at `http://127.0.0.1:5173` and proxies `/api` to that service. `RELAY_HTTP_PORT` can change the HTTP port when the default is already in use. Relay has no background daemon: stopping these processes stops the locally running application.
 
-## Configuration & Environment Variables
-
-- `RELAY_DB_PATH`: Custom file path to SQLite database.
-  - Windows default: `%APPDATA%\relay\relay.db`
-  - macOS default: `~/Library/Application Support/relay/relay.db`
-  - Linux default: `${XDG_DATA_HOME:-~/.local/share}/relay/relay.db`
-- `RELAY_HTTP_PORT`: Custom port for loopback HTTP server (default: `43110`).
-
-## Database & Migrations
-
-Relay uses `better-sqlite3` with plain SQL migrations located under `src/database/migrations/`.
-
-On every database connection:
-
-- `PRAGMA foreign_keys = ON;`
-- `PRAGMA journal_mode = WAL;`
-- `PRAGMA busy_timeout = 5000;`
-
-Applied SQL migrations are tracked in `_relay_migrations` with SHA-256 checksums. **Applied migration SQL files are immutable**.
-
-## Invoking Built MCP Command Locally
-
-Build the scaffold Node entry points:
+To build and run the production-style local server, which serves the compiled UI from `dist/web`, use:
 
 ```bash
 pnpm build
+node dist/http/main.js
 ```
 
-Start the MCP stdio process:
+## Database and safe development data
 
-```bash
-node dist/mcp/main.js
+Relay uses a local SQLite database containing task data. The default database file is:
+
+- Windows: `%APPDATA%\relay\relay.db`
+- macOS: `~/Library/Application Support/relay/relay.db`
+- Linux: `${XDG_DATA_HOME:-~/.local/share}/relay/relay.db`
+
+Set `RELAY_DB_PATH` to use an explicit database file instead. Migrations run automatically when the HTTP/UI runtime starts. Connections enable foreign keys, WAL journal mode, and a 5-second SQLite busy timeout. Relay uses explicit SQL rather than an ORM.
+
+For experiments and verification, create a disposable database instead of using your normal one. In PowerShell:
+
+```powershell
+$tempRelay = Join-Path ([System.IO.Path]::GetTempPath()) ("relay-" + [guid]::NewGuid())
+New-Item -ItemType Directory -Path $tempRelay | Out-Null
+$env:RELAY_DB_PATH = Join-Path $tempRelay "relay.db"
+pnpm dev:ui
 ```
 
-Or invoke via package binary entry point:
+After stopping Relay, remove only that temporary directory when it is no longer needed:
 
-```bash
-./dist/mcp/main.js
+```powershell
+Remove-Item -LiteralPath $tempRelay -Recurse
 ```
 
-The process exposes one scaffold health tool: `relay_health`. Diagnostics are written exclusively to `stderr`.
+Deleting any SQLite database permanently deletes its tasks. Never delete the default database unless you have deliberately backed it up and understand that consequence.
 
-## Architecture Boundaries
+## Task workflow
+
+Create tasks from the UI, select one to inspect its stored fields, and edit title, description, priority, workspace, and source context. Tasks created in the UI have `HUMAN` provenance. The UI provides four views: Inbox, Active, Backlog, and a bounded recent Completed list.
+
+```text
+INBOX -> ACTIVE -> IN_PROGRESS -> DONE
+            |
+            -> BACKLOG
+```
+
+Valid return paths are available through the action buttons: Active can return to Inbox, In Progress can return to Active, and Backlog can move to Inbox or Active. Moving a task to its current state is idempotent. The first move into In Progress records its start time; leaving and returning to In Progress preserves that original time.
+
+Completed tasks can still be edited, but cannot be reopened in this MVP. Archiving is a two-step UI action. Archived tasks remain stored, including completion data when applicable, but are hidden from the normal views. There is currently no archive browser or restore action.
+
+## Architecture boundaries
 
 ```text
 src/
-  domain/         # Domain entities & rules (deferred to Issue #2+)
-  application/    # Application services (getHealth)
-  database/       # SQLite connection factory & migration runner
+  domain/         # Task model, validation, and lifecycle rules
+  application/    # Task use cases and repository port
+  database/       # SQLite connection, migrations, and task repository
   interfaces/
-    mcp/          # MCP stdio server adapter (relay_health)
-    http/         # Loopback HTTP server adapter (GET /api/health)
-  shared/         # Custom errors & package metadata
-web/              # Vite React 19 UI shell
+    http/         # Loopback HTTP adapter and compiled UI serving
+    mcp/          # Separate scaffold/health adapter; no task behavior yet
+web/              # React UI that calls the HTTP API only
 ```
 
-Boundary rules:
+Adapters call application services. The React application calls the loopback HTTP API only; it does not import SQLite or domain code. The task domain does not depend on SQLite, HTTP, MCP, React, or Zod. Relay has no remote binding or authentication.
 
-- `domain` and `application` layers have zero dependencies on interface protocols (`mcp`, `http`) or database implementations.
-- `interfaces` call application services (`getHealth()`) and do not construct domain responses independently.
-- `web/` calls loopback HTTP `/api/health` only and never imports Node modules.
+## Current limitations
 
-## Current Limitations
-
-- No task CRUD, task table, or product task behavior (deferred to Issue #2+).
-- No companion skills, plugin manifests, or vendor MCP configs (deferred to Issue #2+).
-- No remote network binding, authentication, multi-user accounts, background daemon, or desktop shell.
+The MVP deliberately does not include production MCP task tools, due dates or reminders, labels or projects, search, recurring tasks, archive restoration, collaboration or cloud sync, packaging/installers, or mobile support.
 
 ## Troubleshooting
 
-- **`better-sqlite3` build issues:** Ensure Python and a C++ compiler build toolchain are installed if prebuilt binaries are unavailable.
-- **Node version mismatch:** Relay supports Node.js `24.x` only. If your shell is on Node `25.x` or `26.x`, switch to Node `24` with `nvm use`, `fnm use 24`, or the equivalent command for your version manager before running `pnpm install` or `pnpm verify`.
+- **Unsupported Node version:** use Node 24.x before running install or verification. Node 25+ is outside the supported range.
+- **`better-sqlite3` install/build issue:** install Python and a C++ compiler toolchain if a native prebuilt binary is unavailable.
+- **Port already in use:** stop the process using `127.0.0.1:43110` or set `RELAY_HTTP_PORT` to a free loopback port before running `pnpm dev:ui`.
+- **Invalid or unwritable `RELAY_DB_PATH`:** use an absolute file path in a directory your account may create and write to. Check that no file blocks the parent directory.
+- **Migration checksum mismatch:** an already-applied SQL migration was edited. Do not bypass the error; restore the original migration content and add a new migration for any schema change.
+- **UI says the service is unavailable:** keep `pnpm dev:ui` running, confirm the HTTP service is reachable at `/api/health`, then use the UI retry button. Check the HTTP process output for the underlying error.
