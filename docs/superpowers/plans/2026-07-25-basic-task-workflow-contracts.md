@@ -53,14 +53,14 @@ All timestamps are UTC ISO-8601 strings produced with `Date#toISOString()`.
 
 ## Lifecycle
 
-| Current | Allowed targets |
-|---|---|
-| `INBOX` | `ACTIVE`, `BACKLOG`, `ARCHIVED` |
-| `ACTIVE` | `INBOX`, `IN_PROGRESS`, `BACKLOG`, `DONE`, `ARCHIVED` |
-| `IN_PROGRESS` | `ACTIVE`, `BACKLOG`, `DONE`, `ARCHIVED` |
-| `BACKLOG` | `INBOX`, `ACTIVE`, `ARCHIVED` |
-| `DONE` | `ARCHIVED` |
-| `ARCHIVED` | none |
+| Current       | Allowed targets                                       |
+| ------------- | ----------------------------------------------------- |
+| `INBOX`       | `ACTIVE`, `BACKLOG`, `ARCHIVED`                       |
+| `ACTIVE`      | `INBOX`, `IN_PROGRESS`, `BACKLOG`, `DONE`, `ARCHIVED` |
+| `IN_PROGRESS` | `ACTIVE`, `BACKLOG`, `DONE`, `ARCHIVED`               |
+| `BACKLOG`     | `INBOX`, `ACTIVE`, `ARCHIVED`                         |
+| `DONE`        | `ARCHIVED`                                            |
+| `ARCHIVED`    | none                                                  |
 
 A transition to the current state is an idempotent no-op: return the unchanged task and do not modify `updatedAt`.
 
