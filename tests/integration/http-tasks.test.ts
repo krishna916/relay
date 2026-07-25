@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createTaskApplication,
   type TaskApplication,
@@ -175,15 +175,21 @@ describe('http tasks integration', () => {
       taskApplication: failingApplication,
     });
 
-    const response = await fetch(`${server.url}/api/tasks`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: 'Persist safely' }),
-    });
-    expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({
-      error: { code: 'INTERNAL_ERROR', message: 'An unexpected internal error occurred.' },
-    });
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      const response = await fetch(`${server.url}/api/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'Persist safely' }),
+      });
+      expect(response.status).toBe(500);
+      await expect(response.json()).resolves.toEqual({
+        error: { code: 'INTERNAL_ERROR', message: 'An unexpected internal error occurred.' },
+      });
+      expect(stderr).not.toHaveBeenCalled();
+    } finally {
+      stderr.mockRestore();
+    }
   });
 
   it('retrieves tasks and exposes every explicit lifecycle route without generic transitions', async () => {

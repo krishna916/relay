@@ -14,10 +14,14 @@ export default defineConfig({
         'src/database/**/*.ts',
         'src/interfaces/mcp/create-mcp-server.ts',
         'src/interfaces/http/**/*.ts',
-        'web/src/api/**/*.ts',
-        'web/src/App.tsx',
+        'web/src/**/*.{ts,tsx}',
       ],
-      exclude: ['src/application/health/health.ts', 'src/**/*.d.ts'],
+      exclude: [
+        'src/application/health/health.ts',
+        'src/**/*.d.ts',
+        'web/src/main.tsx',
+        'web/src/**/*.d.ts',
+      ],
       thresholds: {
         statements: 80,
         branches: 80,
