@@ -52,6 +52,7 @@ function task(overrides: Partial<Task> = {}): Task {
     sourceContext: null,
     createdByType: 'HUMAN',
     createdByName: null,
+    sessionId: null,
     createdAt: '2026-07-25T10:00:00.000Z',
     updatedAt: '2026-07-25T10:00:00.000Z',
     startedAt: null,
@@ -84,6 +85,7 @@ describe('TaskApplication', () => {
       priority: 'HIGH',
       workspace: ' relay ',
       sourceContext: ' issue-7 ',
+      sessionId: ' session-issue-7 ',
       creator: { type: 'AGENT', name: ' Codex ' },
     });
     expect(result).toMatchObject({
@@ -93,6 +95,7 @@ describe('TaskApplication', () => {
       priority: 'HIGH',
       workspace: 'relay',
       sourceContext: 'issue-7',
+      sessionId: 'session-issue-7',
       status: 'INBOX',
       createdByType: 'AGENT',
       createdByName: 'Codex',
@@ -159,6 +162,44 @@ describe('TaskApplication', () => {
       InvalidTaskRequestError,
     );
     expect(() => application.list({ statuses: ['INBOX'], limit: 201 })).toThrow(
+      InvalidTaskRequestError,
+    );
+  });
+
+  it('validates session capture requests and applies the default limit', () => {
+    const { application, repository } = setup();
+    const capture = task({
+      id: 'capture',
+      createdByType: 'AGENT',
+      createdByName: 'Codex',
+      sessionId: 'session-1',
+    });
+    repository.tasks.set(capture.id, capture);
+
+    expect(application.listSessionCaptures({ sessionId: ' session-1 ' })).toEqual([capture]);
+    expect(repository.lastSessionCaptureQuery).toEqual({ sessionId: 'session-1', limit: 100 });
+    expect(() => application.listSessionCaptures({ sessionId: 'bad session' })).toThrow(
+      TaskValidationError,
+    );
+    expect(() => application.listSessionCaptures({ sessionId: 'session-1', limit: 101 })).toThrow(
+      InvalidTaskRequestError,
+    );
+  });
+
+  it('normalizes advisory similar-task input and bounds its limit', () => {
+    const { application, repository } = setup();
+
+    application.findSimilar({ title: '  Prepare\tRelease!!  ', workspace: ' relay ', limit: 5 });
+
+    expect(repository.lastSimilarQuery).toEqual({
+      normalizedTitle: 'prepare release',
+      workspace: 'relay',
+      limit: 5,
+    });
+    expect(() => application.findSimilar({ title: ' ', limit: 1 })).toThrow(
+      InvalidTaskRequestError,
+    );
+    expect(() => application.findSimilar({ title: 'Task', limit: 6 })).toThrow(
       InvalidTaskRequestError,
     );
   });

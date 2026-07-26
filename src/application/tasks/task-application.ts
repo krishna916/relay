@@ -15,6 +15,14 @@ import { editTaskUseCase, type EditTaskInput } from './use-cases/edit-task.js';
 import { getTaskUseCase, type GetTaskInput, type TaskIdInput } from './use-cases/get-task.js';
 import { listTasksUseCase, type ListTasksInput } from './use-cases/list-tasks.js';
 import { transitionTaskUseCase } from './use-cases/transition-task.js';
+import {
+  findSimilarTasksUseCase,
+  type FindSimilarTasksInput,
+} from './use-cases/find-similar-tasks.js';
+import {
+  listSessionCapturesUseCase,
+  type ListSessionCapturesInput,
+} from './use-cases/list-session-captures.js';
 
 export interface TaskApplicationDependencies {
   readonly repository: TaskRepository;
@@ -32,6 +40,8 @@ export interface TaskApplication {
   moveToBacklog(input: TaskIdInput): Task;
   complete(input: TaskIdInput): Task;
   archive(input: TaskIdInput): Task;
+  listSessionCaptures(input: ListSessionCapturesInput): readonly Task[];
+  findSimilar(input: FindSimilarTasksInput): readonly Task[];
 }
 export function createTaskApplication(dependencies: TaskApplicationDependencies): TaskApplication {
   const resolvedDependencies = {
@@ -52,9 +62,14 @@ export function createTaskApplication(dependencies: TaskApplicationDependencies)
     moveToBacklog: (input) => transition(input, moveTaskToBacklog),
     complete: (input) => transition(input, completeTask),
     archive: (input) => transition(input, archiveTask),
+    listSessionCaptures: (input) =>
+      listSessionCapturesUseCase(input, resolvedDependencies.repository),
+    findSimilar: (input) => findSimilarTasksUseCase(input, resolvedDependencies.repository),
   };
 }
 export type { CreateTaskInput } from './use-cases/create-task.js';
 export type { EditTaskInput } from './use-cases/edit-task.js';
 export type { GetTaskInput, TaskIdInput } from './use-cases/get-task.js';
 export type { ListTasksInput } from './use-cases/list-tasks.js';
+export type { FindSimilarTasksInput } from './use-cases/find-similar-tasks.js';
+export type { ListSessionCapturesInput } from './use-cases/list-session-captures.js';

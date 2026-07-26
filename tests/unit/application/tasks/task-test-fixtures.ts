@@ -1,4 +1,6 @@
 import type {
+  SessionCaptureQuery,
+  SimilarTaskQuery,
   TaskListQuery,
   TaskRepository,
 } from '../../../../src/application/tasks/task-repository.js';
@@ -37,6 +39,8 @@ export class InMemoryTaskRepository implements TaskRepository {
   public findFailure: Error | null = null;
   public updateFailure: Error | null = null;
   public listFailure: Error | null = null;
+  public lastSessionCaptureQuery: SessionCaptureQuery | null = null;
+  public lastSimilarQuery: SimilarTaskQuery | null = null;
 
   public create(task: Task): Task {
     this.createCalls += 1;
@@ -65,5 +69,17 @@ export class InMemoryTaskRepository implements TaskRepository {
     return [...this.tasks.values()]
       .filter((task) => query.statuses.includes(task.status))
       .slice(0, query.limit);
+  }
+
+  public listSessionCaptures(query: SessionCaptureQuery): readonly Task[] {
+    this.lastSessionCaptureQuery = query;
+    return [...this.tasks.values()]
+      .filter((task) => task.createdByType === 'AGENT' && task.sessionId === query.sessionId)
+      .slice(0, query.limit);
+  }
+
+  public findSimilar(query: SimilarTaskQuery): readonly Task[] {
+    this.lastSimilarQuery = query;
+    return [...this.tasks.values()].slice(0, query.limit);
   }
 }

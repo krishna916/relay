@@ -10,6 +10,7 @@ export interface TaskDto {
   readonly sourceContext: string | null;
   readonly createdByType: Task['createdByType'];
   readonly createdByName: string | null;
+  readonly sessionId: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly startedAt: string | null;

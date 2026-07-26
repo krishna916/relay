@@ -1,10 +1,16 @@
 import type Database from 'better-sqlite3';
 import {
   TaskRepositoryConflictError,
+  TaskRepositoryCorruptionError,
   TaskRepositoryError,
   TaskRepositoryNotFoundError,
 } from '../../application/tasks/task-repository-errors.js';
-import type { TaskListQuery, TaskRepository } from '../../application/tasks/task-repository.js';
+import type {
+  SessionCaptureQuery,
+  SimilarTaskQuery,
+  TaskListQuery,
+  TaskRepository,
+} from '../../application/tasks/task-repository.js';
 import type { Task } from '../../domain/task/task.js';
 import { isTaskStatus, TASK_STATUSES } from '../../domain/task/task-status.js';
 import {
@@ -22,12 +28,15 @@ export class SqliteTaskRepository implements TaskRepository {
   private readonly findStatement: Database.Statement<[string], TaskRow>;
   private readonly updateStatement: Database.Statement<TaskUpdateParameters>;
   private readonly listStatements = new Map<number, Database.Statement<unknown[], TaskRow>>();
+  private readonly sessionCaptureStatement: Database.Statement<[string, number], TaskRow>;
+  private readonly similarStatements = new Map<boolean, Database.Statement<unknown[], TaskRow>>();
 
   public constructor(private readonly db: Database.Database) {
     this.insertStatement = db.prepare<TaskParameters>(`
       INSERT INTO tasks (
         id,
         title,
+        normalized_title,
         description,
         status,
         priority,
@@ -35,6 +44,7 @@ export class SqliteTaskRepository implements TaskRepository {
         source_context,
         created_by_type,
         created_by_name,
+        session_id,
         created_at,
         updated_at,
         started_at,
@@ -43,6 +53,7 @@ export class SqliteTaskRepository implements TaskRepository {
       ) VALUES (
         @id,
         @title,
+        @normalized_title,
         @description,
         @status,
         @priority,
@@ -50,6 +61,7 @@ export class SqliteTaskRepository implements TaskRepository {
         @source_context,
         @created_by_type,
         @created_by_name,
+        @session_id,
         @created_at,
         @updated_at,
         @started_at,
@@ -62,10 +74,16 @@ export class SqliteTaskRepository implements TaskRepository {
       FROM tasks
       WHERE id = ?
     `);
+    this.sessionCaptureStatement = db.prepare<[string, number], TaskRow>(`
+      SELECT ${TASK_COLUMN_LIST} FROM tasks
+      WHERE created_by_type = 'AGENT' AND session_id = ?
+      ORDER BY created_at ASC, id ASC LIMIT ?
+    `);
     this.updateStatement = db.prepare<TaskUpdateParameters>(`
       UPDATE tasks
       SET
         title = @title,
+        normalized_title = @normalized_title,
         description = @description,
         status = @status,
         priority = @priority,
@@ -110,9 +128,16 @@ export class SqliteTaskRepository implements TaskRepository {
       if (result.changes === 0) {
         throw new TaskRepositoryNotFoundError('Task to update was not found.');
       }
-      return task;
+      const row = this.findStatement.get(task.id);
+      if (row === undefined) {
+        throw new TaskRepositoryNotFoundError('Task to update was not found.');
+      }
+      return taskRowToDomain(row);
     } catch (error) {
-      if (error instanceof TaskRepositoryNotFoundError) {
+      if (
+        error instanceof TaskRepositoryNotFoundError ||
+        error instanceof TaskRepositoryCorruptionError
+      ) {
         throw error;
       }
       if (isSqliteConstraintError(error)) {
@@ -139,6 +164,39 @@ export class SqliteTaskRepository implements TaskRepository {
     }
   }
 
+  public listSessionCaptures(query: SessionCaptureQuery): readonly Task[] {
+    validateBoundedQuery(query, 'session capture', 100);
+    try {
+      return this.sessionCaptureStatement.all(query.sessionId, query.limit).map(taskRowToDomain);
+    } catch (error) {
+      if (error instanceof TaskRepositoryError) {
+        throw error;
+      }
+      throw new TaskRepositoryError('Session captures could not be read.', { cause: error });
+    }
+  }
+
+  public findSimilar(query: SimilarTaskQuery): readonly Task[] {
+    validateBoundedQuery(query, 'similar task', 5);
+    if (typeof query.normalizedTitle !== 'string' || query.normalizedTitle.length === 0) {
+      throw new TaskRepositoryError('Similar task query title is invalid.');
+    }
+    if (query.workspace !== null && typeof query.workspace !== 'string') {
+      throw new TaskRepositoryError('Similar task query workspace is invalid.');
+    }
+    try {
+      const withWorkspace = query.workspace !== null;
+      const statement = this.getSimilarStatement(withWorkspace);
+      const parameters = withWorkspace
+        ? [query.normalizedTitle, query.workspace, query.limit]
+        : [query.normalizedTitle, query.limit];
+      return statement.all(...parameters).map(taskRowToDomain);
+    } catch (error) {
+      if (error instanceof TaskRepositoryError) throw error;
+      throw new TaskRepositoryError('Similar tasks could not be read.', { cause: error });
+    }
+  }
+
   private getListStatement(statusCount: number): Database.Statement<unknown[], TaskRow> {
     const existing = this.listStatements.get(statusCount);
     if (existing !== undefined) {
@@ -155,6 +213,41 @@ export class SqliteTaskRepository implements TaskRepository {
     `);
     this.listStatements.set(statusCount, statement);
     return statement;
+  }
+
+  private getSimilarStatement(withWorkspace: boolean): Database.Statement<unknown[], TaskRow> {
+    const existing = this.similarStatements.get(withWorkspace);
+    if (existing !== undefined) return existing;
+    const workspaceOrder = withWorkspace ? 'CASE WHEN workspace = ? THEN 0 ELSE 1 END,' : '';
+    const statement = this.db.prepare<unknown[], TaskRow>(`
+      SELECT ${TASK_COLUMN_LIST}
+      FROM tasks
+      WHERE normalized_title = ? AND status <> 'ARCHIVED'
+      ORDER BY ${workspaceOrder} updated_at DESC, id ASC
+      LIMIT ?
+    `);
+    this.similarStatements.set(withWorkspace, statement);
+    return statement;
+  }
+}
+
+function validateBoundedQuery(
+  query: { readonly sessionId?: unknown; readonly limit?: unknown } | null,
+  name: string,
+  maximum: number,
+): void {
+  const limit = query?.limit;
+  if (
+    query === null ||
+    typeof query !== 'object' ||
+    typeof limit !== 'number' ||
+    !Number.isInteger(limit) ||
+    limit < 1 ||
+    limit > maximum
+  ) {
+    throw new TaskRepositoryError(
+      `${name} query limit must be an integer from 1 through ${maximum}.`,
+    );
   }
 }
 

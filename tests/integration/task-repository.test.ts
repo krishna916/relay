@@ -29,6 +29,7 @@ const FULL_TASK: Task = {
   sourceContext: 'issue:6',
   createdByType: 'AGENT',
   createdByName: 'Codex',
+  sessionId: 'session-1',
   createdAt: '2026-07-25T09:00:00.000Z',
   updatedAt: '2026-07-25T12:00:00.000Z',
   startedAt: '2026-07-25T10:00:00.000Z',
@@ -39,6 +40,7 @@ const FULL_TASK: Task = {
 const FULL_ROW: TaskRow = {
   id: 'task-full',
   title: 'Persist every field',
+  normalized_title: 'persist every field',
   description: 'A fully populated task',
   status: 'ARCHIVED',
   priority: 'HIGH',
@@ -46,6 +48,7 @@ const FULL_ROW: TaskRow = {
   source_context: 'issue:6',
   created_by_type: 'AGENT',
   created_by_name: 'Codex',
+  session_id: 'session-1',
   created_at: '2026-07-25T09:00:00.000Z',
   updated_at: '2026-07-25T12:00:00.000Z',
   started_at: '2026-07-25T10:00:00.000Z',
@@ -64,6 +67,7 @@ function taskFixture(overrides: Partial<Task> = {}): Task {
     sourceContext: null,
     createdByType: 'HUMAN',
     createdByName: null,
+    sessionId: null,
     createdAt: '2026-07-25T09:00:00.000Z',
     updatedAt: '2026-07-25T09:00:00.000Z',
     startedAt: null,
@@ -130,6 +134,7 @@ describe('SQLite task repository create and find', () => {
       sourceContext: null,
       createdByType: 'HUMAN',
       createdByName: null,
+      sessionId: null,
       createdAt: '2026-07-25T09:00:00.000Z',
       updatedAt: '2026-07-25T09:00:00.000Z',
       startedAt: null,
@@ -140,6 +145,17 @@ describe('SQLite task repository create and find', () => {
     repository.create(minimalTask);
 
     expect(repository.findById(minimalTask.id)).toEqual(minimalTask);
+  });
+
+  it('persists the canonical Unicode title normalization for fresh tasks', () => {
+    const repository = createRepository();
+    const task = taskFixture({ id: 'unicode-title', title: ' ÄBC!!! ' });
+
+    repository.create(task);
+
+    expect(
+      context?.db.prepare('SELECT normalized_title FROM tasks WHERE id = ?').get(task.id),
+    ).toEqual({ normalized_title: 'äbc' });
   });
 
   it.each([
@@ -213,6 +229,7 @@ describe('SQLite task repository update', () => {
       priority: 'LOW',
       createdByType: 'AGENT',
       createdByName: 'Original agent',
+      sessionId: 'original-session',
     });
     repository.create(original);
 
@@ -224,23 +241,28 @@ describe('SQLite task repository update', () => {
       priority: 'HIGH',
       workspace: 'D:\\updated',
       sourceContext: 'issue:6#update',
+      sessionId: 'attempted-session-change',
       updatedAt: '2026-07-25T11:00:00.000Z',
       startedAt: '2026-07-25T10:00:00.000Z',
       completedAt: '2026-07-25T11:00:00.000Z',
       archivedAt: null,
     };
 
-    expect(repository.update(updated)).toEqual(updated);
-    expect(repository.findById(updated.id)).toEqual(updated);
+    expect(repository.update(updated)).toEqual({ ...updated, sessionId: 'original-session' });
+    expect(repository.findById(updated.id)).toEqual({ ...updated, sessionId: 'original-session' });
 
     const creationData = context?.db
-      .prepare('SELECT id, created_by_type, created_by_name, created_at FROM tasks WHERE id = ?')
+      .prepare(
+        'SELECT id, created_by_type, created_by_name, session_id, created_at, normalized_title FROM tasks WHERE id = ?',
+      )
       .get(updated.id);
     expect(creationData).toEqual({
       id: original.id,
       created_by_type: original.createdByType,
       created_by_name: original.createdByName,
+      session_id: original.sessionId,
       created_at: original.createdAt,
+      normalized_title: 'updated title',
     });
   });
 
@@ -407,6 +429,93 @@ describe('SQLite task repository list', () => {
   );
 });
 
+describe('SQLite task repository agent queries', () => {
+  let context: TemporaryDatabaseContext | null = null;
+
+  afterEach(() => {
+    context?.cleanup();
+    context = null;
+  });
+
+  function createRepository(): SqliteTaskRepository {
+    context = createMigratedTemporaryDatabase();
+    return new SqliteTaskRepository(context.db);
+  }
+
+  it('returns every agent capture for one session in creation order', () => {
+    const repository = createRepository();
+    const first = taskFixture({
+      id: 'first',
+      createdByType: 'AGENT',
+      createdByName: 'Codex',
+      sessionId: 'session-a',
+      createdAt: '2026-07-25T09:00:00.000Z',
+      updatedAt: '2026-07-25T09:00:00.000Z',
+    });
+    const archived = taskFixture({
+      id: 'archived',
+      status: 'ARCHIVED',
+      archivedAt: '2026-07-25T11:00:00.000Z',
+      createdByType: 'AGENT',
+      createdByName: 'Codex',
+      sessionId: 'session-a',
+      createdAt: '2026-07-25T10:00:00.000Z',
+      updatedAt: '2026-07-25T11:00:00.000Z',
+    });
+    repository.create(taskFixture({ id: 'human', sessionId: null }));
+    repository.create(
+      taskFixture({
+        id: 'other-session',
+        createdByType: 'AGENT',
+        createdByName: 'Codex',
+        sessionId: 'session-b',
+      }),
+    );
+    repository.create(archived);
+    repository.create(first);
+
+    expect(repository.listSessionCaptures({ sessionId: 'session-a', limit: 100 })).toEqual([
+      first,
+      archived,
+    ]);
+  });
+
+  it('finds normalized, non-archived title matches with deterministic workspace ranking', () => {
+    const repository = createRepository();
+    const preferred = taskFixture({
+      id: 'preferred',
+      title: 'Prepare release!!!',
+      workspace: 'relay',
+      updatedAt: '2026-07-25T12:00:00.000Z',
+    });
+    const sameTimeA = taskFixture({
+      id: 'same-time-a',
+      title: 'PREPARE RELEASE.',
+      workspace: 'other',
+      updatedAt: '2026-07-25T11:00:00.000Z',
+    });
+    const archived = taskFixture({
+      id: 'archived-match',
+      title: 'Prepare release?',
+      status: 'ARCHIVED',
+      archivedAt: '2026-07-25T13:00:00.000Z',
+      updatedAt: '2026-07-25T13:00:00.000Z',
+    });
+    for (const task of [archived, sameTimeA, preferred]) repository.create(task);
+
+    expect(
+      repository.findSimilar({ normalizedTitle: 'prepare release', workspace: 'relay', limit: 5 }),
+    ).toEqual([preferred, sameTimeA]);
+  });
+
+  it.each([
+    { sessionId: 'session-a', limit: 0 },
+    { sessionId: 'session-a', limit: 101 },
+  ])('rejects invalid session capture bounds', (query) => {
+    expect(() => createRepository().listSessionCaptures(query)).toThrow(TaskRepositoryError);
+  });
+});
+
 describe('SQLite task repository failure translation', () => {
   let context: TemporaryDatabaseContext | null = null;
 
@@ -462,6 +571,58 @@ describe('SQLite task repository failure translation', () => {
       expect(error).toBeInstanceOf(TaskRepositoryCorruptionError);
       expect((error as TaskRepositoryCorruptionError).cause).toBeInstanceOf(TaskValidationError);
     }
+  });
+
+  it('preserves corruption errors when invalid stored data is read after an update', () => {
+    const repository = createRepository();
+    context?.db.pragma('ignore_check_constraints = ON');
+    context?.db
+      .prepare(
+        `INSERT INTO tasks (
+          id, title, description, status, priority, workspace, source_context,
+          created_by_type, created_by_name, session_id, created_at, updated_at, started_at,
+          completed_at, archived_at
+        ) VALUES (
+          @id, @title, @description, @status, @priority, @workspace, @source_context,
+          @created_by_type, @created_by_name, @session_id, @created_at, @updated_at, @started_at,
+          @completed_at, @archived_at
+        )`,
+      )
+      .run({ ...FULL_ROW, id: 'corrupt-update', created_by_type: 'UNKNOWN' });
+    context?.db.pragma('ignore_check_constraints = OFF');
+
+    expect(() => repository.update({ ...FULL_TASK, id: 'corrupt-update' })).toThrow(
+      TaskRepositoryCorruptionError,
+    );
+  });
+
+  it('preserves corruption errors when reading session captures', () => {
+    const repository = createRepository();
+    context?.db.pragma('ignore_check_constraints = ON');
+    context?.db
+      .prepare(
+        `INSERT INTO tasks (
+          id, title, description, status, priority, workspace, source_context,
+          created_by_type, created_by_name, session_id, created_at, updated_at, started_at,
+          completed_at, archived_at, normalized_title
+        ) VALUES (
+          @id, @title, @description, @status, @priority, @workspace, @source_context,
+          @created_by_type, @created_by_name, @session_id, @created_at, @updated_at, @started_at,
+          @completed_at, @archived_at, @normalized_title
+        )`,
+      )
+      .run({
+        ...FULL_ROW,
+        id: 'corrupt-session-capture',
+        created_by_type: 'AGENT',
+        session_id: 'session-corrupt',
+        status: 'UNKNOWN',
+      });
+    context?.db.pragma('ignore_check_constraints = OFF');
+
+    expect(() =>
+      repository.listSessionCaptures({ sessionId: 'session-corrupt', limit: 1 }),
+    ).toThrow(TaskRepositoryCorruptionError);
   });
 
   it.each([

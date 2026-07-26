@@ -1,5 +1,5 @@
 import { createHttpServer } from './create-http-server.js';
-import { createTaskRuntime } from './create-task-runtime.js';
+import { createTaskRuntime } from '../shared/create-task-runtime.js';
 
 async function main(): Promise<void> {
   try {
