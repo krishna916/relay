@@ -6,6 +6,7 @@ import { persist } from './repository-operations.js';
 
 export interface ListTasksInput {
   readonly statuses: readonly TaskStatus[];
+  readonly workspace?: string | null;
   readonly limit?: number;
 }
 export function listTasksUseCase(
@@ -18,5 +19,9 @@ export function listTasksUseCase(
   if (!Number.isInteger(limit) || limit < 1 || limit > 200)
     throw new InvalidTaskRequestError('Task list limit must be an integer from 1 through 200.');
   const statuses = [...new Set(input.statuses)];
-  return persist(() => repository.list({ statuses, limit }), 'Tasks could not be listed.');
+  const workspace = input.workspace === undefined ? undefined : input.workspace?.trim() || null;
+  return persist(
+    () => repository.list({ statuses, ...(workspace === undefined ? {} : { workspace }), limit }),
+    'Tasks could not be listed.',
+  );
 }

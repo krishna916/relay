@@ -1,10 +1,17 @@
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { createMcpServer } from './create-mcp-server.js';
 import { mcpLogger } from './logger.js';
+import { createTaskRuntime } from '../shared/create-task-runtime.js';
+import type { TaskRuntime } from '../shared/create-task-runtime.js';
 
 async function main(): Promise<void> {
+  let runtime: TaskRuntime | null = null;
+  let server: ReturnType<typeof createMcpServer> | null = null;
   try {
-    const server = createMcpServer();
+    runtime = createTaskRuntime();
+    const activeRuntime = runtime;
+    server = createMcpServer(activeRuntime.taskApplication);
+    const activeServer = server;
     const transport = new StdioServerTransport();
     let shuttingDown = false;
 
@@ -17,11 +24,13 @@ async function main(): Promise<void> {
       mcpLogger.info(`Received ${signal}, shutting down MCP server...`);
 
       try {
-        await server.close();
+        await activeServer.close();
         process.exitCode = 0;
       } catch (error) {
         mcpLogger.error('Failed during MCP shutdown', error);
         process.exitCode = 1;
+      } finally {
+        activeRuntime.close();
       }
     };
 
@@ -35,6 +44,8 @@ async function main(): Promise<void> {
 
     await server.connect(transport);
   } catch (error) {
+    await server?.close();
+    runtime?.close();
     mcpLogger.error('Fatal error starting MCP stdio server', error);
     process.exit(1);
   }
