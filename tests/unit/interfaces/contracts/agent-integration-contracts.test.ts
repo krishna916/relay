@@ -118,6 +118,19 @@ describe('agent integration contracts', () => {
     expect(taskEditInputSchema.safeParse({ taskId: 'task-1', title: 'Edited' }).success).toBe(true);
     expect(taskEditInputSchema.safeParse({ title: 'Edited' }).success).toBe(false);
     expect(
+      taskEditInputSchema.safeParse({
+        taskId: 'task-1',
+        description: 'Updated description',
+        clearDescription: true,
+      }).success,
+    ).toBe(false);
+    expect(taskEditInputSchema.safeParse({ taskId: 'task-1', description: null }).success).toBe(
+      false,
+    );
+    expect(
+      taskEditInputSchema.safeParse({ taskId: 'task-1', clearDescription: true }).success,
+    ).toBe(true);
+    expect(
       taskTriageInputSchema.safeParse({ taskId: 'task-1', target: 'IN_PROGRESS' }).success,
     ).toBe(false);
     expect(taskTriageInputSchema.safeParse({ taskId: 'task-1', target: 'BACKLOG' }).success).toBe(
@@ -190,16 +203,47 @@ describe('agent integration contracts', () => {
         candidates: [{ id: 'task-1' }],
       }).success,
     ).toBe(true);
+    expect(
+      cliSuccessEnvelopeSchema.safeParse({
+        schemaVersion: 1,
+        ok: true,
+        data: { task: { id: 'task-1' }, warningCount: 0 },
+        warnings: [],
+      }).success,
+    ).toBe(true);
+    expect(
+      cliSuccessEnvelopeSchema.safeParse({
+        schemaVersion: 1,
+        ok: true,
+        data: { omitted: undefined },
+        warnings: [],
+      }).success,
+    ).toBe(false);
+    expect(
+      contractErrorSchema.safeParse({
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid input',
+        details: { receivedAt: new Date() },
+      }).success,
+    ).toBe(false);
 
-    const fixtures: ReadonlyArray<[string, (value: unknown) => unknown]> = [
-      ['capture-success.json', cliSuccessEnvelopeSchema.parse],
-      ['capture-duplicate-warning.json', cliSuccessEnvelopeSchema.parse],
+    const captureFixtures = ['capture-success.json', 'capture-duplicate-warning.json'];
+    for (const filename of captureFixtures) {
+      const fixture = JSON.parse(
+        readFileSync(join(FIXTURE_DIRECTORY, filename), 'utf8'),
+      ) as unknown;
+      const envelope = cliSuccessEnvelopeSchema.parse(fixture);
+      expect(taskCaptureResultSchema.parse(envelope.data)).toEqual(envelope.data);
+      expect(JSON.stringify(envelope)).not.toBeUndefined();
+    }
+
+    const errorFixtures: ReadonlyArray<[string, (value: unknown) => unknown]> = [
       ['validation-error.json', cliErrorEnvelopeSchema.parse],
       ['not-found-error.json', cliErrorEnvelopeSchema.parse],
       ['transition-conflict-error.json', cliErrorEnvelopeSchema.parse],
       ['storage-error.json', cliErrorEnvelopeSchema.parse],
     ];
-    for (const [filename, parser] of fixtures) {
+    for (const [filename, parser] of errorFixtures) {
       const fixture = JSON.parse(
         readFileSync(join(FIXTURE_DIRECTORY, filename), 'utf8'),
       ) as unknown;

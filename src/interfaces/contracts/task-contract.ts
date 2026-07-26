@@ -3,6 +3,7 @@ import { sessionIdSchema } from './session-contract.js';
 
 const nullableText = (maximum: number) => z.string().trim().min(1).max(maximum).nullable();
 const optionalText = (maximum: number) => nullableText(maximum).optional();
+const optionalEditableText = (maximum: number) => z.string().trim().min(1).max(maximum).optional();
 const taskStatusSchema = z.enum(['INBOX', 'ACTIVE', 'IN_PROGRESS', 'BACKLOG', 'DONE', 'ARCHIVED']);
 const taskPrioritySchema = z.enum(['LOW', 'NORMAL', 'HIGH']);
 
@@ -58,10 +59,10 @@ export const findSimilarInputSchema = z
 
 const editableInputFields = {
   title: z.string().trim().min(1).max(300).optional(),
-  description: optionalText(10_000),
-  priority: taskPrioritySchema.nullable().optional(),
-  workspace: optionalText(255),
-  sourceContext: optionalText(1_000),
+  description: optionalEditableText(10_000),
+  priority: taskPrioritySchema.optional(),
+  workspace: optionalEditableText(255),
+  sourceContext: optionalEditableText(1_000),
   clearDescription: z.literal(true).optional(),
   clearPriority: z.literal(true).optional(),
   clearWorkspace: z.literal(true).optional(),
@@ -71,14 +72,35 @@ const editableInputFields = {
 const hasEditableInput = (input: Record<string, unknown>) =>
   Object.entries(input).some(([key, value]) => key !== 'taskId' && value !== undefined);
 
-export const mutationInputSchema = z.object(editableInputFields).strict().refine(hasEditableInput, {
-  message: 'At least one editable task field is required.',
-});
+const clearDirectivePairs = [
+  { field: 'description', clearField: 'clearDescription' },
+  { field: 'priority', clearField: 'clearPriority' },
+  { field: 'workspace', clearField: 'clearWorkspace' },
+  { field: 'sourceContext', clearField: 'clearSourceContext' },
+] as const;
+
+const hasConflictingClearDirective = (input: Record<string, unknown>) =>
+  clearDirectivePairs.some(
+    ({ field, clearField }) => input[field] !== undefined && input[clearField] === true,
+  );
+
+export const mutationInputSchema = z
+  .object(editableInputFields)
+  .strict()
+  .refine(hasEditableInput, {
+    message: 'At least one editable task field is required.',
+  })
+  .refine((input) => !hasConflictingClearDirective(input), {
+    message: 'An editable field cannot be supplied with its clear flag.',
+  });
 
 export const taskEditInputSchema = z
   .object({ taskId: taskIdSchema, ...editableInputFields })
   .strict()
-  .refine(hasEditableInput, { message: 'At least one editable task field is required.' });
+  .refine(hasEditableInput, { message: 'At least one editable task field is required.' })
+  .refine((input) => !hasConflictingClearDirective(input), {
+    message: 'An editable field cannot be supplied with its clear flag.',
+  });
 
 export const taskTriageInputSchema = z
   .object({

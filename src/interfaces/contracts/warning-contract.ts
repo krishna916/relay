@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { CONTRACT_SCHEMA_VERSION } from './contract-version.js';
 import { contractErrorSchema } from './error-contract.js';
+import { jsonValueSchema } from './json-value-contract.js';
 
 export const duplicateWarningSchema = z
   .object({
@@ -16,7 +17,7 @@ export const cliSuccessEnvelopeSchema = z
   .object({
     schemaVersion: z.literal(CONTRACT_SCHEMA_VERSION),
     ok: z.literal(true),
-    data: z.unknown(),
+    data: jsonValueSchema,
     warnings: z.array(warningSchema),
   })
   .strict();

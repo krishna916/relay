@@ -54,6 +54,6 @@ Error details are optional and never expose SQL, stacks, secrets, or local paths
 | `relay task complete <id>` | ID                                          | `--output json`                                                                   | `{ task, change }`                                              |
 | `relay task archive <id>`  | ID                                          | `--output json`                                                                   | `{ task, change }`                                              |
 
-Editing accepts existing editable fields only. Clear nullable fields with explicit flags such as `--clear-description`; empty strings are not ambiguous clearing requests. `task triage` excludes `IN_PROGRESS`, `DONE`, and `ARCHIVED`, because those transitions have dedicated intent-specific commands.
+Editing accepts existing editable fields only. Clear nullable fields with explicit flags such as `--clear-description`; empty strings and MCP `null` values are rejected rather than treated as clearing requests. A value and its corresponding clear flag cannot be supplied together. `task triage` excludes `IN_PROGRESS`, `DONE`, and `ARCHIVED`, because those transitions have dedicated intent-specific commands.
 
 CLI commands call application services and reuse `src/database/database-config.ts`; they never access SQLite directly. Database path precedence is explicit command/injected path, non-blank `RELAY_DB_PATH`, then the platform default. The working directory is never production storage configuration.

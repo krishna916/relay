@@ -137,6 +137,7 @@ export function validateRepositoryAssets(options: ValidateRepositoryAssetsOption
     'src/interfaces/http/create-http-server.ts',
     'src/interfaces/contracts/contract-version.ts',
     'src/interfaces/contracts/error-contract.ts',
+    'src/interfaces/contracts/json-value-contract.ts',
     'src/interfaces/contracts/session-contract.ts',
     'src/interfaces/contracts/task-contract.ts',
     'src/interfaces/contracts/warning-contract.ts',

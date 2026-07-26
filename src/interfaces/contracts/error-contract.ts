@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { jsonValueSchema } from './json-value-contract.js';
 
 export const CONTRACT_ERROR_CODES = [
   'VALIDATION_ERROR',
@@ -15,7 +16,7 @@ export const contractErrorSchema = z
   .object({
     code: z.enum(CONTRACT_ERROR_CODES),
     message: z.string().min(1),
-    details: z.record(z.string(), z.unknown()).optional(),
+    details: z.record(z.string(), jsonValueSchema).optional(),
   })
   .strict();
 

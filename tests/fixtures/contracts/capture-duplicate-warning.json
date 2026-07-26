@@ -1,7 +1,26 @@
 {
   "schemaVersion": 1,
   "ok": true,
-  "data": { "task": { "id": "task-2" }, "change": { "action": "CREATED" } },
+  "data": {
+    "task": {
+      "id": "task-2",
+      "title": "Capture contract work",
+      "description": null,
+      "status": "INBOX",
+      "priority": null,
+      "workspace": null,
+      "sourceContext": null,
+      "createdByType": "AGENT",
+      "createdByName": "Relay agent",
+      "sessionId": "session-1",
+      "createdAt": "2026-07-26T00:01:00.000Z",
+      "updatedAt": "2026-07-26T00:01:00.000Z",
+      "startedAt": null,
+      "completedAt": null,
+      "archivedAt": null
+    },
+    "change": { "action": "CREATED" }
+  },
   "warnings": [
     {
       "code": "POSSIBLE_DUPLICATE",

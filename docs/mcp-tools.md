@@ -24,7 +24,7 @@ Input: required valid `sessionId` and `limit` from 1 through 100. Output: `{ ses
 
 ## `task_edit`
 
-Input: task ID plus one or more editable task fields or explicit clear flags. Output: `{ task, change }`, including `NO_CHANGE` for an approved no-op. `sessionId`, provenance, status, and lifecycle timestamps are never editable.
+Input: task ID plus one or more editable task fields or explicit clear flags. MCP `null` is rejected; explicit `clear*` flags are the only clear operation, and a value cannot accompany its matching flag. Output: `{ task, change }`, including `NO_CHANGE` for an approved no-op. `sessionId`, provenance, status, and lifecycle timestamps are never editable.
 
 ## `task_triage`
 

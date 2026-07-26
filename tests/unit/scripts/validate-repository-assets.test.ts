@@ -57,6 +57,7 @@ function createFixtureRoot(): string {
   for (const filename of [
     'contract-version.ts',
     'error-contract.ts',
+    'json-value-contract.ts',
     'session-contract.ts',
     'task-contract.ts',
     'warning-contract.ts',
