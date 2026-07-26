@@ -59,4 +59,32 @@ describe('createTaskRuntime', () => {
     expect(() => createTaskRuntime({}, failingDependencies)).toThrow('migration failed');
     expect(database.close).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    [
+      'repository',
+      (dependencies: TaskRuntimeDependencies) => ({
+        ...dependencies,
+        createTaskRepository: vi.fn(() => {
+          throw new Error('repository failed');
+        }),
+      }),
+    ],
+    [
+      'application',
+      (dependencies: TaskRuntimeDependencies) => ({
+        ...dependencies,
+        createTaskApplication: vi.fn(() => {
+          throw new Error('application failed');
+        }),
+      }),
+    ],
+  ])('closes an opened database when %s creation fails', (_stage, makeFailingDependencies) => {
+    const { database, dependencies } = createDependencies();
+
+    expect(() => createTaskRuntime({}, makeFailingDependencies(dependencies))).toThrow(
+      `${_stage} failed`,
+    );
+    expect(database.close).toHaveBeenCalledTimes(1);
+  });
 });

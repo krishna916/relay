@@ -1,9 +1,10 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { copyFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTemporaryDatabase } from '../support/temporary-database.js';
 import { runMigrations } from '../../src/database/migrate.js';
 import { RelayError } from '../../src/shared/errors.js';
+import { normalizeTaskTitleV1 } from '../../src/database/migrations/functions/normalize-task-title-v1.js';
 
 describe('database-migrations integration', () => {
   let tempDb: ReturnType<typeof createTemporaryDatabase> | null = null;
@@ -11,6 +12,13 @@ describe('database-migrations integration', () => {
   afterEach(() => {
     tempDb?.cleanup();
     tempDb = null;
+  });
+
+  it('uses the frozen v1 title-normalization contract for migration 0004', () => {
+    expect(normalizeTaskTitleV1('  Existing\t task!!!  ')).toBe('existing task');
+    expect(
+      readFileSync('src/database/migrations/0004_task_normalized_title.sql', 'utf8'),
+    ).toContain('relay_normalize_task_title_v1(title)');
   });
 
   it('runs migrations on a fresh temporary SQLite database and verifies PRAGMAs', () => {

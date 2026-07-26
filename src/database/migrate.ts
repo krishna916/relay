@@ -2,14 +2,14 @@ import type Database from 'better-sqlite3';
 import { loadMigrationFiles } from './migration.js';
 import { RelayError } from '../shared/errors.js';
 import { resolveFromPackageRoot } from '../shared/runtime-paths.js';
-import { normalizeTaskTitle } from '../application/tasks/title-normalization.js';
+import { normalizeTaskTitleV1 } from './migrations/functions/normalize-task-title-v1.js';
 
 export interface MigrationOptions {
   readonly migrationsDir?: string;
 }
 
 export function runMigrations(db: Database.Database, options: MigrationOptions = {}): void {
-  db.function('relay_normalize_task_title', normalizeTaskTitle);
+  db.function('relay_normalize_task_title_v1', normalizeTaskTitleV1);
   const migrationsDir =
     options.migrationsDir || resolveFromPackageRoot('src', 'database', 'migrations');
 

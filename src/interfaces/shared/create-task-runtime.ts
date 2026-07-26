@@ -12,6 +12,7 @@ export interface TaskRuntime {
   readonly taskApplication: TaskApplication;
   readonly close: () => void;
 }
+/** Narrow composition seam used by runtime startup tests. */
 export interface TaskRuntimeDependencies {
   readonly createDatabaseConnection: typeof createDatabaseConnection;
   readonly runMigrations: typeof runMigrations;
