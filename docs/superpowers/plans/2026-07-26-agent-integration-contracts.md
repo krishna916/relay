@@ -21,18 +21,18 @@ The contract is versioned independently from the Relay package version using int
 
 ### 2.1 Canonical capabilities
 
-| Capability | MCP tool | CLI command |
-|---|---|---|
-| Capture | `task_capture` | `relay task capture` |
-| List | `task_list` | `relay task list` |
-| Get | `task_get` | `relay task get <id>` |
-| Find similar | `task_find_similar` | `relay task find-similar` |
-| Session captures | `session_captures_list` | `relay session captures` |
-| Edit | `task_edit` | `relay task edit <id>` |
-| Triage | `task_triage` | `relay task triage <id>` |
-| Start | `task_start` | `relay task start <id>` |
-| Complete | `task_complete` | `relay task complete <id>` |
-| Archive | `task_archive` | `relay task archive <id>` |
+| Capability       | MCP tool                | CLI command                |
+| ---------------- | ----------------------- | -------------------------- |
+| Capture          | `task_capture`          | `relay task capture`       |
+| List             | `task_list`             | `relay task list`          |
+| Get              | `task_get`              | `relay task get <id>`      |
+| Find similar     | `task_find_similar`     | `relay task find-similar`  |
+| Session captures | `session_captures_list` | `relay session captures`   |
+| Edit             | `task_edit`             | `relay task edit <id>`     |
+| Triage           | `task_triage`           | `relay task triage <id>`   |
+| Start            | `task_start`            | `relay task start <id>`    |
+| Complete         | `task_complete`         | `relay task complete <id>` |
+| Archive          | `task_archive`          | `relay task archive <id>`  |
 
 Do not expose generic CRUD or unrestricted status mutation.
 
@@ -220,14 +220,14 @@ Codes:
 
 CLI exit codes:
 
-| Exit | Meaning |
-|---|---|
-| `0` | success, including warnings or approved no-op |
-| `1` | unexpected internal error |
-| `2` | command usage or validation error |
-| `3` | task not found |
-| `4` | lifecycle conflict or archived-task restriction |
-| `5` | database/storage failure |
+| Exit | Meaning                                         |
+| ---- | ----------------------------------------------- |
+| `0`  | success, including warnings or approved no-op   |
+| `1`  | unexpected internal error                       |
+| `2`  | command usage or validation error               |
+| `3`  | task not found                                  |
+| `4`  | lifecycle conflict or archived-task restriction |
+| `5`  | database/storage failure                        |
 
 Error JSON carries the precise code; do not create an exit code for every domain error.
 

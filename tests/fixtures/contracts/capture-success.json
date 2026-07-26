@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "data": { "task": { "id": "task-1" }, "change": { "action": "CREATED" } },
+  "warnings": []
+}

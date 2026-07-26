@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "sessionId has an invalid format",
+    "details": { "field": "sessionId" }
+  }
+}

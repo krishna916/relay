@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "data": { "task": { "id": "task-2" }, "change": { "action": "CREATED" } },
+  "warnings": [
+    {
+      "code": "POSSIBLE_DUPLICATE",
+      "message": "A similar active task exists.",
+      "candidates": [{ "id": "task-1" }]
+    }
+  ]
+}

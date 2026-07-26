@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed for review under GitHub issue #19.
+Accepted for implementation under GitHub issue #19.
 
 ## Context
 

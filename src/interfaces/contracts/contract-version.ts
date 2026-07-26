@@ -1,0 +1,1 @@
+export const CONTRACT_SCHEMA_VERSION = 1;
