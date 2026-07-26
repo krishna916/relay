@@ -186,6 +186,15 @@ describe('TaskApplication', () => {
     expect(repository.lastListQuery).toEqual({ statuses: ['INBOX'], workspace: null, limit: 100 });
   });
 
+  it.each([123, true, {}, []])('rejects non-string workspace values: %s', (workspace) => {
+    const { application, repository } = setup();
+
+    expect(() => application.list({ statuses: ['INBOX'], workspace: workspace as never })).toThrow(
+      InvalidTaskRequestError,
+    );
+    expect(repository.listCalls).toBe(0);
+  });
+
   it('validates session capture requests and applies the default limit', () => {
     const { application, repository } = setup();
     const capture = task({

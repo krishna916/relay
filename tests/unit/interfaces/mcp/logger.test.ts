@@ -6,8 +6,10 @@ describe('mcpLogger', () => {
   const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
 
   afterEach(() => {
-    stderr.mockReset();
-    stdout.mockReset();
+    stderr.mockClear();
+    stdout.mockClear();
+    stderr.mockRestore();
+    stdout.mockRestore();
   });
 
   it('writes startup diagnostics to stderr without contaminating stdout', () => {

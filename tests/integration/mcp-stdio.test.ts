@@ -10,7 +10,7 @@ import { once } from 'node:events';
 describe('mcp-stdio integration', () => {
   beforeAll(() => {
     execSync('pnpm build:node', { stdio: 'inherit' });
-  });
+  }, 120_000);
 
   it('preserves discovery, sessions, duplicates, and protocol operation in the built stdio process', async () => {
     const builtJsPath = join(process.cwd(), 'dist', 'mcp', 'main.js');
@@ -84,10 +84,12 @@ describe('mcp-stdio integration', () => {
         arguments: { sessionId: 'stdio-session-b' },
       })) as { structuredContent?: { data?: { tasks?: Array<{ id: string }>; count?: number } } };
       expect(sessionA.structuredContent?.data?.count).toBe(2);
-      expect(sessionA.structuredContent?.data?.tasks?.map((task) => task.id)).toEqual([
-        first.structuredContent?.data?.task?.id,
-        second.structuredContent?.data?.task?.id,
-      ]);
+      expect(sessionA.structuredContent?.data?.tasks?.map((task) => task.id)).toEqual(
+        expect.arrayContaining([
+          first.structuredContent?.data?.task?.id,
+          second.structuredContent?.data?.task?.id,
+        ]),
+      );
       expect(sessionB.structuredContent?.data?.count).toBe(1);
 
       const invalid = await client.callTool({

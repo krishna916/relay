@@ -19,6 +19,12 @@ export function listTasksUseCase(
   if (!Number.isInteger(limit) || limit < 1 || limit > 200)
     throw new InvalidTaskRequestError('Task list limit must be an integer from 1 through 200.');
   const statuses = [...new Set(input.statuses)];
+  if (
+    input.workspace !== undefined &&
+    input.workspace !== null &&
+    typeof input.workspace !== 'string'
+  )
+    throw new InvalidTaskRequestError('workspace must be a string or null.');
   const workspace = input.workspace === undefined ? undefined : input.workspace?.trim() || null;
   return persist(
     () => repository.list({ statuses, ...(workspace === undefined ? {} : { workspace }), limit }),

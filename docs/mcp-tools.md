@@ -1,10 +1,10 @@
 # Relay MCP Tool Contracts
 
-Issue #26 implements the five safe capture/read handlers from this version `1` contract. Tool discovery exposes strict input schemas: malformed request shapes (including unknown, forbidden, missing, or out-of-range fields) receive SDK-native MCP `InvalidParams`. Schema-valid tool execution returns structured `{ schemaVersion: 1, data, warnings }`; execution errors use `VALIDATION_ERROR`, `NOT_FOUND`, `CONFLICT`, `ARCHIVED_TASK`, `STORAGE_ERROR`, or `INTERNAL_ERROR` without stack traces, SQLite details, secrets, or local paths. Compact text is a compatibility supplement, never a parsing requirement.
+Issue #26 implements the five safe capture/read handlers from this version `1` contract. Tool discovery exposes strict input schemas: malformed request shapes (including unknown, forbidden, missing, or out-of-range fields) receive SDK-native MCP `InvalidParams`. Schema-valid tool execution returns structured `{ schemaVersion: 1, data, warnings }`; execution errors use `VALIDATION_ERROR`, `NOT_FOUND`, `STORAGE_ERROR`, or `INTERNAL_ERROR` without stack traces, SQLite details, secrets, or local paths. Compact text is a compatibility supplement, never a parsing requirement.
 
 ## `task_capture`
 
-Input: required `title`, `createdByName`, and `sessionId`; optional `description`, `priority`, `workspace`, and `sourceContext`. The adapter—not the caller—sets `createdByType: AGENT` and `status: INBOX`; caller-supplied provenance or status is invalid. Output: `{ task, change: { action: "CREATED" } }`, with optional advisory `POSSIBLE_DUPLICATE` warnings. Capture always succeeds when a duplicate warning is returned.
+Input: required `title`, `createdByName`, and `sessionId`; optional `description`, `priority`, `workspace`, and `sourceContext`. The adapterâ€”not the callerâ€”sets `createdByType: AGENT` and `status: INBOX`; caller-supplied provenance or status is invalid. Output: `{ task, change: { action: "CREATED" } }`, with optional advisory `POSSIBLE_DUPLICATE` warnings. Capture always succeeds when a duplicate warning is returned.
 
 ## `task_list`
 

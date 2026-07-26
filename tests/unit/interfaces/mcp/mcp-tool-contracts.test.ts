@@ -89,9 +89,25 @@ function expectCompatibilityText(result: unknown): void {
   });
 }
 
+const executionErrors = [
+  [new ZodError([]), 'VALIDATION_ERROR'],
+  [
+    new InvalidTaskRequestError('SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'),
+    'VALIDATION_ERROR',
+  ],
+  [
+    new TaskValidationError('title', 'SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'),
+    'VALIDATION_ERROR',
+  ],
+  [new TaskNotFoundError('SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'), 'NOT_FOUND'],
+  [new TaskPersistenceError('SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'), 'STORAGE_ERROR'],
+  [new Error('SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'), 'INTERNAL_ERROR'],
+] as const;
+
 describe('MCP task tool contracts', () => {
   it('preserves capture provenance, checks duplicates before creation, and returns advisory warnings', async () => {
     const calls: string[] = [];
+    let capturedInput: unknown;
     const application = taskApplication({
       findSimilar: vi.fn(() => {
         calls.push('findSimilar');
@@ -99,12 +115,7 @@ describe('MCP task tool contracts', () => {
       }),
       create: vi.fn((input) => {
         calls.push('create');
-        expect(input).toMatchObject({
-          creator: { type: 'AGENT', name: 'Codex' },
-          sessionId: 'session-a',
-          sourceContext: 'issue-26',
-        });
-        expect(input).not.toHaveProperty('status');
+        capturedInput = input;
         return task({ sourceContext: 'issue-26' });
       }),
     });
@@ -122,6 +133,12 @@ describe('MCP task tool contracts', () => {
       taskCaptureOutputSchema.parse(structured(result));
       expectCompatibilityText(result);
       expect(calls).toEqual(['findSimilar', 'create']);
+      expect(capturedInput).toMatchObject({
+        creator: { type: 'AGENT', name: 'Codex' },
+        sessionId: 'session-a',
+        sourceContext: 'issue-26',
+      });
+      expect(capturedInput).not.toHaveProperty('status');
       expect(structured(result)).toMatchObject({
         data: { change: { action: 'CREATED' } },
         warnings: [{ code: 'POSSIBLE_DUPLICATE', candidates: [{ id: 'existing' }] }],
@@ -418,39 +435,6 @@ describe('MCP task tool contracts', () => {
   );
 
   it.each([
-    [new ZodError([]), 'VALIDATION_ERROR'],
-    [
-      new InvalidTaskRequestError('SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'),
-      'VALIDATION_ERROR',
-    ],
-    [
-      new TaskValidationError('title', 'SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'),
-      'VALIDATION_ERROR',
-    ],
-    [new TaskNotFoundError('SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'), 'NOT_FOUND'],
-    [
-      new TaskPersistenceError('SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'),
-      'STORAGE_ERROR',
-    ],
-    [new Error('SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'), 'INTERNAL_ERROR'],
-  ])('maps schema-valid execution errors without leaking internals', async (error, code) => {
-    const application = taskApplication({
-      get: vi.fn(() => {
-        throw error;
-      }),
-    });
-    const { client, close } = await createConnectedMcpTestServer(application);
-    try {
-      const result = await client.callTool({ name: 'task_get', arguments: { taskId: 'task-1' } });
-      expect(result).toMatchObject({ isError: true, structuredContent: { error: { code } } });
-      expectCompatibilityText(result);
-      expect(JSON.stringify(result)).not.toMatch(/SQLITE|relay\.db|super-secret-token|stack/i);
-    } finally {
-      await close();
-    }
-  });
-
-  it.each([
     [
       'task_capture',
       { title: 'Prepare release', createdByName: 'Codex', sessionId: 'session-a' },
@@ -463,24 +447,7 @@ describe('MCP task tool contracts', () => {
   ] as const)(
     'maps every stable execution error category for %s without leaking internals',
     async (name, arguments_, method) => {
-      const errors = [
-        [new ZodError([]), 'VALIDATION_ERROR'],
-        [
-          new InvalidTaskRequestError('SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'),
-          'VALIDATION_ERROR',
-        ],
-        [
-          new TaskValidationError('title', 'SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'),
-          'VALIDATION_ERROR',
-        ],
-        [new TaskNotFoundError('SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'), 'NOT_FOUND'],
-        [
-          new TaskPersistenceError('SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'),
-          'STORAGE_ERROR',
-        ],
-        [new Error('SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'), 'INTERNAL_ERROR'],
-      ] as const;
-      for (const [error, code] of errors) {
+      for (const [error, code] of executionErrors) {
         const application = taskApplication({
           [method]: vi.fn(() => {
             throw error;
