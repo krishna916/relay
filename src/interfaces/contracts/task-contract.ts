@@ -43,7 +43,13 @@ export const agentCaptureInputSchema = z
 
 export const taskListInputSchema = z
   .object({
-    statuses: z.array(taskStatusSchema).min(1).optional(),
+    statuses: z
+      .array(taskStatusSchema)
+      .min(1)
+      .refine((statuses) => new Set(statuses).size === statuses.length, {
+        message: 'statuses must not contain duplicates',
+      })
+      .optional(),
     workspace: optionalText(255),
     limit: z.number().int().min(1).max(100).default(100),
   })

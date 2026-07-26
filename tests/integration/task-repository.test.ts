@@ -414,6 +414,31 @@ describe('SQLite task repository list', () => {
     expect(repository.list({ statuses: ['INBOX'], workspace: null, limit: 2 })).toEqual([]);
   });
 
+  it('keeps filtered and unfiltered list statements separate for the same status shape', () => {
+    const repository = createRepository();
+    const relay = taskFixture({ id: 'relay', workspace: 'relay' });
+    const other = taskFixture({
+      id: 'other',
+      workspace: 'other',
+      updatedAt: '2026-07-25T10:00:00.000Z',
+    });
+    const unassigned = taskFixture({
+      id: 'unassigned',
+      workspace: null,
+      updatedAt: '2026-07-25T11:00:00.000Z',
+    });
+    for (const task of [relay, other, unassigned]) repository.create(task);
+
+    expect(repository.list({ statuses: ['INBOX'], workspace: 'relay', limit: 10 })).toEqual([
+      relay,
+    ]);
+    expect(repository.list({ statuses: ['INBOX'], limit: 10 })).toEqual([unassigned, other, relay]);
+    expect(repository.list({ statuses: ['INBOX'], workspace: null, limit: 10 })).toEqual([
+      unassigned,
+    ]);
+    expect(repository.list({ statuses: ['INBOX'], limit: 10 })).toEqual([unassigned, other, relay]);
+  });
+
   it.each([
     [{ statuses: [], limit: 1 }, 'empty statuses'],
     [{ statuses: ['INBOX'] as const, limit: 0 }, 'zero limit'],

@@ -181,6 +181,9 @@ describe('TaskApplication', () => {
 
     application.list({ statuses: ['INBOX'], workspace: null });
     expect(repository.lastListQuery).toEqual({ statuses: ['INBOX'], workspace: null, limit: 100 });
+
+    application.list({ statuses: ['INBOX'], workspace: '   ' });
+    expect(repository.lastListQuery).toEqual({ statuses: ['INBOX'], workspace: null, limit: 100 });
   });
 
   it('validates session capture requests and applies the default limit', () => {

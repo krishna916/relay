@@ -8,6 +8,7 @@ import {
   TaskPersistenceError,
 } from '../../../../src/application/tasks/task-application-errors.js';
 import type { Task } from '../../../../src/domain/task/task.js';
+import { TaskValidationError } from '../../../../src/domain/task/task-errors.js';
 import { createMcpServer } from '../../../../src/interfaces/mcp/create-mcp-server.js';
 import {
   sessionCapturesOutputSchema,
@@ -16,6 +17,7 @@ import {
   taskGetOutputSchema,
   taskListOutputSchema,
 } from '../../../../src/interfaces/mcp/schemas/read-tool-schemas.js';
+import { ZodError } from 'zod';
 
 function task(overrides: Partial<Task> = {}): Task {
   return {
@@ -165,6 +167,39 @@ describe('MCP task tool contracts', () => {
     }
   });
 
+  it.each([
+    ['caller-controlled status', { status: 'DONE' }],
+    ['caller-controlled creator', { creator: { type: 'HUMAN' } }],
+    ['caller-controlled creator type', { createdByType: 'HUMAN' }],
+    ['unknown property', { unrelated: true }],
+    ['empty title', { title: '   ' }],
+    ['title above the maximum', { title: 'x'.repeat(301) }],
+    ['creator name above the maximum', { createdByName: 'x'.repeat(101) }],
+    ['malformed session id', { sessionId: 'not a valid session' }],
+    ['workspace above the maximum', { workspace: 'x'.repeat(256) }],
+    ['source context above the maximum', { sourceContext: 'x'.repeat(1001) }],
+  ])('rejects capture %s before application execution', async (_name, invalidArgument) => {
+    const application = taskApplication();
+    const { client, close } = await createConnectedMcpTestServer(application);
+    try {
+      const result = await client.callTool({
+        name: 'task_capture',
+        arguments: {
+          title: 'Prepare release',
+          createdByName: 'Codex',
+          sessionId: 'session-a',
+          ...invalidArgument,
+        },
+      });
+      expect(result).toMatchObject({ isError: true });
+      expect(JSON.stringify(result)).toContain('-32602');
+      expect(application.findSimilar).not.toHaveBeenCalled();
+      expect(application.create).not.toHaveBeenCalled();
+    } finally {
+      await close();
+    }
+  });
+
   it('validates every successful read-tool output and compatibility text', async () => {
     const result = task();
     const application = taskApplication({
@@ -206,9 +241,108 @@ describe('MCP task tool contracts', () => {
     }
   });
 
+  it('preserves list defaults, explicit null workspace, and normalized workspace filters', async () => {
+    const application = taskApplication();
+    const { client, close } = await createConnectedMcpTestServer(application);
+    try {
+      await client.callTool({ name: 'task_list', arguments: {} });
+      await client.callTool({ name: 'task_list', arguments: { workspace: null } });
+      await client.callTool({ name: 'task_list', arguments: { workspace: ' relay ' } });
+      expect(application.list).toHaveBeenNthCalledWith(1, {
+        statuses: ['INBOX', 'ACTIVE', 'IN_PROGRESS', 'BACKLOG', 'DONE', 'ARCHIVED'],
+        limit: 100,
+      });
+      expect(application.list).toHaveBeenNthCalledWith(2, {
+        statuses: ['INBOX', 'ACTIVE', 'IN_PROGRESS', 'BACKLOG', 'DONE', 'ARCHIVED'],
+        workspace: null,
+        limit: 100,
+      });
+      expect(application.list).toHaveBeenNthCalledWith(3, {
+        statuses: ['INBOX', 'ACTIVE', 'IN_PROGRESS', 'BACKLOG', 'DONE', 'ARCHIVED'],
+        workspace: 'relay',
+        limit: 100,
+      });
+    } finally {
+      await close();
+    }
+  });
+
+  it('maps a missing task to the stable read-tool error envelope', async () => {
+    const application = taskApplication({
+      get: vi.fn(() => {
+        throw new TaskNotFoundError('missing');
+      }),
+    });
+    const { client, close } = await createConnectedMcpTestServer(application);
+    try {
+      const result = await client.callTool({ name: 'task_get', arguments: { taskId: 'missing' } });
+      expect(result).toMatchObject({
+        isError: true,
+        structuredContent: {
+          schemaVersion: 1,
+          error: { code: 'NOT_FOUND', message: 'Task was not found.' },
+        },
+      });
+      expectCompatibilityText(result);
+    } finally {
+      await close();
+    }
+  });
+
+  it('returns stable exact and normalized similar-task reasons', async () => {
+    const exact = task({ id: 'exact', title: 'Prepare release' });
+    const normalized = task({ id: 'normalized', title: 'Prepare release!!!' });
+    const application = taskApplication({ findSimilar: vi.fn(() => [exact, normalized]) });
+    const { client, close } = await createConnectedMcpTestServer(application);
+    try {
+      const result = await client.callTool({
+        name: 'task_find_similar',
+        arguments: { title: 'Prepare release' },
+      });
+      expect(structured(result)).toMatchObject({
+        data: {
+          candidates: [
+            { task: { id: 'exact' }, matchReason: 'EXACT_TITLE' },
+            { task: { id: 'normalized' }, matchReason: 'NORMALIZED_TITLE' },
+          ],
+        },
+      });
+      expectCompatibilityText(result);
+    } finally {
+      await close();
+    }
+  });
+
   it.each([
+    ['task_get', { taskId: '' }, 'get'],
+    ['task_list', { statuses: ['INBOX', 'INBOX'] }, 'list'],
+    ['task_list', { limit: 101 }, 'list'],
+    ['task_find_similar', { title: 'Prepare release', limit: 6 }, 'findSimilar'],
+    ['session_captures_list', { sessionId: 'bad session' }, 'listSessionCaptures'],
+  ] as const)(
+    'rejects invalid %s arguments before calling %s',
+    async (name, arguments_, method) => {
+      const application = taskApplication();
+      const { client, close } = await createConnectedMcpTestServer(application);
+      try {
+        const result = await client.callTool({ name, arguments: arguments_ });
+        expect(result).toMatchObject({ isError: true });
+        expect(JSON.stringify(result)).toContain('-32602');
+        expect(application[method]).not.toHaveBeenCalled();
+      } finally {
+        await close();
+      }
+    },
+  );
+
+  it.each([
+    [new ZodError([]), 'VALIDATION_ERROR'],
     [
       new InvalidTaskRequestError('SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'),
+      'VALIDATION_ERROR',
+    ],
+    [
+      new TaskValidationError('title', 'SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'),
       'VALIDATION_ERROR',
     ],
     [new TaskNotFoundError('SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'), 'NOT_FOUND'],
