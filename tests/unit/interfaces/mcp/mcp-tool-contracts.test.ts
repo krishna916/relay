@@ -200,6 +200,64 @@ describe('MCP task tool contracts', () => {
     }
   });
 
+  it.each([
+    ['missing all required fields', {}],
+    ['missing title', { createdByName: 'Codex', sessionId: 'session-a' }],
+    ['missing creator name', { title: 'Prepare release', sessionId: 'session-a' }],
+    ['missing session id', { title: 'Prepare release', createdByName: 'Codex' }],
+    [
+      'empty creator name',
+      { title: 'Prepare release', createdByName: '   ', sessionId: 'session-a' },
+    ],
+    [
+      'empty description',
+      { title: 'Prepare release', createdByName: 'Codex', sessionId: 'session-a', description: '' },
+    ],
+    [
+      'description above the maximum',
+      {
+        title: 'Prepare release',
+        createdByName: 'Codex',
+        sessionId: 'session-a',
+        description: 'x'.repeat(10001),
+      },
+    ],
+    [
+      'invalid priority',
+      {
+        title: 'Prepare release',
+        createdByName: 'Codex',
+        sessionId: 'session-a',
+        priority: 'URGENT',
+      },
+    ],
+    [
+      'empty workspace',
+      { title: 'Prepare release', createdByName: 'Codex', sessionId: 'session-a', workspace: '' },
+    ],
+    [
+      'empty source context',
+      {
+        title: 'Prepare release',
+        createdByName: 'Codex',
+        sessionId: 'session-a',
+        sourceContext: '',
+      },
+    ],
+  ])('rejects capture %s before application execution', async (_name, arguments_) => {
+    const application = taskApplication();
+    const { client, close } = await createConnectedMcpTestServer(application);
+    try {
+      const result = await client.callTool({ name: 'task_capture', arguments: arguments_ });
+      expect(result).toMatchObject({ isError: true });
+      expect(JSON.stringify(result)).toContain('-32602');
+      expect(application.findSimilar).not.toHaveBeenCalled();
+      expect(application.create).not.toHaveBeenCalled();
+    } finally {
+      await close();
+    }
+  });
+
   it('validates every successful read-tool output and compatibility text', async () => {
     const result = task();
     const application = taskApplication({
@@ -315,6 +373,7 @@ describe('MCP task tool contracts', () => {
 
   it.each([
     ['task_get', { taskId: '' }, 'get'],
+    ['task_get', {}, 'get'],
     ['task_get', { taskId: 'x'.repeat(101) }, 'get'],
     ['task_get', { taskId: 'task-1', unknown: true }, 'get'],
     ['task_list', { statuses: [] }, 'list'],
@@ -327,6 +386,7 @@ describe('MCP task tool contracts', () => {
     ['task_list', { workspace: 'x'.repeat(256) }, 'list'],
     ['task_list', { unknown: true }, 'list'],
     ['task_find_similar', { title: '' }, 'findSimilar'],
+    ['task_find_similar', {}, 'findSimilar'],
     ['task_find_similar', { title: 'x'.repeat(301) }, 'findSimilar'],
     ['task_find_similar', { title: 'Prepare release', workspace: '' }, 'findSimilar'],
     ['task_find_similar', { title: 'Prepare release', workspace: 'x'.repeat(256) }, 'findSimilar'],
@@ -389,4 +449,56 @@ describe('MCP task tool contracts', () => {
       await close();
     }
   });
+
+  it.each([
+    [
+      'task_capture',
+      { title: 'Prepare release', createdByName: 'Codex', sessionId: 'session-a' },
+      'findSimilar',
+    ],
+    ['task_list', {}, 'list'],
+    ['task_get', { taskId: 'task-1' }, 'get'],
+    ['task_find_similar', { title: 'Prepare release' }, 'findSimilar'],
+    ['session_captures_list', { sessionId: 'session-a' }, 'listSessionCaptures'],
+  ] as const)(
+    'maps every stable execution error category for %s without leaking internals',
+    async (name, arguments_, method) => {
+      const errors = [
+        [new ZodError([]), 'VALIDATION_ERROR'],
+        [
+          new InvalidTaskRequestError('SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'),
+          'VALIDATION_ERROR',
+        ],
+        [
+          new TaskValidationError('title', 'SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'),
+          'VALIDATION_ERROR',
+        ],
+        [new TaskNotFoundError('SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'), 'NOT_FOUND'],
+        [
+          new TaskPersistenceError('SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'),
+          'STORAGE_ERROR',
+        ],
+        [new Error('SQLITE_CONSTRAINT /tmp/relay.db super-secret-token'), 'INTERNAL_ERROR'],
+      ] as const;
+      for (const [error, code] of errors) {
+        const application = taskApplication({
+          [method]: vi.fn(() => {
+            throw error;
+          }),
+        } as Partial<TaskApplication>);
+        const { client, close } = await createConnectedMcpTestServer(application);
+        try {
+          const result = await client.callTool({ name, arguments: arguments_ });
+          expect(result).toMatchObject({
+            isError: true,
+            structuredContent: { schemaVersion: 1, error: { code } },
+          });
+          expectCompatibilityText(result);
+          expect(JSON.stringify(result)).not.toMatch(/SQLITE|relay\.db|super-secret-token|stack/i);
+        } finally {
+          await close();
+        }
+      }
+    },
+  );
 });
