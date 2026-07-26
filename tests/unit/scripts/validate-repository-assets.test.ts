@@ -46,6 +46,35 @@ function createFixtureRoot(): string {
   writeFileSync(join(rootDir, 'web/src/App.tsx'), 'export function App() { return null; }\n');
   mkdirSync(join(rootDir, 'docs/decisions'), { recursive: true });
   writeFileSync(join(rootDir, 'docs/decisions/0001-product-and-architecture.md'), '# decision\n');
+  writeFileSync(
+    join(rootDir, 'docs/decisions/0002-agent-integration-contracts.md'),
+    '# decision\n',
+  );
+  writeFileSync(join(rootDir, 'docs/mcp-tools.md'), '# MCP tools\n');
+  writeFileSync(join(rootDir, 'docs/cli-reference.md'), '# CLI reference\n');
+  writeFileSync(join(rootDir, 'docs/session-semantics.md'), '# Session semantics\n');
+  mkdirSync(join(rootDir, 'src/interfaces/contracts'), { recursive: true });
+  for (const filename of [
+    'contract-version.ts',
+    'error-contract.ts',
+    'json-value-contract.ts',
+    'session-contract.ts',
+    'task-contract.ts',
+    'warning-contract.ts',
+  ]) {
+    writeFileSync(join(rootDir, 'src/interfaces/contracts', filename), 'export {};\n');
+  }
+  mkdirSync(join(rootDir, 'tests/fixtures/contracts'), { recursive: true });
+  for (const filename of [
+    'capture-success.json',
+    'capture-duplicate-warning.json',
+    'validation-error.json',
+    'not-found-error.json',
+    'transition-conflict-error.json',
+    'storage-error.json',
+  ]) {
+    writeFileSync(join(rootDir, 'tests/fixtures/contracts', filename), '{}\n');
+  }
   mkdirSync(join(rootDir, 'dist/mcp'), { recursive: true });
   writeFileSync(join(rootDir, 'dist/mcp/main.js'), 'console.log("ok");\n');
 
@@ -90,5 +119,13 @@ describe('validateRepositoryAssets', () => {
     writeFileSync(join(rootDir, 'web', 'index.html'), `<!-- ${'TO' + 'DO'} -->\n`);
 
     expect(() => validateRepositoryAssets({ rootDir })).toThrow(new RegExp('TO' + 'DO', 'i'));
+  });
+
+  it('requires the agent-integration contract documents and representative fixtures', () => {
+    const rootDir = createFixtureRoot();
+    createdRoots.push(rootDir);
+    rmSync(join(rootDir, 'docs/mcp-tools.md'));
+
+    expect(() => validateRepositoryAssets({ rootDir })).toThrow(/agent-integration|mcp-tools/i);
   });
 });

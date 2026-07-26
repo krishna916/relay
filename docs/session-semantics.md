@@ -1,20 +1,23 @@
 # Relay Session Semantics
 
-Issue #19 defines `sessionId` as an opaque caller-generated identifier stored as task metadata.
+`sessionId` is opaque caller-generated metadata on agent-created tasks. It is not a session table, aggregate, timer, or authentication mechanism.
 
-- No session table is introduced in Epic #2.
-- Agent capture requires a valid session ID.
-- MCP and CLI callers reuse the same ID for captures and final review.
-- Concurrent sessions use distinct IDs.
-- Session review selects agent-created tasks whose persisted `sessionId` exactly matches the requested ID.
-- Completed and archived tasks remain visible in session review.
-- Results are ordered by `createdAt ASC, id ASC`.
-- Session completion is never inferred through timers, inactivity, or process lifetime.
+## Identifier rules
 
-Validation:
+- MCP clients and CLI callers generate IDs in the same namespace.
+- Trim surrounding whitespace before validation.
+- A valid ID has 1–128 ASCII letters, digits, `.`, `_`, `:`, or `-`.
+- Agent capture and session-capture retrieval require a valid ID; malformed or missing input is `VALIDATION_ERROR`.
+- Human tasks may have `sessionId: null`.
 
-- trim surrounding whitespace
-- length 1–128 characters
-- allowed characters: ASCII letters, digits, `.`, `_`, `:`, `-`
+An agent reuses the same identifier while capturing and reviewing work in one active session. Different concurrent agents or shells use different IDs, so their capture groups remain isolated. Completion is initiated by the agent or user and is never persisted or inferred from process exit, timers, or inactivity.
 
-The production task-model, migration, repository, and application changes are implemented downstream under issue #20.
+## Deterministic capture membership
+
+“Captured during this session” means a task was originally created with `createdByType = AGENT` and its persisted `sessionId` exactly equals the requested identifier. The query uses persisted metadata, not timestamps or process lifetime.
+
+Session review includes captures in every lifecycle state, including `DONE` and `ARCHIVED`, and sorts them by `createdAt ASC, id ASC`.
+
+## Downstream implementation boundary
+
+Issue #19 documents `sessionId` in the external task representation and validates contract input only. Issue #20 adds the nullable domain/persistence field, migration, repository mapping, agent-capture application input, and session-capture query support. No production session storage or query handler is introduced here.

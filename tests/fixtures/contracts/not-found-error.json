@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "error": { "code": "NOT_FOUND", "message": "Task was not found." }
+}

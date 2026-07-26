@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "error": { "code": "STORAGE_ERROR", "message": "Relay could not store the task." }
+}
