@@ -147,6 +147,17 @@ describe('SQLite task repository create and find', () => {
     expect(repository.findById(minimalTask.id)).toEqual(minimalTask);
   });
 
+  it('persists the canonical Unicode title normalization for fresh tasks', () => {
+    const repository = createRepository();
+    const task = taskFixture({ id: 'unicode-title', title: ' ÄBC!!! ' });
+
+    repository.create(task);
+
+    expect(
+      context?.db.prepare('SELECT normalized_title FROM tasks WHERE id = ?').get(task.id),
+    ).toEqual({ normalized_title: 'äbc' });
+  });
+
   it.each([
     ['INBOX', null, null, null],
     ['ACTIVE', null, null, null],

@@ -120,19 +120,75 @@ describe('database-migrations integration', () => {
       null,
       null,
     );
+    db.prepare(
+      `INSERT INTO tasks (
+        id, title, description, status, priority, workspace, source_context,
+        created_by_type, created_by_name, created_at, updated_at, started_at,
+        completed_at, archived_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'v2-ascii',
+      'Existing task',
+      null,
+      'INBOX',
+      null,
+      null,
+      null,
+      'HUMAN',
+      null,
+      '2026-07-25T09:01:00.000Z',
+      '2026-07-25T09:01:00.000Z',
+      null,
+      null,
+      null,
+    );
+    db.prepare(
+      `INSERT INTO tasks (
+        id, title, description, status, priority, workspace, source_context,
+        created_by_type, created_by_name, created_at, updated_at, started_at,
+        completed_at, archived_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'v2-unicode',
+      'ÄBC',
+      null,
+      'INBOX',
+      null,
+      null,
+      null,
+      'HUMAN',
+      null,
+      '2026-07-25T09:02:00.000Z',
+      '2026-07-25T09:02:00.000Z',
+      null,
+      null,
+      null,
+    );
 
     runMigrations(db);
 
     expect(
-      db
-        .prepare('SELECT id, title, session_id, normalized_title FROM tasks WHERE id = ?')
-        .get('v2-task'),
-    ).toEqual({
-      id: 'v2-task',
-      title: '  Existing\t task!!!  ',
-      session_id: null,
-      normalized_title: 'existing task',
-    });
+      db.prepare('SELECT id, title, session_id, normalized_title FROM tasks ORDER BY id').all(),
+    ).toEqual([
+      {
+        id: 'v2-ascii',
+        title: 'Existing task',
+        session_id: null,
+        normalized_title: 'existing task',
+      },
+      {
+        id: 'v2-task',
+        title: '  Existing\t task!!!  ',
+        session_id: null,
+        normalized_title: 'existing task',
+      },
+      {
+        id: 'v2-unicode',
+        title: 'ÄBC',
+        session_id: null,
+        normalized_title: 'äbc',
+      },
+    ]);
     expect(db.prepare('SELECT version FROM _relay_migrations ORDER BY version').all()).toEqual([
       { version: 1 },
       { version: 2 },
