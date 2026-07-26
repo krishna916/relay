@@ -15,6 +15,7 @@ export interface CreateTaskInput {
   readonly priority?: TaskPriority | null;
   readonly workspace?: string | null;
   readonly sourceContext?: string | null;
+  readonly sessionId?: string | null;
   readonly creator: TaskCreatorInput;
 }
 
@@ -36,6 +37,7 @@ export function createTaskUseCase(
       ...(input.priority === undefined ? {} : { priority: input.priority }),
       ...(input.workspace === undefined ? {} : { workspace: input.workspace }),
       ...(input.sourceContext === undefined ? {} : { sourceContext: input.sourceContext }),
+      ...(input.sessionId === undefined ? {} : { sessionId: input.sessionId }),
       createdByType: input.creator.type,
       ...(input.creator.name === undefined ? {} : { createdByName: input.creator.name }),
     },

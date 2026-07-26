@@ -48,6 +48,7 @@ describe('http tasks integration', () => {
         status: 'INBOX',
         createdByType: 'HUMAN',
         createdByName: null,
+        sessionId: null,
         description: null,
         priority: null,
         workspace: null,
@@ -104,6 +105,13 @@ describe('http tasks integration', () => {
     });
     expect(invalid.status).toBe(400);
     await expect(invalid.json()).resolves.toMatchObject({ error: { code: 'INVALID_REQUEST' } });
+
+    const immutable = await fetch(`${server.url}/api/tasks/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: 'session-1' }),
+    });
+    expect(immutable.status).toBe(400);
   });
 
   it('returns safe structured errors for invalid body, unsupported media type, methods, and unknown APIs', async () => {

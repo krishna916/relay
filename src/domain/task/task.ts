@@ -8,6 +8,8 @@ const MAX_DESCRIPTION_LENGTH = 10_000;
 const MAX_WORKSPACE_LENGTH = 255;
 const MAX_SOURCE_CONTEXT_LENGTH = 1_000;
 const MAX_CREATOR_NAME_LENGTH = 100;
+const MAX_SESSION_ID_LENGTH = 128;
+const SESSION_ID_PATTERN = /^[A-Za-z0-9._:-]+$/;
 
 export type TaskCreatorType = 'HUMAN' | 'AGENT';
 
@@ -21,6 +23,7 @@ export interface Task {
   readonly sourceContext: string | null;
   readonly createdByType: TaskCreatorType;
   readonly createdByName: string | null;
+  readonly sessionId: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly startedAt: string | null;
@@ -37,6 +40,7 @@ export interface CreateTaskInput {
   readonly sourceContext?: string | null;
   readonly createdByType: TaskCreatorType;
   readonly createdByName?: string | null;
+  readonly sessionId?: string | null;
 }
 
 export interface RehydrateTaskInput {
@@ -49,6 +53,7 @@ export interface RehydrateTaskInput {
   readonly sourceContext: string | null;
   readonly createdByType: TaskCreatorType;
   readonly createdByName: string | null;
+  readonly sessionId: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly startedAt: string | null;
@@ -72,10 +77,8 @@ export function createTask(input: CreateTaskInput, now: string): Task {
     'createdByName',
     MAX_CREATOR_NAME_LENGTH,
   );
-
-  if (createdByType === 'AGENT' && createdByName === null) {
-    throw new TaskValidationError('createdByName', 'createdByName is required for AGENT tasks');
-  }
+  const sessionId = validateSessionId(input.sessionId);
+  validateCreatorSessionConsistency(createdByType, createdByName, sessionId);
 
   return {
     id: requiredString(input.id, 'id', MAX_ID_LENGTH),
@@ -87,6 +90,7 @@ export function createTask(input: CreateTaskInput, now: string): Task {
     sourceContext: optionalString(input.sourceContext, 'sourceContext', MAX_SOURCE_CONTEXT_LENGTH),
     createdByType,
     createdByName,
+    sessionId,
     createdAt: timestamp,
     updatedAt: timestamp,
     startedAt: null,
@@ -102,11 +106,14 @@ export function rehydrateTask(input: RehydrateTaskInput): Task {
   requireNormalizedOptional(input.workspace, 'workspace', MAX_WORKSPACE_LENGTH);
   requireNormalizedOptional(input.sourceContext, 'sourceContext', MAX_SOURCE_CONTEXT_LENGTH);
   requireNormalizedOptional(input.createdByName, 'createdByName', MAX_CREATOR_NAME_LENGTH);
+  requireNormalizedOptional(input.sessionId, 'sessionId', MAX_SESSION_ID_LENGTH);
 
   const createdByType = validateCreatorType(input.createdByType);
-  if (createdByType === 'AGENT' && input.createdByName === null) {
-    throw new TaskValidationError('createdByName', 'createdByName is required for AGENT tasks');
+  const sessionId = validateSessionId(input.sessionId);
+  if (input.sessionId !== sessionId) {
+    throw new TaskValidationError('sessionId', 'sessionId must be normalized');
   }
+  validateCreatorSessionConsistency(createdByType, input.createdByName, sessionId);
   if (!isTaskStatus(input.status)) {
     throw new TaskValidationError('status', 'status is not supported');
   }
@@ -119,6 +126,31 @@ export function rehydrateTask(input: RehydrateTaskInput): Task {
   validateLifecycleTimestamps(input);
 
   return { ...input };
+}
+
+function validateSessionId(value: unknown): string | null {
+  const sessionId = optionalString(value, 'sessionId', MAX_SESSION_ID_LENGTH);
+  if (sessionId !== null && !SESSION_ID_PATTERN.test(sessionId)) {
+    throw new TaskValidationError('sessionId', 'sessionId contains unsupported characters');
+  }
+  return sessionId;
+}
+
+function validateCreatorSessionConsistency(
+  createdByType: TaskCreatorType,
+  createdByName: string | null,
+  sessionId: string | null,
+): void {
+  if (createdByType === 'AGENT') {
+    if (createdByName === null) {
+      throw new TaskValidationError('createdByName', 'createdByName is required for AGENT tasks');
+    }
+    if (sessionId === null) {
+      throw new TaskValidationError('sessionId', 'sessionId is required for AGENT tasks');
+    }
+  } else if (sessionId !== null) {
+    throw new TaskValidationError('sessionId', 'sessionId is not allowed for HUMAN tasks');
+  }
 }
 
 export function editTask(task: Task, changes: TaskChanges, now: string): Task {

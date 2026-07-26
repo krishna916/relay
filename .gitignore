@@ -15,3 +15,5 @@ Desktop.ini
 *.swo
 *.bak
 *.orig
+
+.pnpm-store/*

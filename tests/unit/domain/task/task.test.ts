@@ -8,6 +8,72 @@ import { createTask, editTask, rehydrateTask } from '../../../../src/domain/task
 const CREATED_AT = '2026-07-25T10:00:00.000Z';
 
 describe('createTask', () => {
+  it('requires a valid session ID for agents and forbids it for humans', () => {
+    expect(
+      createTask(
+        {
+          id: 'agent-task',
+          title: 'Captured task',
+          createdByType: 'AGENT',
+          createdByName: 'Codex',
+          sessionId: ' session:2026.07-26 ',
+        },
+        CREATED_AT,
+      ),
+    ).toMatchObject({ sessionId: 'session:2026.07-26' });
+
+    expect(() =>
+      createTask(
+        {
+          id: 'agent-missing',
+          title: 'Missing session',
+          createdByType: 'AGENT',
+          createdByName: 'Codex',
+        },
+        CREATED_AT,
+      ),
+    ).toThrow(TaskValidationError);
+    expect(() =>
+      createTask(
+        { id: 'human-session', title: 'Human session', createdByType: 'HUMAN', sessionId: 's-1' },
+        CREATED_AT,
+      ),
+    ).toThrow(TaskValidationError);
+  });
+
+  it.each(['', 'x'.repeat(129), 'spaces are invalid', 'slash/is-invalid'])(
+    'rejects an invalid agent session ID: %s',
+    (sessionId) => {
+      expect(() =>
+        createTask(
+          {
+            id: 'agent-task',
+            title: 'Captured task',
+            createdByType: 'AGENT',
+            createdByName: 'Codex',
+            sessionId,
+          },
+          CREATED_AT,
+        ),
+      ).toThrow(TaskValidationError);
+    },
+  );
+
+  it.each(['a', 's'.repeat(128)])('accepts session ID boundary: %s', (sessionId) => {
+    expect(
+      createTask(
+        {
+          id: 'agent-task',
+          title: 'Captured task',
+          createdByType: 'AGENT',
+          createdByName: 'Codex',
+          sessionId,
+        },
+        CREATED_AT,
+      ).sessionId,
+    ).toBe(sessionId);
+  });
+
   it('creates a normalized inbox task with the supplied creation time', () => {
     const task = createTask(
       {
@@ -28,6 +94,7 @@ describe('createTask', () => {
       sourceContext: null,
       createdByType: 'HUMAN',
       createdByName: null,
+      sessionId: null,
       createdAt: CREATED_AT,
       updatedAt: CREATED_AT,
       startedAt: null,
@@ -87,7 +154,15 @@ describe('createTask', () => {
     ],
   ] as const)('accepts %s at its exact maximum length', (field, value, changes) => {
     const task = createTask(
-      { id: 'task-1', title: 'Task', createdByType: 'HUMAN', ...changes },
+      {
+        id: 'task-1',
+        title: 'Task',
+        createdByType: 'HUMAN',
+        ...changes,
+        ...('createdByType' in changes && changes.createdByType === 'AGENT'
+          ? { sessionId: 'session-1' }
+          : {}),
+      },
       CREATED_AT,
     );
 
@@ -134,6 +209,7 @@ describe('rehydrateTask', () => {
       sourceContext: 'issue-5',
       createdByType: 'AGENT' as const,
       createdByName: 'Codex',
+      sessionId: 'session-1',
       createdAt: '2026-07-25T10:00:00.000Z',
       updatedAt: '2026-07-25T11:00:00.000Z',
       startedAt: '2026-07-25T10:10:00.000Z',
@@ -156,6 +232,7 @@ describe('rehydrateTask', () => {
         sourceContext: null,
         createdByType: 'HUMAN',
         createdByName: null,
+        sessionId: null,
         createdAt: CREATED_AT,
         updatedAt: CREATED_AT,
         startedAt: null,

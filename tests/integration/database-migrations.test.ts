@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { copyFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTemporaryDatabase } from '../support/temporary-database.js';
 import { runMigrations } from '../../src/database/migrate.js';
@@ -34,6 +34,7 @@ describe('database-migrations integration', () => {
     expect(migrations).toEqual([
       { version: 1, name: 'scaffold' },
       { version: 2, name: 'tasks' },
+      { version: 3, name: 'task_session_id' },
     ]);
 
     // Verify relay_metadata table scaffolded by 0001_scaffold.sql
@@ -66,6 +67,7 @@ describe('database-migrations integration', () => {
       expect.objectContaining({ name: 'started_at', type: 'TEXT', notnull: 0, pk: 0 }),
       expect.objectContaining({ name: 'completed_at', type: 'TEXT', notnull: 0, pk: 0 }),
       expect.objectContaining({ name: 'archived_at', type: 'TEXT', notnull: 0, pk: 0 }),
+      expect.objectContaining({ name: 'session_id', type: 'TEXT', notnull: 0, pk: 0 }),
     ]);
 
     const indexes = db.prepare('PRAGMA index_list(tasks)').all() as { name: string }[];
@@ -77,7 +79,57 @@ describe('database-migrations integration', () => {
     expect(() => runMigrations(db)).not.toThrow();
     expect(
       db.prepare('SELECT version, name FROM _relay_migrations ORDER BY version').all(),
-    ).toHaveLength(2);
+    ).toHaveLength(3);
+  });
+
+  it('upgrades a v2 database without changing its existing task data', () => {
+    tempDb = createTemporaryDatabase();
+    const { db, dir } = tempDb;
+    const v2Migrations = join(dir, 'v2-migrations');
+    mkdirSync(v2Migrations, { recursive: true });
+    copyFileSync(
+      'src/database/migrations/0001_scaffold.sql',
+      join(v2Migrations, '0001_scaffold.sql'),
+    );
+    copyFileSync('src/database/migrations/0002_tasks.sql', join(v2Migrations, '0002_tasks.sql'));
+    runMigrations(db, { migrationsDir: v2Migrations });
+    db.prepare(
+      `INSERT INTO tasks (
+        id, title, description, status, priority, workspace, source_context,
+        created_by_type, created_by_name, created_at, updated_at, started_at,
+        completed_at, archived_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'v2-task',
+      'Existing task',
+      null,
+      'INBOX',
+      null,
+      null,
+      null,
+      'HUMAN',
+      null,
+      '2026-07-25T09:00:00.000Z',
+      '2026-07-25T09:00:00.000Z',
+      null,
+      null,
+      null,
+    );
+
+    runMigrations(db);
+
+    expect(
+      db.prepare('SELECT id, title, session_id FROM tasks WHERE id = ?').get('v2-task'),
+    ).toEqual({
+      id: 'v2-task',
+      title: 'Existing task',
+      session_id: null,
+    });
+    expect(db.prepare('SELECT version FROM _relay_migrations ORDER BY version').all()).toEqual([
+      { version: 1 },
+      { version: 2 },
+      { version: 3 },
+    ]);
   });
 
   it.each([

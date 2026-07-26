@@ -37,6 +37,13 @@ export class InMemoryTaskRepository implements TaskRepository {
   public findFailure: Error | null = null;
   public updateFailure: Error | null = null;
   public listFailure: Error | null = null;
+  public lastSessionCaptureQuery: { readonly sessionId: string; readonly limit: number } | null =
+    null;
+  public lastSimilarQuery: {
+    readonly normalizedTitle: string;
+    readonly workspace: string | null;
+    readonly limit: number;
+  } | null = null;
 
   public create(task: Task): Task {
     this.createCalls += 1;
@@ -65,5 +72,24 @@ export class InMemoryTaskRepository implements TaskRepository {
     return [...this.tasks.values()]
       .filter((task) => query.statuses.includes(task.status))
       .slice(0, query.limit);
+  }
+
+  public listSessionCaptures(query: {
+    readonly sessionId: string;
+    readonly limit: number;
+  }): readonly Task[] {
+    this.lastSessionCaptureQuery = query;
+    return [...this.tasks.values()]
+      .filter((task) => task.createdByType === 'AGENT' && task.sessionId === query.sessionId)
+      .slice(0, query.limit);
+  }
+
+  public findSimilar(query: {
+    readonly normalizedTitle: string;
+    readonly workspace: string | null;
+    readonly limit: number;
+  }): readonly Task[] {
+    this.lastSimilarQuery = query;
+    return [...this.tasks.values()].slice(0, query.limit);
   }
 }
