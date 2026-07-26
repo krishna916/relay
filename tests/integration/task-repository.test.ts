@@ -40,6 +40,7 @@ const FULL_TASK: Task = {
 const FULL_ROW: TaskRow = {
   id: 'task-full',
   title: 'Persist every field',
+  normalized_title: 'persist every field',
   description: 'A fully populated task',
   status: 'ARCHIVED',
   priority: 'HIGH',
@@ -241,7 +242,7 @@ describe('SQLite task repository update', () => {
 
     const creationData = context?.db
       .prepare(
-        'SELECT id, created_by_type, created_by_name, session_id, created_at FROM tasks WHERE id = ?',
+        'SELECT id, created_by_type, created_by_name, session_id, created_at, normalized_title FROM tasks WHERE id = ?',
       )
       .get(updated.id);
     expect(creationData).toEqual({
@@ -250,6 +251,7 @@ describe('SQLite task repository update', () => {
       created_by_name: original.createdByName,
       session_id: original.sessionId,
       created_at: original.createdAt,
+      normalized_title: 'updated title',
     });
   });
 
@@ -558,6 +560,29 @@ describe('SQLite task repository failure translation', () => {
       expect(error).toBeInstanceOf(TaskRepositoryCorruptionError);
       expect((error as TaskRepositoryCorruptionError).cause).toBeInstanceOf(TaskValidationError);
     }
+  });
+
+  it('preserves corruption errors when invalid stored data is read after an update', () => {
+    const repository = createRepository();
+    context?.db.pragma('ignore_check_constraints = ON');
+    context?.db
+      .prepare(
+        `INSERT INTO tasks (
+          id, title, description, status, priority, workspace, source_context,
+          created_by_type, created_by_name, session_id, created_at, updated_at, started_at,
+          completed_at, archived_at
+        ) VALUES (
+          @id, @title, @description, @status, @priority, @workspace, @source_context,
+          @created_by_type, @created_by_name, @session_id, @created_at, @updated_at, @started_at,
+          @completed_at, @archived_at
+        )`,
+      )
+      .run({ ...FULL_ROW, id: 'corrupt-update', created_by_type: 'UNKNOWN' });
+    context?.db.pragma('ignore_check_constraints = OFF');
+
+    expect(() => repository.update({ ...FULL_TASK, id: 'corrupt-update' })).toThrow(
+      TaskRepositoryCorruptionError,
+    );
   });
 
   it.each([

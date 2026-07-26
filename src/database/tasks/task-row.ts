@@ -7,10 +7,12 @@ import {
 import type { TaskPriority } from '../../domain/task/task-priority.js';
 import type { TaskStatus } from '../../domain/task/task-status.js';
 import { TaskRepositoryCorruptionError } from '../../application/tasks/task-repository-errors.js';
+import { normalizeTaskTitle } from '../../application/tasks/title-normalization.js';
 
 export const TASK_COLUMN_LIST = `
   id,
   title,
+  normalized_title,
   description,
   status,
   priority,
@@ -29,6 +31,7 @@ export const TASK_COLUMN_LIST = `
 export interface TaskRow {
   readonly id: string;
   readonly title: string;
+  readonly normalized_title: string;
   readonly description: string | null;
   readonly status: TaskStatus;
   readonly priority: TaskPriority | null;
@@ -54,6 +57,7 @@ export function taskToParameters(task: Task): TaskParameters {
   return {
     id: task.id,
     title: task.title,
+    normalized_title: normalizeTaskTitle(task.title),
     description: task.description,
     status: task.status,
     priority: task.priority,
@@ -74,6 +78,7 @@ export function taskToUpdateParameters(task: Task): TaskUpdateParameters {
   return {
     id: task.id,
     title: task.title,
+    normalized_title: normalizeTaskTitle(task.title),
     description: task.description,
     status: task.status,
     priority: task.priority,

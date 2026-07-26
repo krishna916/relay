@@ -1,6 +1,7 @@
 import { TaskArchivedError, TaskValidationError } from './task-errors.js';
 import { isTaskPriority, type TaskPriority } from './task-priority.js';
 import { isTaskStatus, type TaskStatus } from './task-status.js';
+import { MAX_SESSION_ID_LENGTH, SESSION_ID_PATTERN } from '../../shared/session-id-rules.js';
 
 const MAX_ID_LENGTH = 100;
 const MAX_TITLE_LENGTH = 300;
@@ -8,8 +9,6 @@ const MAX_DESCRIPTION_LENGTH = 10_000;
 const MAX_WORKSPACE_LENGTH = 255;
 const MAX_SOURCE_CONTEXT_LENGTH = 1_000;
 const MAX_CREATOR_NAME_LENGTH = 100;
-const MAX_SESSION_ID_LENGTH = 128;
-const SESSION_ID_PATTERN = /^[A-Za-z0-9._:-]+$/;
 
 export type TaskCreatorType = 'HUMAN' | 'AGENT';
 

@@ -35,6 +35,7 @@ describe('database-migrations integration', () => {
       { version: 1, name: 'scaffold' },
       { version: 2, name: 'tasks' },
       { version: 3, name: 'task_session_id' },
+      { version: 4, name: 'task_normalized_title' },
     ]);
 
     // Verify relay_metadata table scaffolded by 0001_scaffold.sql
@@ -68,18 +69,22 @@ describe('database-migrations integration', () => {
       expect.objectContaining({ name: 'completed_at', type: 'TEXT', notnull: 0, pk: 0 }),
       expect.objectContaining({ name: 'archived_at', type: 'TEXT', notnull: 0, pk: 0 }),
       expect.objectContaining({ name: 'session_id', type: 'TEXT', notnull: 0, pk: 0 }),
+      expect.objectContaining({ name: 'normalized_title', type: 'TEXT', notnull: 1, pk: 0 }),
     ]);
 
     const indexes = db.prepare('PRAGMA index_list(tasks)').all() as { name: string }[];
     expect(indexes).toEqual(
-      expect.arrayContaining([expect.objectContaining({ name: 'idx_tasks_status_updated_at' })]),
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'idx_tasks_status_updated_at' }),
+        expect.objectContaining({ name: 'idx_tasks_normalized_title_active_workspace' }),
+      ]),
     );
 
     // Idempotence test
     expect(() => runMigrations(db)).not.toThrow();
     expect(
       db.prepare('SELECT version, name FROM _relay_migrations ORDER BY version').all(),
-    ).toHaveLength(3);
+    ).toHaveLength(4);
   });
 
   it('upgrades a v2 database without changing its existing task data', () => {
@@ -101,7 +106,7 @@ describe('database-migrations integration', () => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       'v2-task',
-      'Existing task',
+      '  Existing\t task!!!  ',
       null,
       'INBOX',
       null,
@@ -119,16 +124,20 @@ describe('database-migrations integration', () => {
     runMigrations(db);
 
     expect(
-      db.prepare('SELECT id, title, session_id FROM tasks WHERE id = ?').get('v2-task'),
+      db
+        .prepare('SELECT id, title, session_id, normalized_title FROM tasks WHERE id = ?')
+        .get('v2-task'),
     ).toEqual({
       id: 'v2-task',
-      title: 'Existing task',
+      title: '  Existing\t task!!!  ',
       session_id: null,
+      normalized_title: 'existing task',
     });
     expect(db.prepare('SELECT version FROM _relay_migrations ORDER BY version').all()).toEqual([
       { version: 1 },
       { version: 2 },
       { version: 3 },
+      { version: 4 },
     ]);
   });
 
