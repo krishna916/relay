@@ -596,6 +596,35 @@ describe('SQLite task repository failure translation', () => {
     );
   });
 
+  it('preserves corruption errors when reading session captures', () => {
+    const repository = createRepository();
+    context?.db.pragma('ignore_check_constraints = ON');
+    context?.db
+      .prepare(
+        `INSERT INTO tasks (
+          id, title, description, status, priority, workspace, source_context,
+          created_by_type, created_by_name, session_id, created_at, updated_at, started_at,
+          completed_at, archived_at, normalized_title
+        ) VALUES (
+          @id, @title, @description, @status, @priority, @workspace, @source_context,
+          @created_by_type, @created_by_name, @session_id, @created_at, @updated_at, @started_at,
+          @completed_at, @archived_at, @normalized_title
+        )`,
+      )
+      .run({
+        ...FULL_ROW,
+        id: 'corrupt-session-capture',
+        created_by_type: 'AGENT',
+        session_id: 'session-corrupt',
+        status: 'UNKNOWN',
+      });
+    context?.db.pragma('ignore_check_constraints = OFF');
+
+    expect(() =>
+      repository.listSessionCaptures({ sessionId: 'session-corrupt', limit: 1 }),
+    ).toThrow(TaskRepositoryCorruptionError);
+  });
+
   it.each([
     ['create', (repository: SqliteTaskRepository) => repository.create(FULL_TASK)],
     ['find', (repository: SqliteTaskRepository) => repository.findById(FULL_TASK.id)],

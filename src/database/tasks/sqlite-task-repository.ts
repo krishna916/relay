@@ -169,6 +169,9 @@ export class SqliteTaskRepository implements TaskRepository {
     try {
       return this.sessionCaptureStatement.all(query.sessionId, query.limit).map(taskRowToDomain);
     } catch (error) {
+      if (error instanceof TaskRepositoryError) {
+        throw error;
+      }
       throw new TaskRepositoryError('Session captures could not be read.', { cause: error });
     }
   }
