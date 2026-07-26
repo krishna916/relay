@@ -3,6 +3,7 @@ import type { TaskStatus } from '../../domain/task/task-status.js';
 
 export interface TaskListQuery {
   readonly statuses: readonly TaskStatus[];
+  readonly workspace?: string | null;
   readonly limit: number;
 }
 export interface SessionCaptureQuery {

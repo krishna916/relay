@@ -1,8 +1,8 @@
 # Relay
 
-The approved agent-integration contract is documented in the [decision record](docs/decisions/0002-agent-integration-contracts.md), [MCP tool reference](docs/mcp-tools.md), [CLI reference](docs/cli-reference.md), and [session semantics](docs/session-semantics.md). These are contract-only artifacts: production MCP and CLI task handlers remain downstream work.
+The approved agent-integration contract is documented in the [decision record](docs/decisions/0002-agent-integration-contracts.md), [MCP tool reference](docs/mcp-tools.md), [CLI reference](docs/cli-reference.md), and [session semantics](docs/session-semantics.md). The production MCP task tools are shipped; CLI task handlers remain downstream work.
 
-Relay is a local task sidecar for human–AI workflows. The current MVP is usable directly through its local web UI: it stores tasks on this computer and exposes a loopback-only HTTP API behind the UI. Production MCP task tools and companion skills are future work tracked separately under issue #2.
+Relay is a local task sidecar for humanâ€“AI workflows. The current MVP is usable through its local web UI and through five safe local stdio MCP task tools.
 
 ## Prerequisites and setup
 
@@ -36,6 +36,14 @@ To build and run the production-style local server, which serves the compiled UI
 pnpm build
 node dist/http/main.js
 ```
+
+To run the MCP server after building:
+
+```bash
+node dist/mcp/main.js
+```
+
+It exposes five task toolsâ€”`task_capture`, `task_list`, `task_get`, `task_find_similar`, and `session_captures_list`â€”plus the separate `relay_health` tool. MCP task results use structured schema-versioned payloads; capture records AGENT provenance and reports possible duplicates as advisory warnings.
 
 ## Database and safe development data
 
@@ -87,7 +95,7 @@ src/
   database/       # SQLite connection, migrations, and task repository
   interfaces/
     http/         # Loopback HTTP adapter and compiled UI serving
-    mcp/          # Separate scaffold/health adapter; no task behavior yet
+    mcp/          # MCP health and production task-tool adapter
 web/              # React UI that calls the HTTP API only
 ```
 
@@ -95,7 +103,7 @@ Adapters call application services. The React application calls the loopback HTT
 
 ## Current limitations
 
-The MVP deliberately does not include production MCP task tools, due dates or reminders, labels or projects, search, recurring tasks, archive restoration, collaboration or cloud sync, packaging/installers, or mobile support.
+The MVP includes production MCP task tools, but deliberately does not include due dates or reminders, labels or projects, search, recurring tasks, archive restoration, collaboration or cloud sync, packaging/installers, or mobile support.
 
 ## Troubleshooting
 

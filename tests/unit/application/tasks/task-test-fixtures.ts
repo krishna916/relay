@@ -68,6 +68,7 @@ export class InMemoryTaskRepository implements TaskRepository {
     if (this.listFailure !== null) throw this.listFailure;
     return [...this.tasks.values()]
       .filter((task) => query.statuses.includes(task.status))
+      .filter((task) => query.workspace === undefined || task.workspace === query.workspace)
       .slice(0, query.limit);
   }
 

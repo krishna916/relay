@@ -27,7 +27,7 @@ export class SqliteTaskRepository implements TaskRepository {
   private readonly insertStatement: Database.Statement<TaskParameters>;
   private readonly findStatement: Database.Statement<[string], TaskRow>;
   private readonly updateStatement: Database.Statement<TaskUpdateParameters>;
-  private readonly listStatements = new Map<number, Database.Statement<unknown[], TaskRow>>();
+  private readonly listStatements = new Map<string, Database.Statement<unknown[], TaskRow>>();
   private readonly sessionCaptureStatement: Database.Statement<[string, number], TaskRow>;
   private readonly similarStatements = new Map<boolean, Database.Statement<unknown[], TaskRow>>();
 
@@ -153,8 +153,11 @@ export class SqliteTaskRepository implements TaskRepository {
     validateListQuery(query);
 
     try {
-      const statement = this.getListStatement(query.statuses.length);
-      const rows = statement.all(...query.statuses, query.limit);
+      const statement = this.getListStatement(query.statuses.length, query.workspace !== undefined);
+      const rows =
+        query.workspace === undefined
+          ? statement.all(...query.statuses, query.limit)
+          : statement.all(...query.statuses, query.workspace, query.limit);
       return rows.map(taskRowToDomain);
     } catch (error) {
       if (error instanceof TaskRepositoryError) {
@@ -197,8 +200,12 @@ export class SqliteTaskRepository implements TaskRepository {
     }
   }
 
-  private getListStatement(statusCount: number): Database.Statement<unknown[], TaskRow> {
-    const existing = this.listStatements.get(statusCount);
+  private getListStatement(
+    statusCount: number,
+    filteredByWorkspace: boolean,
+  ): Database.Statement<unknown[], TaskRow> {
+    const key = `${statusCount}:${filteredByWorkspace}`;
+    const existing = this.listStatements.get(key);
     if (existing !== undefined) {
       return existing;
     }
@@ -208,10 +215,11 @@ export class SqliteTaskRepository implements TaskRepository {
       SELECT ${TASK_COLUMN_LIST}
       FROM tasks
       WHERE status IN (${placeholders})
+      ${filteredByWorkspace ? 'AND workspace IS ?' : ''}
       ORDER BY updated_at DESC, created_at DESC, id ASC
       LIMIT ?
     `);
-    this.listStatements.set(statusCount, statement);
+    this.listStatements.set(key, statement);
     return statement;
   }
 
@@ -272,6 +280,13 @@ function validateListQuery(query: TaskListQuery): void {
   }
   if (new Set(query.statuses).size !== query.statuses.length) {
     throw new TaskRepositoryError('Task status filters must not contain duplicates.');
+  }
+  if (
+    query.workspace !== undefined &&
+    query.workspace !== null &&
+    typeof query.workspace !== 'string'
+  ) {
+    throw new TaskRepositoryError('Task list workspace must be a string or null.');
   }
   if (!Number.isInteger(query.limit) || query.limit < 1 || query.limit > 200) {
     throw new TaskRepositoryError('Task list limit must be an integer from 1 through 200.');

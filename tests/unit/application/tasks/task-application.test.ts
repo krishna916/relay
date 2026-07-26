@@ -166,6 +166,35 @@ describe('TaskApplication', () => {
     );
   });
 
+  it('preserves omitted workspace and normalizes explicit workspace filters before querying', () => {
+    const { application, repository } = setup();
+
+    application.list({ statuses: ['INBOX'] });
+    expect(repository.lastListQuery).toEqual({ statuses: ['INBOX'], limit: 100 });
+
+    application.list({ statuses: ['INBOX'], workspace: ' relay ' });
+    expect(repository.lastListQuery).toEqual({
+      statuses: ['INBOX'],
+      workspace: 'relay',
+      limit: 100,
+    });
+
+    application.list({ statuses: ['INBOX'], workspace: null });
+    expect(repository.lastListQuery).toEqual({ statuses: ['INBOX'], workspace: null, limit: 100 });
+
+    application.list({ statuses: ['INBOX'], workspace: '   ' });
+    expect(repository.lastListQuery).toEqual({ statuses: ['INBOX'], workspace: null, limit: 100 });
+  });
+
+  it.each([123, true, {}, []])('rejects non-string workspace values: %s', (workspace) => {
+    const { application, repository } = setup();
+
+    expect(() => application.list({ statuses: ['INBOX'], workspace: workspace as never })).toThrow(
+      InvalidTaskRequestError,
+    );
+    expect(repository.listCalls).toBe(0);
+  });
+
   it('validates session capture requests and applies the default limit', () => {
     const { application, repository } = setup();
     const capture = task({
