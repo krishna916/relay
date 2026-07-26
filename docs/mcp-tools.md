@@ -8,7 +8,7 @@ Input: required `title`, `createdByName`, and `sessionId`; optional `description
 
 ## `task_list`
 
-Input: optional non-empty, non-duplicated `statuses`, `workspace`, and `limit` from 1 through 100. Output: `{ tasks, count }`. This is a bounded read and has no lifecycle side effects.
+Input: optional non-empty, non-duplicated `statuses`; optional `workspace`; and `limit` from 1 through 100. Output: `{ tasks, count }`. This is a bounded read and has no lifecycle side effects.
 
 ## `task_get`
 
