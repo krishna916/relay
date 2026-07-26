@@ -5,7 +5,6 @@ import { mcpSuccess } from '../mapping/mcp-result.js';
 import { matchReason, toTaskMcpDto } from '../mapping/task-mcp-dto.js';
 import {
   findSimilarInputSchema,
-  rawMcpToolInputSchema,
   sessionCapturesOutputSchema,
   sessionCapturesInputSchema,
   taskFindSimilarOutputSchema,
@@ -21,12 +20,12 @@ export function registerReadTools(server: McpServer, taskApplication: TaskApplic
     'task_list',
     {
       description: 'List approved Relay tasks',
-      inputSchema: rawMcpToolInputSchema,
+      inputSchema: taskListInputSchema,
       outputSchema: taskListOutputSchema,
     },
     async (input) => {
       try {
-        const parsed = taskListInputSchema.parse(input);
+        const parsed = input;
         const tasks = taskApplication.list({
           statuses: parsed.statuses ?? TASK_STATUSES,
           limit: parsed.limit,
@@ -42,12 +41,12 @@ export function registerReadTools(server: McpServer, taskApplication: TaskApplic
     'task_get',
     {
       description: 'Get one Relay task',
-      inputSchema: rawMcpToolInputSchema,
+      inputSchema: taskGetInputSchema,
       outputSchema: taskGetOutputSchema,
     },
     async (input) => {
       try {
-        const parsed = taskGetInputSchema.parse(input);
+        const parsed = input;
         return mcpSuccess({ task: toTaskMcpDto(taskApplication.get({ id: parsed.taskId })) });
       } catch (error) {
         return toMcpError(error);
@@ -58,12 +57,12 @@ export function registerReadTools(server: McpServer, taskApplication: TaskApplic
     'task_find_similar',
     {
       description: 'Find advisory similar Relay tasks',
-      inputSchema: rawMcpToolInputSchema,
+      inputSchema: findSimilarInputSchema,
       outputSchema: taskFindSimilarOutputSchema,
     },
     async (input) => {
       try {
-        const parsed = findSimilarInputSchema.parse(input);
+        const parsed = input;
         const candidates = taskApplication
           .findSimilar({
             title: parsed.title,
@@ -84,12 +83,12 @@ export function registerReadTools(server: McpServer, taskApplication: TaskApplic
     'session_captures_list',
     {
       description: 'List captured Relay tasks for a session',
-      inputSchema: rawMcpToolInputSchema,
+      inputSchema: sessionCapturesInputSchema,
       outputSchema: sessionCapturesOutputSchema,
     },
     async (input) => {
       try {
-        const parsed = sessionCapturesInputSchema.parse(input);
+        const parsed = input;
         const tasks = taskApplication.listSessionCaptures(parsed);
         return mcpSuccess({
           sessionId: parsed.sessionId,

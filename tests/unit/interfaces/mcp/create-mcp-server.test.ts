@@ -53,7 +53,30 @@ describe('createMcpServer', () => {
     );
   });
 
-  it('returns a structured validation error when capture contains an unknown field', async () => {
+  it('advertises the strict capture and bounded read-tool contracts', async () => {
+    const server = createMcpServer(
+      createTaskApplication({ repository: new InMemoryTaskRepository() }),
+    );
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+
+    const tools = await client.listTools();
+    const capture = tools.tools.find((tool) => tool.name === 'task_capture');
+    const list = tools.tools.find((tool) => tool.name === 'task_list');
+    const similar = tools.tools.find((tool) => tool.name === 'task_find_similar');
+
+    expect(capture?.inputSchema).toMatchObject({
+      additionalProperties: false,
+      required: expect.arrayContaining(['title', 'createdByName', 'sessionId']),
+    });
+    expect(capture?.inputSchema.properties).not.toHaveProperty('status');
+    expect(capture?.inputSchema.properties).not.toHaveProperty('creator');
+    expect(list?.inputSchema.properties?.limit).toMatchObject({ minimum: 1, maximum: 100 });
+    expect(similar?.inputSchema.properties?.limit).toMatchObject({ minimum: 1, maximum: 5 });
+  });
+
+  it('rejects an unsafe capture field as an MCP invalid-parameter error', async () => {
     const server = createMcpServer(
       createTaskApplication({ repository: new InMemoryTaskRepository() }),
     );
@@ -69,10 +92,9 @@ describe('createMcpServer', () => {
         sessionId: 'session-26',
         status: 'DONE',
       },
-    })) as { structuredContent?: { error?: { code?: string } }; isError?: boolean };
-
+    })) as { isError?: boolean; content: Array<{ type: string; text?: string }> };
     expect(result.isError).toBe(true);
-    expect(result.structuredContent?.error?.code).toBe('VALIDATION_ERROR');
+    expect(result.content[0]?.text).toContain('MCP error -32602');
   });
 
   it('captures a task and exposes it through each approved read tool', async () => {

@@ -3,23 +3,19 @@ import type { TaskApplication } from '../../../application/tasks/task-applicatio
 import { toMcpError } from '../mapping/mcp-errors.js';
 import { mcpSuccess } from '../mapping/mcp-result.js';
 import { toTaskMcpDto } from '../mapping/task-mcp-dto.js';
-import {
-  agentCaptureInputSchema,
-  rawMcpToolInputSchema,
-  taskCaptureOutputSchema,
-} from '../schemas/read-tool-schemas.js';
+import { agentCaptureInputSchema, taskCaptureOutputSchema } from '../schemas/read-tool-schemas.js';
 
 export function registerTaskCaptureTool(server: McpServer, taskApplication: TaskApplication): void {
   server.registerTool(
     'task_capture',
     {
       description: 'Capture an autonomous Relay task',
-      inputSchema: rawMcpToolInputSchema,
+      inputSchema: agentCaptureInputSchema,
       outputSchema: taskCaptureOutputSchema,
     },
     async (input) => {
       try {
-        const parsed = agentCaptureInputSchema.parse(input);
+        const parsed = input;
         const matches = taskApplication.findSimilar({
           title: parsed.title,
           ...(parsed.workspace === undefined ? {} : { workspace: parsed.workspace }),

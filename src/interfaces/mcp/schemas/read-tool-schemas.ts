@@ -16,7 +16,6 @@ import { CONTRACT_SCHEMA_VERSION } from '../../contracts/contract-version.js';
 import { warningSchema } from '../../contracts/warning-contract.js';
 import { z } from 'zod';
 
-const rawToolInputSchema = z.object({}).passthrough();
 const outputSchema = (data: z.ZodType) =>
   z
     .object({
@@ -26,7 +25,6 @@ const outputSchema = (data: z.ZodType) =>
     })
     .strict();
 
-export const rawMcpToolInputSchema = rawToolInputSchema;
 export const taskCaptureOutputSchema = outputSchema(taskCaptureResultSchema);
 export const taskListOutputSchema = outputSchema(taskListResultSchema);
 export const taskGetOutputSchema = outputSchema(taskGetResultSchema);

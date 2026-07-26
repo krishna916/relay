@@ -1,6 +1,6 @@
 # Relay MCP Tool Contracts
 
-Issue #26 implements the five safe capture/read handlers from this version `1` contract. Every tool returns structured `{ schemaVersion: 1, data, warnings }`; errors use `VALIDATION_ERROR`, `NOT_FOUND`, `CONFLICT`, `ARCHIVED_TASK`, `STORAGE_ERROR`, or `INTERNAL_ERROR` without stack traces, SQLite details, secrets, or local paths. Compact text is a compatibility supplement, never a parsing requirement.
+Issue #26 implements the five safe capture/read handlers from this version `1` contract. Tool discovery exposes strict input schemas: malformed request shapes (including unknown, forbidden, missing, or out-of-range fields) receive SDK-native MCP `InvalidParams`. Schema-valid tool execution returns structured `{ schemaVersion: 1, data, warnings }`; execution errors use `VALIDATION_ERROR`, `NOT_FOUND`, `CONFLICT`, `ARCHIVED_TASK`, `STORAGE_ERROR`, or `INTERNAL_ERROR` without stack traces, SQLite details, secrets, or local paths. Compact text is a compatibility supplement, never a parsing requirement.
 
 ## `task_capture`
 

@@ -382,6 +382,38 @@ describe('SQLite task repository list', () => {
     expect(repository.list({ statuses: ['INBOX'], limit: 200 })).toEqual([newer, older]);
   });
 
+  it('filters workspace in SQL before applying the result limit', () => {
+    const repository = createRepository();
+    const relayOlder = taskFixture({
+      id: 'relay-older',
+      workspace: 'relay',
+      updatedAt: '2026-07-25T10:00:00.000Z',
+    });
+    const relayNewer = taskFixture({
+      id: 'relay-newer',
+      workspace: 'relay',
+      updatedAt: '2026-07-25T11:00:00.000Z',
+    });
+    repository.create(
+      taskFixture({
+        id: 'other-newest',
+        workspace: 'other',
+        updatedAt: '2026-07-25T13:00:00.000Z',
+      }),
+    );
+    repository.create(
+      taskFixture({ id: 'other-newer', workspace: 'other', updatedAt: '2026-07-25T12:00:00.000Z' }),
+    );
+    repository.create(relayOlder);
+    repository.create(relayNewer);
+
+    expect(repository.list({ statuses: ['INBOX'], workspace: 'relay', limit: 2 })).toEqual([
+      relayNewer,
+      relayOlder,
+    ]);
+    expect(repository.list({ statuses: ['INBOX'], workspace: null, limit: 2 })).toEqual([]);
+  });
+
   it.each([
     [{ statuses: [], limit: 1 }, 'empty statuses'],
     [{ statuses: ['INBOX'] as const, limit: 0 }, 'zero limit'],
