@@ -1,27 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer } from '../../../../src/interfaces/mcp/create-mcp-server.js';
 import { createTaskApplication } from '../../../../src/application/tasks/task-application.js';
 import { InMemoryTaskRepository } from '../../application/tasks/task-test-fixtures.js';
-
-async function connectMcp(server: ReturnType<typeof createMcpServer>) {
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  const client = new Client({ name: 'test-client', version: '1.0.0' });
-  let closed = false;
-  const close = async () => {
-    if (closed) return;
-    closed = true;
-    await Promise.allSettled([client.close(), server.close()]);
-  };
-  try {
-    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
-    return { client, close };
-  } catch (error) {
-    await close();
-    throw error;
-  }
-}
+import { TaskRepositoryError } from '../../../../src/application/tasks/task-repository-errors.js';
+import { connectMcp } from './mcp-test-utils.js';
 
 describe('createMcpServer', () => {
   it('exposes relay_health tool via in-memory transport', async () => {
@@ -67,6 +49,45 @@ describe('createMcpServer', () => {
           'session_captures_list',
         ]),
       );
+    } finally {
+      await close();
+    }
+  });
+
+  it('exposes only the five intent-specific user-directed mutation tools', async () => {
+    const server = createMcpServer(
+      createTaskApplication({ repository: new InMemoryTaskRepository() }),
+    );
+    const { client, close } = await connectMcp(server);
+    try {
+      const tools = await client.listTools();
+      const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
+
+      expect([...byName.keys()].sort()).toEqual(
+        [
+          'relay_health',
+          'task_capture',
+          'task_list',
+          'task_get',
+          'task_find_similar',
+          'session_captures_list',
+          'task_edit',
+          'task_triage',
+          'task_start',
+          'task_complete',
+          'task_archive',
+        ].sort(),
+      );
+      expect(byName.get('task_edit')?.inputSchema).toMatchObject({
+        additionalProperties: false,
+        required: ['taskId'],
+      });
+      expect(byName.get('task_edit')?.inputSchema.properties).not.toHaveProperty('status');
+      expect(byName.get('task_edit')?.inputSchema.properties).not.toHaveProperty('sessionId');
+      expect(byName.get('task_edit')?.inputSchema.properties).not.toHaveProperty('createdAt');
+      expect(byName.get('task_triage')?.inputSchema.properties?.target).toMatchObject({
+        enum: ['INBOX', 'ACTIVE', 'BACKLOG'],
+      });
     } finally {
       await close();
     }
@@ -161,6 +182,171 @@ describe('createMcpServer', () => {
           arguments: { sessionId: 'session-26' },
         })) as unknown as { structuredContent: { data: { sessionId: string; count: number } } },
       ).toMatchObject({ structuredContent: { data: { sessionId: 'session-26', count: 1 } } });
+    } finally {
+      await close();
+    }
+  });
+
+  it('edits and transitions a task through focused mutation tools with deterministic metadata', async () => {
+    const server = createMcpServer(
+      createTaskApplication({ repository: new InMemoryTaskRepository() }),
+    );
+    const { client, close } = await connectMcp(server);
+    try {
+      const capture = (await client.callTool({
+        name: 'task_capture',
+        arguments: { title: 'Mutate safely', createdByName: 'Codex', sessionId: 'session-21' },
+      })) as unknown as { structuredContent: { data: { task: { id: string } } } };
+      const taskId = capture.structuredContent.data.task.id;
+
+      expect(
+        (await client.callTool({
+          name: 'task_edit',
+          arguments: { taskId, title: 'Mutated safely', description: 'Draft description' },
+        })) as unknown as {
+          structuredContent: { data: { task: { title: string }; change: unknown } };
+        },
+      ).toMatchObject({
+        structuredContent: {
+          data: {
+            task: { title: 'Mutated safely' },
+            change: { action: 'EDITED', fields: ['title', 'description'] },
+          },
+        },
+      });
+      expect(
+        (await client.callTool({
+          name: 'task_edit',
+          arguments: { taskId, title: 'Mutated safely' },
+        })) as unknown as {
+          structuredContent: { data: { change: unknown } };
+        },
+      ).toMatchObject({
+        structuredContent: { data: { change: { action: 'NO_CHANGE', fields: [] } } },
+      });
+      expect(
+        (await client.callTool({
+          name: 'task_edit',
+          arguments: { taskId, clearDescription: true },
+        })) as unknown as {
+          structuredContent: { data: { task: { description: null }; change: unknown } };
+        },
+      ).toMatchObject({
+        structuredContent: {
+          data: {
+            task: { description: null },
+            change: { action: 'EDITED', fields: ['description'] },
+          },
+        },
+      });
+
+      expect(
+        (await client.callTool({
+          name: 'task_triage',
+          arguments: { taskId, target: 'ACTIVE' },
+        })) as unknown as {
+          structuredContent: { data: { task: { status: string }; change: unknown } };
+        },
+      ).toMatchObject({
+        structuredContent: {
+          data: {
+            task: { status: 'ACTIVE' },
+            change: { action: 'TRIAGED', from: 'INBOX', to: 'ACTIVE' },
+          },
+        },
+      });
+      expect(
+        (await client.callTool({ name: 'task_start', arguments: { taskId } })) as unknown as {
+          structuredContent: { data: { task: { status: string }; change: unknown } };
+        },
+      ).toMatchObject({
+        structuredContent: {
+          data: { task: { status: 'IN_PROGRESS' }, change: { action: 'STARTED' } },
+        },
+      });
+      expect(
+        (await client.callTool({ name: 'task_start', arguments: { taskId } })) as unknown as {
+          structuredContent: { data: { change: unknown } };
+        },
+      ).toMatchObject({ structuredContent: { data: { change: { action: 'NO_CHANGE' } } } });
+      expect(
+        (await client.callTool({ name: 'task_complete', arguments: { taskId } })) as unknown as {
+          structuredContent: { data: { task: { status: string }; change: unknown } };
+        },
+      ).toMatchObject({
+        structuredContent: { data: { task: { status: 'DONE' }, change: { action: 'COMPLETED' } } },
+      });
+      expect(
+        (await client.callTool({ name: 'task_archive', arguments: { taskId } })) as unknown as {
+          structuredContent: { data: { task: { status: string }; change: unknown } };
+        },
+      ).toMatchObject({
+        structuredContent: {
+          data: { task: { status: 'ARCHIVED' }, change: { action: 'ARCHIVED' } },
+        },
+      });
+
+      const archivedEdit = (await client.callTool({
+        name: 'task_edit',
+        arguments: { taskId, title: 'No longer mutable' },
+      })) as unknown as { isError?: boolean; structuredContent: { error: { code: string } } };
+      expect(archivedEdit).toMatchObject({
+        isError: true,
+        structuredContent: { error: { code: 'ARCHIVED_TASK' } },
+      });
+    } finally {
+      await close();
+    }
+  });
+
+  it('maps mutation validation, conflict, missing, and storage failures without leaking internals', async () => {
+    const repository = new InMemoryTaskRepository();
+    const server = createMcpServer(createTaskApplication({ repository }));
+    const { client, close } = await connectMcp(server);
+    try {
+      const capture = (await client.callTool({
+        name: 'task_capture',
+        arguments: { title: 'Error mapping', createdByName: 'Codex', sessionId: 'session-errors' },
+      })) as unknown as { structuredContent: { data: { task: { id: string } } } };
+      const taskId = capture.structuredContent.data.task.id;
+
+      const invalid = await client.callTool({
+        name: 'task_edit',
+        arguments: { taskId, title: 'Invalid', status: 'DONE' },
+      });
+      expect(invalid).toMatchObject({ isError: true });
+
+      const conflict = (await client.callTool({
+        name: 'task_start',
+        arguments: { taskId },
+      })) as unknown as {
+        isError: boolean;
+        structuredContent: { error: { code: string; message: string } };
+      };
+      expect(conflict).toMatchObject({
+        isError: true,
+        structuredContent: {
+          error: { code: 'CONFLICT', message: 'Task lifecycle transition is not allowed.' },
+        },
+      });
+
+      const missing = (await client.callTool({
+        name: 'task_archive',
+        arguments: { taskId: 'missing' },
+      })) as unknown as { structuredContent: { error: { code: string } } };
+      expect(missing).toMatchObject({ structuredContent: { error: { code: 'NOT_FOUND' } } });
+
+      repository.updateFailure = new TaskRepositoryError('database path must remain private');
+      const storage = (await client.callTool({
+        name: 'task_triage',
+        arguments: { taskId, target: 'ACTIVE' },
+      })) as unknown as { structuredContent: { error: { code: string; message: string } } };
+      expect(storage).toMatchObject({
+        structuredContent: {
+          error: { code: 'STORAGE_ERROR', message: 'Task storage operation failed.' },
+        },
+      });
+      expect(JSON.stringify(storage)).not.toContain('database path must remain private');
     } finally {
       await close();
     }

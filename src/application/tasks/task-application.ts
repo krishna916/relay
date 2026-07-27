@@ -29,17 +29,21 @@ export interface TaskApplicationDependencies {
   readonly clock?: Clock;
   readonly idGenerator?: IdGenerator;
 }
+export interface TaskMutationResult {
+  readonly before: Task;
+  readonly task: Task;
+}
 export interface TaskApplication {
   create(input: CreateTaskInput): Task;
   get(input: GetTaskInput): Task;
   list(input: ListTasksInput): readonly Task[];
-  edit(input: EditTaskInput): Task;
-  moveToInbox(input: TaskIdInput): Task;
-  activate(input: TaskIdInput): Task;
-  start(input: TaskIdInput): Task;
-  moveToBacklog(input: TaskIdInput): Task;
-  complete(input: TaskIdInput): Task;
-  archive(input: TaskIdInput): Task;
+  edit(input: EditTaskInput): TaskMutationResult;
+  moveToInbox(input: TaskIdInput): TaskMutationResult;
+  activate(input: TaskIdInput): TaskMutationResult;
+  start(input: TaskIdInput): TaskMutationResult;
+  moveToBacklog(input: TaskIdInput): TaskMutationResult;
+  complete(input: TaskIdInput): TaskMutationResult;
+  archive(input: TaskIdInput): TaskMutationResult;
   listSessionCaptures(input: ListSessionCapturesInput): readonly Task[];
   findSimilar(input: FindSimilarTasksInput): readonly Task[];
 }
@@ -49,8 +53,10 @@ export function createTaskApplication(dependencies: TaskApplicationDependencies)
     clock: dependencies.clock ?? new SystemClock(),
     idGenerator: dependencies.idGenerator ?? new UuidGenerator(),
   };
-  const transition = (input: TaskIdInput, operation: (task: Task, now: string) => Task) =>
-    transitionTaskUseCase(input, resolvedDependencies, operation);
+  const transition = (
+    input: TaskIdInput,
+    operation: (task: Task, now: string) => Task,
+  ): TaskMutationResult => transitionTaskUseCase(input, resolvedDependencies, operation);
   return {
     create: (input) => createTaskUseCase(input, resolvedDependencies),
     get: (input) => getTaskUseCase(input, resolvedDependencies.repository),
