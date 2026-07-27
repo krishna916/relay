@@ -14,10 +14,20 @@ export interface EditTaskInput {
   readonly workspace?: string | null;
   readonly sourceContext?: string | null;
 }
+export interface EditTaskResult {
+  readonly before: Task;
+  readonly task: Task;
+}
 export function editTaskUseCase(
   input: EditTaskInput,
   dependencies: { readonly repository: TaskRepository; readonly clock: Clock },
 ): Task {
+  return editTaskWithPreviousUseCase(input, dependencies).task;
+}
+export function editTaskWithPreviousUseCase(
+  input: EditTaskInput,
+  dependencies: { readonly repository: TaskRepository; readonly clock: Clock },
+): EditTaskResult {
   const changes: TaskChanges = {
     ...(input.title === undefined ? {} : { title: input.title }),
     ...(input.description === undefined ? {} : { description: input.description }),
@@ -30,7 +40,14 @@ export function editTaskUseCase(
   const id = normalizeTaskId(input.id);
   const existing = required(() => dependencies.repository.findById(id), id);
   const updated = editTask(existing, changes, dependencies.clock.now().toISOString());
-  return updated === existing
-    ? existing
-    : persist(() => dependencies.repository.update(updated), `Task ${id} could not be updated.`);
+  return {
+    before: existing,
+    task:
+      updated === existing
+        ? existing
+        : persist(
+            () => dependencies.repository.update(updated),
+            `Task ${id} could not be updated.`,
+          ),
+  };
 }

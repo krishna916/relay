@@ -4,6 +4,7 @@ import { getPackageMetadata } from '../../shared/package-metadata.js';
 import type { TaskApplication } from '../../application/tasks/task-application.js';
 import { registerReadTools } from './tools/register-read-tools.js';
 import { registerTaskCaptureTool } from './tools/task-capture.js';
+import { registerMutationTools } from './tools/register-mutation-tools.js';
 
 export function createMcpServer(taskApplication: TaskApplication): McpServer {
   const meta = getPackageMetadata();
@@ -13,6 +14,7 @@ export function createMcpServer(taskApplication: TaskApplication): McpServer {
   });
   registerReadTools(server, taskApplication);
   registerTaskCaptureTool(server, taskApplication);
+  registerMutationTools(server, taskApplication);
 
   server.tool('relay_health', 'Return health status of the local Relay service', {}, async () => {
     const health = getHealth();

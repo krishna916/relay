@@ -38,6 +38,11 @@ describe('mcp-stdio integration', () => {
           'task_get',
           'task_find_similar',
           'session_captures_list',
+          'task_edit',
+          'task_triage',
+          'task_start',
+          'task_complete',
+          'task_archive',
         ]),
       );
 
@@ -74,6 +79,39 @@ describe('mcp-stdio integration', () => {
         expect.arrayContaining([expect.objectContaining({ code: 'POSSIBLE_DUPLICATE' })]),
       );
       expect(otherSession.structuredContent?.data?.task?.sessionId).toBe('stdio-session-b');
+
+      const firstTaskId = first.structuredContent?.data?.task?.id;
+      expect(firstTaskId).toBeDefined();
+      const triaged = (await client.callTool({
+        name: 'task_triage',
+        arguments: { taskId: firstTaskId, target: 'ACTIVE' },
+      })) as {
+        structuredContent?: { data?: { task?: { status?: string }; change?: { action?: string } } };
+      };
+      expect(triaged.structuredContent?.data).toMatchObject({
+        task: { status: 'ACTIVE' },
+        change: { action: 'TRIAGED' },
+      });
+      const started = (await client.callTool({
+        name: 'task_start',
+        arguments: { taskId: firstTaskId },
+      })) as {
+        structuredContent?: { data?: { task?: { status?: string }; change?: { action?: string } } };
+      };
+      expect(started.structuredContent?.data).toMatchObject({
+        task: { status: 'IN_PROGRESS' },
+        change: { action: 'STARTED' },
+      });
+      const completed = (await client.callTool({
+        name: 'task_complete',
+        arguments: { taskId: firstTaskId },
+      })) as {
+        structuredContent?: { data?: { task?: { status?: string }; change?: { action?: string } } };
+      };
+      expect(completed.structuredContent?.data).toMatchObject({
+        task: { status: 'DONE' },
+        change: { action: 'COMPLETED' },
+      });
 
       const sessionA = (await client.callTool({
         name: 'session_captures_list',

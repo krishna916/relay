@@ -160,8 +160,31 @@ export const sessionCapturesResultSchema = z
     count: z.number().int().nonnegative(),
   })
   .strict();
-export const taskEditResultSchema = taskResultSchema(['EDITED', 'NO_CHANGE']);
-export const taskTriageResultSchema = taskResultSchema(['TRIAGED', 'NO_CHANGE']);
+export const taskEditResultSchema = z
+  .object({
+    task: taskDtoSchema,
+    change: z
+      .object({
+        action: z.enum(['EDITED', 'NO_CHANGE']),
+        fields: z
+          .array(z.enum(['title', 'description', 'priority', 'workspace', 'sourceContext']))
+          .max(5),
+      })
+      .strict(),
+  })
+  .strict();
+export const taskTriageResultSchema = z
+  .object({
+    task: taskDtoSchema,
+    change: z
+      .object({
+        action: z.enum(['TRIAGED', 'NO_CHANGE']),
+        from: taskStatusSchema,
+        to: taskStatusSchema,
+      })
+      .strict(),
+  })
+  .strict();
 export const taskStartResultSchema = taskResultSchema(['STARTED', 'NO_CHANGE']);
 export const taskCompleteResultSchema = taskResultSchema(['COMPLETED', 'NO_CHANGE']);
 export const taskArchiveResultSchema = taskResultSchema(['ARCHIVED', 'NO_CHANGE']);

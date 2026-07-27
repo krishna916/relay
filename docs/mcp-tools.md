@@ -26,9 +26,13 @@ Input: required valid `sessionId` and `limit` from 1 through 100. Output: `{ ses
 
 Input: task ID plus one or more editable task fields or explicit clear flags. MCP `null` is rejected; explicit `clear*` flags are the only clear operation, and a value cannot accompany its matching flag. Output: `{ task, change }`, including `NO_CHANGE` for an approved no-op. `sessionId`, provenance, status, and lifecycle timestamps are never editable.
 
+`change` is `{ action: "EDITED" | "NO_CHANGE", fields }`. `fields` lists only persisted editable fields that changed, in stable order: `title`, `description`, `priority`, `workspace`, `sourceContext`.
+
 ## `task_triage`
 
 Input: task ID and target `INBOX`, `ACTIVE`, or `BACKLOG`. Output: `{ task, change }`. `IN_PROGRESS`, `DONE`, and `ARCHIVED` have their own intent-specific tools.
+
+`change` is `{ action: "TRIAGED" | "NO_CHANGE", from, to }`; `from` and `to` are the persisted source and result statuses.
 
 ## `task_start`
 
@@ -41,6 +45,8 @@ Input: task ID. Output: `{ task, change }`. It performs only the focused complet
 ## `task_archive`
 
 Input: task ID. Output: `{ task, change }`. It performs only the focused archive lifecycle operation.
+
+All lifecycle mutations return `change.action = "NO_CHANGE"` when the focused operation leaves the persisted task unchanged. Invalid lifecycle transitions use `CONFLICT`; attempting a restricted mutation of an archived task uses `ARCHIVED_TASK`.
 
 ## Mutation safety and versioning
 
