@@ -8,6 +8,7 @@ package-lock.json
 *.tsbuildinfo
 .idea/
 .superpowers/
+.worktrees/
 .vscode/
 Thumbs.db
 Desktop.ini
