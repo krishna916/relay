@@ -1,9 +1,9 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { TaskApplication } from '../../../application/tasks/task-application.js';
-import { triageChange } from '../mapping/change-metadata.js';
+import { triageChange } from '../../contracts/change-metadata.js';
 import { toMcpError } from '../mapping/mcp-errors.js';
 import { mcpSuccess } from '../mapping/mcp-result.js';
-import { toTaskMcpDto } from '../mapping/task-mcp-dto.js';
+import { toTaskDto } from '../../contracts/task-dto.js';
 import { taskTriageInputSchema, taskTriageOutputSchema } from '../schemas/mutation-tool-schemas.js';
 
 export function registerTaskTriageTool(server: McpServer, application: TaskApplication): void {
@@ -23,7 +23,7 @@ export function registerTaskTriageTool(server: McpServer, application: TaskAppli
               ? application.activate({ id: input.taskId })
               : application.moveToBacklog({ id: input.taskId });
         return mcpSuccess({
-          task: toTaskMcpDto(mutation.task),
+          task: toTaskDto(mutation.task),
           change: triageChange(mutation.before, mutation.task),
         });
       } catch (error) {

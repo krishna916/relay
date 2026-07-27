@@ -1,9 +1,9 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { TaskApplication } from '../../../application/tasks/task-application.js';
-import { editChange } from '../mapping/change-metadata.js';
+import { editChange } from '../../contracts/change-metadata.js';
 import { toMcpError } from '../mapping/mcp-errors.js';
 import { mcpSuccess } from '../mapping/mcp-result.js';
-import { toTaskMcpDto } from '../mapping/task-mcp-dto.js';
+import { toTaskDto } from '../../contracts/task-dto.js';
 import { taskEditInputSchema, taskEditOutputSchema } from '../schemas/mutation-tool-schemas.js';
 
 const fieldUpdate = <K extends string, V>(
@@ -32,7 +32,7 @@ export function registerTaskEditTool(server: McpServer, application: TaskApplica
           ...fieldUpdate('sourceContext', input.sourceContext, input.clearSourceContext),
         });
         return mcpSuccess({
-          task: toTaskMcpDto(mutation.task),
+          task: toTaskDto(mutation.task),
           change: editChange(mutation.before, mutation.task),
         });
       } catch (error) {

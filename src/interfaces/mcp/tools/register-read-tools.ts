@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { TaskApplication } from '../../../application/tasks/task-application.js';
 import { toMcpError } from '../mapping/mcp-errors.js';
 import { mcpSuccess } from '../mapping/mcp-result.js';
-import { matchReason, toTaskMcpDto } from '../mapping/task-mcp-dto.js';
+import { matchReason, toTaskDto } from '../../contracts/task-dto.js';
 import {
   findSimilarInputSchema,
   sessionCapturesOutputSchema,
@@ -31,7 +31,7 @@ export function registerReadTools(server: McpServer, taskApplication: TaskApplic
           limit: parsed.limit,
           ...(parsed.workspace === undefined ? {} : { workspace: parsed.workspace }),
         });
-        return mcpSuccess({ tasks: tasks.map(toTaskMcpDto), count: tasks.length });
+        return mcpSuccess({ tasks: tasks.map(toTaskDto), count: tasks.length });
       } catch (error) {
         return toMcpError(error);
       }
@@ -47,7 +47,7 @@ export function registerReadTools(server: McpServer, taskApplication: TaskApplic
     async (input) => {
       try {
         const parsed = input;
-        return mcpSuccess({ task: toTaskMcpDto(taskApplication.get({ id: parsed.taskId })) });
+        return mcpSuccess({ task: toTaskDto(taskApplication.get({ id: parsed.taskId })) });
       } catch (error) {
         return toMcpError(error);
       }
@@ -70,7 +70,7 @@ export function registerReadTools(server: McpServer, taskApplication: TaskApplic
             ...(parsed.workspace === undefined ? {} : { workspace: parsed.workspace }),
           })
           .map((task) => ({
-            task: toTaskMcpDto(task),
+            task: toTaskDto(task),
             matchReason: matchReason(task, parsed.title),
           }));
         return mcpSuccess({ candidates });
@@ -92,7 +92,7 @@ export function registerReadTools(server: McpServer, taskApplication: TaskApplic
         const tasks = taskApplication.listSessionCaptures(parsed);
         return mcpSuccess({
           sessionId: parsed.sessionId,
-          tasks: tasks.map(toTaskMcpDto),
+          tasks: tasks.map(toTaskDto),
           count: tasks.length,
         });
       } catch (error) {

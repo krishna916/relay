@@ -1,4 +1,4 @@
-import type { Task } from '../../../domain/task/task.js';
+import type { Task } from '../../domain/task/task.js';
 
 const EDITABLE_FIELDS = ['title', 'description', 'priority', 'workspace', 'sourceContext'] as const;
 

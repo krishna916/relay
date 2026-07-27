@@ -1,6 +1,6 @@
 # Relay
 
-The approved agent-integration contract is documented in the [decision record](docs/decisions/0002-agent-integration-contracts.md), [MCP tool reference](docs/mcp-tools.md), [CLI reference](docs/cli-reference.md), and [session semantics](docs/session-semantics.md). The production MCP task tools are shipped; CLI task handlers remain downstream work.
+The approved agent-integration contract is documented in the [decision record](docs/decisions/0002-agent-integration-contracts.md), [MCP tool reference](docs/mcp-tools.md), [CLI reference](docs/cli-reference.md), and [session semantics](docs/session-semantics.md). The production MCP task tools and source-checkout CLI are shipped.
 
 Relay is a local task sidecar for humanâ€“AI workflows. The current MVP is usable through its local web UI and through five safe local stdio MCP task tools.
 
@@ -42,6 +42,15 @@ To run the MCP server after building:
 ```bash
 node dist/mcp/main.js
 ```
+
+To use the source-checkout CLI from any working directory, run `pnpm build:node` from the repository checkout root first (or use `pnpm --dir /absolute/path/to/relay build:node` from another working directory):
+
+```bash
+pnpm build:node
+RELAY_DB_PATH=/tmp/relay.db node /absolute/path/to/relay/dist/cli/main.js task list --output json
+```
+
+The CLI calls `TaskApplication` directly; it does not start HTTP or MCP processes. Its JSON envelope is authoritative: stdout contains one JSON document and newline, success writes no stderr, and failures also print one human-readable diagnostic to stderr. See the [CLI reference](docs/cli-reference.md) for all commands and stable exit codes.
 
 It exposes five task toolsâ€”`task_capture`, `task_list`, `task_get`, `task_find_similar`, and `session_captures_list`â€”plus the separate `relay_health` tool. MCP task results use structured schema-versioned payloads; capture records AGENT provenance and reports possible duplicates as advisory warnings.
 
@@ -96,6 +105,7 @@ src/
   interfaces/
     http/         # Loopback HTTP adapter and compiled UI serving
     mcp/          # MCP health and production task-tool adapter
+    cli/          # Source-checkout JSON CLI adapter
 web/              # React UI that calls the HTTP API only
 ```
 
