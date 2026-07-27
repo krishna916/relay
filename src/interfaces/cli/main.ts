@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { createTaskRuntime } from '../shared/create-task-runtime.js';
 import { runCli } from './run-cli.js';
 

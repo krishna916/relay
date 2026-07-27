@@ -101,9 +101,11 @@ export function parseCli(argv: readonly string[]): CliCommand {
     case 'triage':
       return parseTaskTriage(id, tokens);
     case 'start':
+      return parseTaskLifecycle('start', id, tokens);
     case 'complete':
+      return parseTaskLifecycle('complete', id, tokens);
     case 'archive':
-      return parseTaskLifecycle(action, id, tokens);
+      return parseTaskLifecycle('archive', id, tokens);
     default:
       throw new CliUsageError(`Unknown command: task ${action}.`);
   }
@@ -205,6 +207,21 @@ function parseTaskTriage(id: string | undefined, tokens: readonly string[]): Tas
 }
 
 function parseTaskLifecycle(
+  action: 'start',
+  id: string | undefined,
+  tokens: readonly string[],
+): Extract<TaskLifecycleCommand, { readonly action: 'start' }>;
+function parseTaskLifecycle(
+  action: 'complete',
+  id: string | undefined,
+  tokens: readonly string[],
+): Extract<TaskLifecycleCommand, { readonly action: 'complete' }>;
+function parseTaskLifecycle(
+  action: 'archive',
+  id: string | undefined,
+  tokens: readonly string[],
+): Extract<TaskLifecycleCommand, { readonly action: 'archive' }>;
+function parseTaskLifecycle(
   action: TaskLifecycleCommand['action'],
   id: string | undefined,
   tokens: readonly string[],
@@ -212,7 +229,14 @@ function parseTaskLifecycle(
   const taskId = requiredId(id);
   const options = parseOptions(tokens, lifecycleOptions);
   requireJsonOutput(options);
-  return { kind: `task.${action}`, action, id: taskId };
+  switch (action) {
+    case 'start':
+      return { kind: 'task.start', action, id: taskId };
+    case 'complete':
+      return { kind: 'task.complete', action, id: taskId };
+    case 'archive':
+      return { kind: 'task.archive', action, id: taskId };
+  }
 }
 
 function parseSessionCaptures(tokens: readonly string[]): SessionCapturesCommand {
@@ -281,10 +305,8 @@ function requiredSession(options: ReadonlyMap<string, readonly string[]>, key: s
 }
 
 function readId(value: string | undefined, label: string): string | undefined {
-  if (value === undefined || value.startsWith('--')) {
-    if (value?.startsWith('--')) throw new CliUsageError(`A ${label} is required.`);
-    return undefined;
-  }
+  if (value === undefined) return undefined;
+  if (value.startsWith('--')) throw new CliUsageError(`A ${label} is required.`);
   return boundedText(value, label, MAX_ID_LENGTH);
 }
 

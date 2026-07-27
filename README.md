@@ -43,7 +43,7 @@ To run the MCP server after building:
 node dist/mcp/main.js
 ```
 
-To use the source-checkout CLI from any working directory:
+To use the source-checkout CLI from any working directory, run `pnpm build:node` from the repository checkout root first (or use `pnpm --dir /absolute/path/to/relay build:node` from another working directory):
 
 ```bash
 pnpm build:node

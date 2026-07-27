@@ -44,11 +44,10 @@ export interface TaskTriageCommand {
   readonly target: 'INBOX' | 'ACTIVE' | 'BACKLOG';
 }
 
-export interface TaskLifecycleCommand {
-  readonly kind: 'task.start' | 'task.complete' | 'task.archive';
-  readonly id: string;
-  readonly action: 'start' | 'complete' | 'archive';
-}
+export type TaskLifecycleCommand =
+  | { readonly kind: 'task.start'; readonly id: string; readonly action: 'start' }
+  | { readonly kind: 'task.complete'; readonly id: string; readonly action: 'complete' }
+  | { readonly kind: 'task.archive'; readonly id: string; readonly action: 'archive' };
 
 export interface SessionCapturesCommand {
   readonly kind: 'session.captures';

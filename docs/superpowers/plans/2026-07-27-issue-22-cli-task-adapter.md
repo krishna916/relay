@@ -62,15 +62,42 @@ export async function runCli(
   argv: readonly string[],
   dependencies: CliDependencies,
 ): Promise<number> {
-  const command = parseCli(argv);
-  const runtime = dependencies.createRuntime();
+  let command;
   try {
-    return execute(command, runtime.taskApplication, dependencies);
+    command = parseCli(argv);
   } catch (error) {
-    return writeCliError(error, dependencies.stderr, dependencies.stdout);
-  } finally {
-    runtime.close();
+    return writeError(error, dependencies);
   }
+
+  let runtime: TaskRuntime;
+  try {
+    runtime = dependencies.createRuntime();
+  } catch (error) {
+    return writeError(error, dependencies, { runtimeCreation: true });
+  }
+
+  let result;
+  let executionFailed = false;
+  let executionError;
+  try {
+    result = executeCliCommand(command, runtime.taskApplication);
+  } catch (error) {
+    executionFailed = true;
+    executionError = error;
+  }
+  let cleanupFailed = false;
+  let cleanupError;
+  try {
+    runtime.close();
+  } catch (error) {
+    cleanupFailed = true;
+    cleanupError = error;
+  }
+
+  if (executionFailed) return writeError(executionError, dependencies);
+  if (cleanupFailed) return writeError(cleanupError, dependencies);
+  write(dependencies.stdout, cliSuccess(result.data, result.warnings ?? []));
+  return 0;
 }
 ```
 
@@ -149,7 +176,7 @@ Run: `pnpm test -- tests/unit/interfaces/cli/run-cli.test.ts`
 
 **Files:**
 
-- Create: `src/interfaces/cli/commands/task-edit.ts`, `src/interfaces/cli/commands/task-triage.ts`, `src/interfaces/cli/commands/task-start.ts`, `src/interfaces/cli/commands/task-complete.ts`, `src/interfaces/cli/commands/task-archive.ts`
+- Create: `src/interfaces/cli/commands/task-edit.ts`, `src/interfaces/cli/commands/task-triage.ts`, `src/interfaces/cli/commands/task-lifecycle.ts`
 - Modify: `src/interfaces/cli/run-cli.ts`, `tests/unit/interfaces/cli/run-cli.test.ts`
 
 **Interfaces:**

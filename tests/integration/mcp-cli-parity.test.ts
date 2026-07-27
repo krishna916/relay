@@ -42,11 +42,11 @@ async function callMcp(
   application: TaskApplication,
   name: string,
   arguments_: Record<string, unknown>,
-): Promise<{ data?: unknown; error?: unknown }> {
+): Promise<{ data?: unknown; warnings?: readonly unknown[]; error?: unknown }> {
   const { client, close } = await connectMcp(createMcpServer(application));
   try {
     const result = (await client.callTool({ name, arguments: arguments_ })) as {
-      structuredContent?: { data?: unknown; error?: unknown };
+      structuredContent?: { data?: unknown; warnings?: readonly unknown[]; error?: unknown };
     };
     return result.structuredContent ?? {};
   } finally {
@@ -61,14 +61,23 @@ async function callCli(application: TaskApplication, argv: readonly string[]) {
   const exitCode = await runCli(argv, { createRuntime: () => runtime, stdout, stderr });
   const envelope = JSON.parse(stdout.write.mock.calls[0]?.[0] as string) as {
     data?: unknown;
+    warnings?: readonly unknown[];
     error?: unknown;
   };
-  return { exitCode, data: envelope.data, error: envelope.error, stderr };
+  return {
+    exitCode,
+    data: envelope.data,
+    warnings: envelope.warnings,
+    error: envelope.error,
+    stderr,
+  };
 }
 
 describe('MCP and CLI semantic parity', () => {
   it('matches capture payloads and duplicate warnings', async () => {
-    const cli = await callCli(createApplication(), [
+    const cliFixture = seedApplication();
+    const mcpFixture = seedApplication();
+    const cli = await callCli(cliFixture.application, [
       'task',
       'capture',
       '--title',
@@ -82,7 +91,7 @@ describe('MCP and CLI semantic parity', () => {
       '--output',
       'json',
     ]);
-    const mcp = await callMcp(createApplication(), 'task_capture', {
+    const mcp = await callMcp(mcpFixture.application, 'task_capture', {
       title: 'Prepare release',
       createdByName: 'Codex',
       sessionId: 'session-a',
@@ -90,6 +99,7 @@ describe('MCP and CLI semantic parity', () => {
     });
     expect(cli.exitCode).toBe(0);
     expect(cli.data).toEqual(mcp.data);
+    expect(cli.warnings).toEqual(mcp.warnings);
     expect(cli.data).toMatchObject({ change: { action: 'CREATED' }, task: { id: 'task-1' } });
     expect(cli.data).toHaveProperty('task');
   });
