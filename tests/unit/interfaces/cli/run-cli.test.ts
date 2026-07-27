@@ -60,11 +60,26 @@ describe('runCli', () => {
       close: vi.fn(),
     };
     await runCli(
-      ['task', 'capture', '--title', 'Task', '--agent', 'codex', '--session', 'session-1', '--output', 'json'],
+      [
+        'task',
+        'capture',
+        '--title',
+        'Task',
+        '--agent',
+        'codex',
+        '--session',
+        'session-1',
+        '--output',
+        'json',
+      ],
       { createRuntime: () => runtime, stdout, stderr: { write: vi.fn() } },
     );
     expect(JSON.parse(stdout.write.mock.calls[0]?.[0] as string).warnings).toEqual([
-      { code: 'POSSIBLE_DUPLICATE', message: 'Similar tasks already exist.', candidates: [{ id: 'existing' }] },
+      {
+        code: 'POSSIBLE_DUPLICATE',
+        message: 'Similar tasks already exist.',
+        candidates: [{ id: 'existing' }],
+      },
     ]);
   });
 });
