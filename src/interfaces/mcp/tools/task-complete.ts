@@ -19,7 +19,7 @@ export function registerTaskCompleteTool(server: McpServer, application: TaskApp
     },
     async (input) => {
       try {
-        const mutation = application.complete({ id: input.taskId });
+        const mutation = await application.complete({ id: input.taskId });
         return mcpSuccess({
           task: toTaskMcpDto(mutation.task),
           change: lifecycleChange(mutation.before, mutation.task, 'COMPLETED'),

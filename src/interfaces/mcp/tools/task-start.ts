@@ -16,7 +16,7 @@ export function registerTaskStartTool(server: McpServer, application: TaskApplic
     },
     async (input) => {
       try {
-        const mutation = application.start({ id: input.taskId });
+        const mutation = await application.start({ id: input.taskId });
         return mcpSuccess({
           task: toTaskMcpDto(mutation.task),
           change: lifecycleChange(mutation.before, mutation.task, 'STARTED'),

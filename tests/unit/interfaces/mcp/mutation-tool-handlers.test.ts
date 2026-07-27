@@ -1,5 +1,3 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { describe, expect, it, vi } from 'vitest';
 import {
   createTaskApplication,
@@ -15,6 +13,7 @@ import type { Task } from '../../../../src/domain/task/task.js';
 import { TaskArchivedError, TaskTransitionError } from '../../../../src/domain/task/task-errors.js';
 import { createMcpServer } from '../../../../src/interfaces/mcp/create-mcp-server.js';
 import { InMemoryTaskRepository } from '../../application/tasks/task-test-fixtures.js';
+import { connectMcp } from './mcp-test-utils.js';
 
 function task(overrides: Partial<Task> = {}): Task {
   return {
@@ -35,14 +34,6 @@ function task(overrides: Partial<Task> = {}): Task {
     archivedAt: null,
     ...overrides,
   };
-}
-
-async function connect(application: TaskApplication) {
-  const server = createMcpServer(application);
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  const client = new Client({ name: 'mutation-handler-test', version: '1.0.0' });
-  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
-  return { client, close: async () => Promise.all([client.close(), server.close()]) };
 }
 
 function mutation(before: Task, taskResult: Task = before): TaskMutationResult {
@@ -75,7 +66,7 @@ describe('MCP mutation handlers', () => {
       ...readMethods(before),
       ...calls,
     } as unknown as TaskApplication;
-    const { client, close } = await connect(application);
+    const { client, close } = await connectMcp(createMcpServer(application));
     try {
       for (const [name, arguments_] of [
         ['task_edit', { taskId: before.id, title: 'Updated' }],
@@ -127,7 +118,7 @@ describe('MCP mutation handlers', () => {
       ...readMethods(result),
       edit: vi.fn(() => mutation(result)),
     } as unknown as TaskApplication;
-    const { client, close } = await connect(application);
+    const { client, close } = await connectMcp(createMcpServer(application));
     try {
       const response = await client.callTool({
         name: 'task_edit',
@@ -161,7 +152,7 @@ describe('MCP mutation handlers', () => {
         ...readMethods(result),
         edit: vi.fn(() => mutation(result)),
       } as unknown as TaskApplication;
-      const { client, close } = await connect(application);
+      const { client, close } = await connectMcp(createMcpServer(application));
       try {
         const response = await client.callTool({
           name: 'task_edit',
@@ -188,7 +179,7 @@ describe('MCP mutation handlers', () => {
       creator: { type: 'AGENT', name: 'Codex' },
       sessionId: 'session-a',
     });
-    const { client, close } = await connect(application);
+    const { client, close } = await connectMcp(createMcpServer(application));
     try {
       const edited = await client.callTool({
         name: 'task_edit',
@@ -267,7 +258,7 @@ describe('MCP mutation handlers', () => {
       sessionId: 'session-no-op',
     });
     const originalUpdatedAt = created.updatedAt;
-    const { client, close } = await connect(application);
+    const { client, close } = await connectMcp(createMcpServer(application));
     try {
       const edit = await client.callTool({
         name: 'task_edit',
@@ -285,8 +276,8 @@ describe('MCP mutation handlers', () => {
           data: { change: { action: 'NO_CHANGE', from: 'INBOX', to: 'INBOX' } },
         },
       });
-      const afterEditUpdatedAt = repository.tasks.get(created.id)?.updatedAt;
-      expect(afterEditUpdatedAt).toBe(originalUpdatedAt);
+      const afterEditAndTriageUpdatedAt = repository.tasks.get(created.id)?.updatedAt;
+      expect(afterEditAndTriageUpdatedAt).toBe(originalUpdatedAt);
 
       await client.callTool({
         name: 'task_triage',
@@ -424,7 +415,7 @@ describe('MCP mutation handlers', () => {
           throw error;
         }),
       } as unknown as TaskApplication;
-      const { client, close } = await connect(application);
+      const { client, close } = await connectMcp(createMcpServer(application));
       try {
         const response = await client.callTool({ name, arguments: arguments_ });
         expect(response).toMatchObject({
@@ -433,6 +424,32 @@ describe('MCP mutation handlers', () => {
         });
         expect(JSON.stringify(response)).not.toContain(error.message);
         expect(JSON.stringify(response)).not.toMatch(/SQLITE|relay\.db|stack/i);
+      } finally {
+        await close();
+      }
+    },
+  );
+
+  it.each([
+    ['task_edit', { taskId: 'task-1', title: 'Updated' }, 'edit'],
+    ['task_start', { taskId: 'task-1' }, 'start'],
+    ['task_complete', { taskId: 'task-1' }, 'complete'],
+  ] as const)(
+    'maps rejected %s mutation promises through the MCP error mapper',
+    async (name, arguments_, method) => {
+      const result = task();
+      const application = {
+        ...readMethods(result),
+        [method]: vi.fn(() => Promise.reject(new TaskPersistenceError('secret storage detail'))),
+      } as unknown as TaskApplication;
+      const { client, close } = await connectMcp(createMcpServer(application));
+      try {
+        const response = await client.callTool({ name, arguments: arguments_ });
+        expect(response).toMatchObject({
+          isError: true,
+          structuredContent: { error: { code: 'STORAGE_ERROR' } },
+        });
+        expect(JSON.stringify(response)).not.toContain('secret storage detail');
       } finally {
         await close();
       }
@@ -451,7 +468,7 @@ describe('MCP mutation handlers', () => {
       complete: vi.fn(),
       archive: vi.fn(),
     } as unknown as TaskApplication;
-    const { client, close } = await connect(application);
+    const { client, close } = await connectMcp(createMcpServer(application));
     try {
       const response = await client.callTool({ name, arguments: arguments_ });
       expect(response).toMatchObject({ isError: true });

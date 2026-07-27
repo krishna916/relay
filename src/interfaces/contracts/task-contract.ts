@@ -6,6 +6,13 @@ const optionalText = (maximum: number) => nullableText(maximum).optional();
 const optionalEditableText = (maximum: number) => z.string().trim().min(1).max(maximum).optional();
 const taskStatusSchema = z.enum(['INBOX', 'ACTIVE', 'IN_PROGRESS', 'BACKLOG', 'DONE', 'ARCHIVED']);
 const taskPrioritySchema = z.enum(['LOW', 'NORMAL', 'HIGH']);
+const editableTaskFieldSchema = z.enum([
+  'title',
+  'description',
+  'priority',
+  'workspace',
+  'sourceContext',
+]);
 
 export const taskIdSchema = z.string().trim().min(1).max(100);
 
@@ -163,26 +170,53 @@ export const sessionCapturesResultSchema = z
 export const taskEditResultSchema = z
   .object({
     task: taskDtoSchema,
-    change: z
-      .object({
-        action: z.enum(['EDITED', 'NO_CHANGE']),
-        fields: z
-          .array(z.enum(['title', 'description', 'priority', 'workspace', 'sourceContext']))
-          .max(5),
-      })
-      .strict(),
+    change: z.discriminatedUnion('action', [
+      z
+        .object({
+          action: z.literal('EDITED'),
+          fields: z
+            .array(editableTaskFieldSchema)
+            .min(1)
+            .max(5)
+            .refine((fields) => new Set(fields).size === fields.length, {
+              message: 'fields must not contain duplicates',
+            }),
+        })
+        .strict(),
+      z
+        .object({
+          action: z.literal('NO_CHANGE'),
+          fields: z.array(editableTaskFieldSchema).length(0),
+        })
+        .strict(),
+    ]),
   })
   .strict();
 export const taskTriageResultSchema = z
   .object({
     task: taskDtoSchema,
-    change: z
-      .object({
-        action: z.enum(['TRIAGED', 'NO_CHANGE']),
-        from: taskStatusSchema,
-        to: taskStatusSchema,
-      })
-      .strict(),
+    change: z.discriminatedUnion('action', [
+      z
+        .object({
+          action: z.literal('TRIAGED'),
+          from: taskStatusSchema,
+          to: taskStatusSchema,
+        })
+        .strict()
+        .refine((change) => change.from !== change.to, {
+          message: 'TRIAGED status values must differ',
+        }),
+      z
+        .object({
+          action: z.literal('NO_CHANGE'),
+          from: taskStatusSchema,
+          to: taskStatusSchema,
+        })
+        .strict()
+        .refine((change) => change.from === change.to, {
+          message: 'NO_CHANGE status values must match',
+        }),
+    ]),
   })
   .strict();
 export const taskStartResultSchema = taskResultSchema(['STARTED', 'NO_CHANGE']);

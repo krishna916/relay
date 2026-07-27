@@ -1,28 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer } from '../../../../src/interfaces/mcp/create-mcp-server.js';
 import { createTaskApplication } from '../../../../src/application/tasks/task-application.js';
 import { InMemoryTaskRepository } from '../../application/tasks/task-test-fixtures.js';
 import { TaskRepositoryError } from '../../../../src/application/tasks/task-repository-errors.js';
-
-async function connectMcp(server: ReturnType<typeof createMcpServer>) {
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  const client = new Client({ name: 'test-client', version: '1.0.0' });
-  let closed = false;
-  const close = async () => {
-    if (closed) return;
-    closed = true;
-    await Promise.allSettled([client.close(), server.close()]);
-  };
-  try {
-    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
-    return { client, close };
-  } catch (error) {
-    await close();
-    throw error;
-  }
-}
+import { connectMcp } from './mcp-test-utils.js';
 
 describe('createMcpServer', () => {
   it('exposes relay_health tool via in-memory transport', async () => {
@@ -82,14 +63,20 @@ describe('createMcpServer', () => {
       const tools = await client.listTools();
       const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
 
-      expect([...byName.keys()]).toEqual(
-        expect.arrayContaining([
+      expect([...byName.keys()].sort()).toEqual(
+        [
+          'relay_health',
+          'task_capture',
+          'task_list',
+          'task_get',
+          'task_find_similar',
+          'session_captures_list',
           'task_edit',
           'task_triage',
           'task_start',
           'task_complete',
           'task_archive',
-        ]),
+        ].sort(),
       );
       expect(byName.get('task_edit')?.inputSchema).toMatchObject({
         additionalProperties: false,
@@ -101,8 +88,6 @@ describe('createMcpServer', () => {
       expect(byName.get('task_triage')?.inputSchema.properties?.target).toMatchObject({
         enum: ['INBOX', 'ACTIVE', 'BACKLOG'],
       });
-      expect([...byName.keys()]).not.toContain('task_update');
-      expect([...byName.keys()]).not.toContain('task_set_status');
     } finally {
       await close();
     }

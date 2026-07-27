@@ -6,6 +6,12 @@ import { mcpSuccess } from '../mapping/mcp-result.js';
 import { toTaskMcpDto } from '../mapping/task-mcp-dto.js';
 import { taskEditInputSchema, taskEditOutputSchema } from '../schemas/mutation-tool-schemas.js';
 
+const fieldUpdate = <K extends string, V>(
+  field: K,
+  value: V | undefined,
+  clear: boolean | undefined,
+) => (value === undefined ? (clear === true ? { [field]: null } : {}) : { [field]: value });
+
 export function registerTaskEditTool(server: McpServer, application: TaskApplication): void {
   server.registerTool(
     'task_edit',
@@ -17,29 +23,13 @@ export function registerTaskEditTool(server: McpServer, application: TaskApplica
     },
     async (input) => {
       try {
-        const mutation = application.edit({
+        const mutation = await application.edit({
           id: input.taskId,
           ...(input.title === undefined ? {} : { title: input.title }),
-          ...(input.description === undefined
-            ? input.clearDescription === true
-              ? { description: null }
-              : {}
-            : { description: input.description }),
-          ...(input.priority === undefined
-            ? input.clearPriority === true
-              ? { priority: null }
-              : {}
-            : { priority: input.priority }),
-          ...(input.workspace === undefined
-            ? input.clearWorkspace === true
-              ? { workspace: null }
-              : {}
-            : { workspace: input.workspace }),
-          ...(input.sourceContext === undefined
-            ? input.clearSourceContext === true
-              ? { sourceContext: null }
-              : {}
-            : { sourceContext: input.sourceContext }),
+          ...fieldUpdate('description', input.description, input.clearDescription),
+          ...fieldUpdate('priority', input.priority, input.clearPriority),
+          ...fieldUpdate('workspace', input.workspace, input.clearWorkspace),
+          ...fieldUpdate('sourceContext', input.sourceContext, input.clearSourceContext),
         });
         return mcpSuccess({
           task: toTaskMcpDto(mutation.task),

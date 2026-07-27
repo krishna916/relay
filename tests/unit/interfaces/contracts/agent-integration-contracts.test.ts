@@ -16,11 +16,13 @@ import {
   taskCompleteInputSchema,
   taskDtoSchema,
   taskEditInputSchema,
+  taskEditResultSchema,
   taskGetInputSchema,
   taskListInputSchema,
   taskStartInputSchema,
   taskStartResultSchema,
   taskTriageInputSchema,
+  taskTriageResultSchema,
 } from '../../../../src/interfaces/contracts/task-contract.js';
 import {
   parseSessionId,
@@ -255,5 +257,50 @@ describe('agent integration contracts', () => {
       code: 'NOT_FOUND',
       message: 'Task was not found.',
     });
+  });
+
+  it('requires consistent edit and triage change metadata', () => {
+    expect(
+      taskEditResultSchema.safeParse({
+        task: VALID_TASK,
+        change: { action: 'EDITED', fields: [] },
+      }).success,
+    ).toBe(false);
+    expect(
+      taskEditResultSchema.safeParse({
+        task: VALID_TASK,
+        change: { action: 'EDITED', fields: ['title', 'title'] },
+      }).success,
+    ).toBe(false);
+    expect(
+      taskEditResultSchema.safeParse({
+        task: VALID_TASK,
+        change: { action: 'NO_CHANGE', fields: ['title'] },
+      }).success,
+    ).toBe(false);
+    expect(
+      taskTriageResultSchema.safeParse({
+        task: VALID_TASK,
+        change: { action: 'TRIAGED', from: 'INBOX', to: 'INBOX' },
+      }).success,
+    ).toBe(false);
+    expect(
+      taskTriageResultSchema.safeParse({
+        task: VALID_TASK,
+        change: { action: 'NO_CHANGE', from: 'INBOX', to: 'ACTIVE' },
+      }).success,
+    ).toBe(false);
+    expect(
+      taskEditResultSchema.safeParse({
+        task: VALID_TASK,
+        change: { action: 'EDITED', fields: ['title'] },
+      }).success,
+    ).toBe(true);
+    expect(
+      taskTriageResultSchema.safeParse({
+        task: VALID_TASK,
+        change: { action: 'TRIAGED', from: 'INBOX', to: 'ACTIVE' },
+      }).success,
+    ).toBe(true);
   });
 });
