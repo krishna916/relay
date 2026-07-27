@@ -12,6 +12,16 @@ relay session ...
 
 `relay-mcp` may remain as a compatibility entry point, but new integrations target `relay mcp`.
 
+## Source-checkout invocation
+
+Build the project, then invoke `node dist/cli/main.js` from any directory. Set `RELAY_DB_PATH` when an explicit database location is needed:
+
+```text
+RELAY_DB_PATH=/tmp/relay.db node /path/to/relay/dist/cli/main.js task list --output json
+```
+
+The task and session commands below call `TaskApplication` directly. They never start HTTP or MCP processes.
+
 ## JSON protocol
 
 Every agent-facing command accepts `--output json`. JSON mode writes one JSON document followed by a newline to stdout; diagnostics are written to stderr. No caller needs to parse decorative output.

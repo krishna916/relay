@@ -9,6 +9,7 @@
   },
   "packageManager": "pnpm@10.2.0",
   "bin": {
+    "relay": "./dist/cli/main.js",
     "relay-mcp": "./dist/mcp/main.js"
   },
   "scripts": {
@@ -23,6 +24,7 @@
     "build:clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "pnpm build:clean && pnpm build:node && pnpm build:web",
     "dev:mcp": "node --import tsx/esm src/interfaces/mcp/main.ts",
+    "dev:cli": "node --import tsx/esm src/interfaces/cli/main.ts",
     "dev:http": "node --import tsx/esm src/interfaces/http/main.ts",
     "dev:web": "vite",
     "dev:ui": "concurrently -k -p name -c \"blue,green\" \"pnpm dev:http\" \"pnpm dev:web\"",
