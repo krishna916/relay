@@ -1,9 +1,9 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { TaskApplication } from '../../../application/tasks/task-application.js';
-import { lifecycleChange } from '../mapping/change-metadata.js';
+import { lifecycleChange } from '../../contracts/change-metadata.js';
 import { toMcpError } from '../mapping/mcp-errors.js';
 import { mcpSuccess } from '../mapping/mcp-result.js';
-import { toTaskMcpDto } from '../mapping/task-mcp-dto.js';
+import { toTaskDto } from '../../contracts/task-dto.js';
 import {
   taskArchiveInputSchema,
   taskArchiveOutputSchema,
@@ -21,7 +21,7 @@ export function registerTaskArchiveTool(server: McpServer, application: TaskAppl
       try {
         const mutation = application.archive({ id: input.taskId });
         return mcpSuccess({
-          task: toTaskMcpDto(mutation.task),
+          task: toTaskDto(mutation.task),
           change: lifecycleChange(mutation.before, mutation.task, 'ARCHIVED'),
         });
       } catch (error) {

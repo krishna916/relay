@@ -131,10 +131,14 @@ export function validateRepositoryAssets(options: ValidateRepositoryAssetsOption
     'tests/fixtures/contracts/transition-conflict-error.json',
     'tests/fixtures/contracts/storage-error.json',
     'tsconfig.base.json',
+    'tsup.config.ts',
     'src/application/health/get-health.ts',
     'src/database/connection.ts',
     'src/interfaces/mcp/create-mcp-server.ts',
     'src/interfaces/http/create-http-server.ts',
+    'src/interfaces/cli/main.ts',
+    'src/interfaces/cli/run-cli.ts',
+    'src/interfaces/cli/parse-cli.ts',
     'src/interfaces/contracts/contract-version.ts',
     'src/interfaces/contracts/error-contract.ts',
     'src/interfaces/contracts/json-value-contract.ts',
@@ -155,6 +159,10 @@ export function validateRepositoryAssets(options: ValidateRepositoryAssetsOption
     bin?: Record<string, string>;
   };
   const binRelayMcp = pkg.bin?.['relay-mcp'];
+  const binRelay = pkg.bin?.relay;
+  if (binRelay !== './dist/cli/main.js') {
+    fail(`package.json#bin.relay must point to ./dist/cli/main.js (got ${String(binRelay)})`);
+  }
   if (binRelayMcp !== './dist/mcp/main.js') {
     fail(
       `package.json#bin.relay-mcp must point to ./dist/mcp/main.js (got ${String(binRelayMcp)})`,
@@ -164,6 +172,23 @@ export function validateRepositoryAssets(options: ValidateRepositoryAssetsOption
   // 3. Built MCP file existence after build
   if (!existsSync(join(rootDir, 'dist', 'mcp', 'main.js'))) {
     fail('Built MCP executable missing at dist/mcp/main.js. Run pnpm build first.');
+  }
+  if (!existsSync(join(rootDir, 'dist', 'cli', 'main.js'))) {
+    fail('Built CLI executable missing at dist/cli/main.js. Run pnpm build first.');
+  }
+
+  const buildConfig = readFileSync(join(rootDir, 'tsup.config.ts'), 'utf-8');
+  if (
+    !buildConfig.includes("'cli/main'") ||
+    !buildConfig.includes("'src/interfaces/cli/main.ts'")
+  ) {
+    fail('tsup.config.ts must build src/interfaces/cli/main.ts as cli/main.');
+  }
+
+  const readme = readFileSync(join(rootDir, 'README.md'), 'utf-8');
+  const cliReference = readFileSync(join(rootDir, 'docs/cli-reference.md'), 'utf-8');
+  if (!readme.includes('dist/cli/main.js') || !cliReference.includes('dist/cli/main.js')) {
+    fail('README.md and docs/cli-reference.md must document the built CLI invocation.');
   }
 
   const allFiles = walkFiles(rootDir);

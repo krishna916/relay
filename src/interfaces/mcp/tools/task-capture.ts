@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { TaskApplication } from '../../../application/tasks/task-application.js';
 import { toMcpError } from '../mapping/mcp-errors.js';
 import { mcpSuccess } from '../mapping/mcp-result.js';
-import { toTaskMcpDto } from '../mapping/task-mcp-dto.js';
+import { toTaskDto } from '../../contracts/task-dto.js';
 import { agentCaptureInputSchema, taskCaptureOutputSchema } from '../schemas/read-tool-schemas.js';
 
 export function registerTaskCaptureTool(server: McpServer, taskApplication: TaskApplication): void {
@@ -40,7 +40,7 @@ export function registerTaskCaptureTool(server: McpServer, taskApplication: Task
                   candidates: matches.map((candidate) => ({ id: candidate.id })),
                 },
               ];
-        return mcpSuccess({ task: toTaskMcpDto(task), change: { action: 'CREATED' } }, warnings);
+        return mcpSuccess({ task: toTaskDto(task), change: { action: 'CREATED' } }, warnings);
       } catch (error) {
         return toMcpError(error);
       }
