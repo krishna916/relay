@@ -45,6 +45,26 @@ describe('mcp-stdio integration', () => {
           'task_archive',
         ]),
       );
+      const mutationTools = tools.tools
+        .map((tool) => tool.name)
+        .filter((name) =>
+          ['task_edit', 'task_triage', 'task_start', 'task_complete', 'task_archive'].includes(
+            name,
+          ),
+        );
+      expect(mutationTools).toHaveLength(5);
+      expect(mutationTools).toEqual(
+        expect.arrayContaining([
+          'task_edit',
+          'task_triage',
+          'task_start',
+          'task_complete',
+          'task_archive',
+        ]),
+      );
+      expect(tools.tools.map((tool) => tool.name)).not.toEqual(
+        expect.arrayContaining(['task_update', 'task_set_status']),
+      );
 
       const res = (await client.callTool({ name: 'relay_health', arguments: {} })) as {
         content: Array<{ type: string; text: string }>;
@@ -82,6 +102,16 @@ describe('mcp-stdio integration', () => {
 
       const firstTaskId = first.structuredContent?.data?.task?.id;
       expect(firstTaskId).toBeDefined();
+      const edited = (await client.callTool({
+        name: 'task_edit',
+        arguments: { taskId: firstTaskId, title: 'Edited MCP capture' },
+      })) as {
+        structuredContent?: { data?: { task?: { title?: string }; change?: { action?: string } } };
+      };
+      expect(edited.structuredContent?.data).toMatchObject({
+        task: { title: 'Edited MCP capture' },
+        change: { action: 'EDITED' },
+      });
       const triaged = (await client.callTool({
         name: 'task_triage',
         arguments: { taskId: firstTaskId, target: 'ACTIVE' },
@@ -111,6 +141,18 @@ describe('mcp-stdio integration', () => {
       expect(completed.structuredContent?.data).toMatchObject({
         task: { status: 'DONE' },
         change: { action: 'COMPLETED' },
+      });
+      const finalTask = (await client.callTool({
+        name: 'task_get',
+        arguments: { taskId: firstTaskId },
+      })) as {
+        structuredContent?: {
+          data?: { task?: { title?: string; status?: string } };
+        };
+      };
+      expect(finalTask.structuredContent?.data?.task).toMatchObject({
+        title: 'Edited MCP capture',
+        status: 'DONE',
       });
 
       const sessionA = (await client.callTool({

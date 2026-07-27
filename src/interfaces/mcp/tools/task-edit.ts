@@ -17,7 +17,7 @@ export function registerTaskEditTool(server: McpServer, application: TaskApplica
     },
     async (input) => {
       try {
-        const mutation = application.editWithPrevious({
+        const mutation = application.edit({
           id: input.taskId,
           ...(input.title === undefined ? {} : { title: input.title }),
           ...(input.description === undefined

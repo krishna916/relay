@@ -18,10 +18,10 @@ export function registerTaskTriageTool(server: McpServer, application: TaskAppli
       try {
         const mutation =
           input.target === 'INBOX'
-            ? application.moveToInboxWithPrevious({ id: input.taskId })
+            ? application.moveToInbox({ id: input.taskId })
             : input.target === 'ACTIVE'
-              ? application.activateWithPrevious({ id: input.taskId })
-              : application.moveToBacklogWithPrevious({ id: input.taskId });
+              ? application.activate({ id: input.taskId })
+              : application.moveToBacklog({ id: input.taskId });
         return mcpSuccess({
           task: toTaskMcpDto(mutation.task),
           change: triageChange(mutation.before, mutation.task),

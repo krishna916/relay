@@ -5,7 +5,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 /** @type {import('eslint').Linter.Config[]} */
 const config = [
   {
-    ignores: ['dist/**', 'coverage/**', 'node_modules/**'],
+    ignores: ['dist/**', 'coverage/**', 'node_modules/**', '.worktrees/**'],
   },
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js'],

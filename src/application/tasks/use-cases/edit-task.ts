@@ -21,12 +21,6 @@ export interface EditTaskResult {
 export function editTaskUseCase(
   input: EditTaskInput,
   dependencies: { readonly repository: TaskRepository; readonly clock: Clock },
-): Task {
-  return editTaskWithPreviousUseCase(input, dependencies).task;
-}
-export function editTaskWithPreviousUseCase(
-  input: EditTaskInput,
-  dependencies: { readonly repository: TaskRepository; readonly clock: Clock },
 ): EditTaskResult {
   const changes: TaskChanges = {
     ...(input.title === undefined ? {} : { title: input.title }),

@@ -252,18 +252,22 @@ describe('TaskApplication', () => {
         sourceContext: null,
       }),
     ).toMatchObject({
-      title: 'Changed',
-      description: null,
-      priority: null,
-      workspace: null,
-      sourceContext: null,
-      updatedAt: NOW.toISOString(),
+      before: original,
+      task: {
+        title: 'Changed',
+        description: null,
+        priority: null,
+        workspace: null,
+        sourceContext: null,
+        updatedAt: NOW.toISOString(),
+      },
     });
     expect(original.title).toBe('Task');
     expect(repository.updateCalls).toBe(1);
     expect(clock.calls).toBe(1);
     expect(application.edit({ id: original.id, title: 'Changed' })).toMatchObject({
-      title: 'Changed',
+      before: expect.objectContaining({ title: 'Changed' }),
+      task: expect.objectContaining({ title: 'Changed' }),
     });
     expect(repository.updateCalls).toBe(1);
     expect(() => application.edit({ id: original.id })).toThrow(InvalidTaskRequestError);
@@ -280,8 +284,11 @@ describe('TaskApplication', () => {
     const { application, repository } = setup();
     repository.tasks.set(source.id, source);
     expect(application[method]({ id: source.id })).toMatchObject({
-      status,
-      updatedAt: NOW.toISOString(),
+      before: source,
+      task: {
+        status,
+        updatedAt: NOW.toISOString(),
+      },
     });
     expect(repository.updateCalls).toBe(1);
   });
@@ -290,7 +297,7 @@ describe('TaskApplication', () => {
     const { application, repository } = setup();
     const original = task();
     repository.tasks.set('task-1', original);
-    expect(application.moveToInbox({ id: 'task-1' })).toBe(original);
+    expect(application.moveToInbox({ id: 'task-1' }).task).toBe(original);
     expect(repository.updateCalls).toBe(0);
     expect(() => application.start({ id: 'task-1' })).toThrow(TaskTransitionError);
   });

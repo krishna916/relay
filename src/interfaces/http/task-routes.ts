@@ -55,7 +55,7 @@ export async function routeTaskRequest(
     if (request.method !== 'POST') sendMethodNotAllowed(response, 'POST');
     else {
       await requireEmptyBody(request);
-      sendJson(response, 200, { task: toTaskDto(application[action]({ id })) });
+      sendJson(response, 200, { task: toTaskDto(application[action]({ id }).task) });
     }
     return true;
   }
@@ -64,7 +64,7 @@ export async function routeTaskRequest(
   else if (request.method === 'PATCH') {
     const changes = editTaskSchema.parse(await readJsonBody(request));
     sendJson(response, 200, {
-      task: toTaskDto(application.edit({ id, ...optionalFields(changes) })),
+      task: toTaskDto(application.edit({ id, ...optionalFields(changes) }).task),
     });
   } else sendMethodNotAllowed(response, 'GET, PATCH');
   return true;

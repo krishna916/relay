@@ -19,7 +19,7 @@ export function registerTaskArchiveTool(server: McpServer, application: TaskAppl
     },
     async (input) => {
       try {
-        const mutation = application.archiveWithPrevious({ id: input.taskId });
+        const mutation = application.archive({ id: input.taskId });
         return mcpSuccess({
           task: toTaskMcpDto(mutation.task),
           change: lifecycleChange(mutation.before, mutation.task, 'ARCHIVED'),

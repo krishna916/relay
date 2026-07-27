@@ -13,13 +13,6 @@ export function transitionTaskUseCase(
   input: TaskIdInput,
   dependencies: { readonly repository: TaskRepository; readonly clock: Clock },
   transition: TaskTransition,
-): Task {
-  return transitionTaskWithPreviousUseCase(input, dependencies, transition).task;
-}
-export function transitionTaskWithPreviousUseCase(
-  input: TaskIdInput,
-  dependencies: { readonly repository: TaskRepository; readonly clock: Clock },
-  transition: TaskTransition,
 ): TaskTransitionResult {
   const id = normalizeTaskId(input.id);
   const existing = required(() => dependencies.repository.findById(id), id);
