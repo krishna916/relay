@@ -71,6 +71,42 @@ function parseFixtureCases(fixturePath: string, content: string): readonly Skill
   });
 }
 
+function validateContains(content: string, pattern: RegExp, label: string): void {
+  if (!pattern.test(content)) {
+    fail(`Canonical skill is missing required policy: ${label}.`);
+  }
+}
+
+function validateCaptureSkill(content: string): void {
+  for (const section of [
+    'Purpose',
+    'When to capture',
+    'Adapter selection',
+    'Session and provenance',
+    'Capture procedure',
+    'Duplicate handling',
+    'Context safety',
+    'Autonomy boundaries',
+    'Do not capture',
+  ]) {
+    validateContains(content, new RegExp(`^## ${section}$`, 'mi'), section);
+  }
+  for (const [pattern, label] of [
+    [/concrete,? actionable follow-up/i, 'concrete actionable follow-up'],
+    [/MCP.*preferred/i, 'MCP preference'],
+    [/CLI.*fallback/i, 'CLI fallback'],
+    [/--output json/i, 'CLI JSON output'],
+    [/same adapter|one adapter/i, 'one adapter per workflow'],
+    [/session ID/i, 'session ID'],
+    [/INBOX/i, 'INBOX capture'],
+    [/duplicate.*advisory/i, 'advisory duplicate handling'],
+    [/continue.*original work/i, 'continue original work'],
+    [/must not.*(?:edit|triage|start|complete|archive)/i, 'autonomy boundary'],
+  ] as const) {
+    validateContains(content, pattern, label);
+  }
+}
+
 export function validateSkillAssets(options: ValidateSkillAssetsOptions = {}): void {
   const rootDir = options.rootDir ? resolve(options.rootDir) : process.cwd();
 
@@ -79,6 +115,8 @@ export function validateSkillAssets(options: ValidateSkillAssetsOptions = {}): v
       fail(`Required canonical skill asset missing: ${path}`);
     }
   }
+
+  validateCaptureSkill(readFileSync(join(rootDir, canonicalSkillPaths[0]), 'utf-8'));
 
   const seenIds = new Set<string>();
   for (const fixturePath of fixturePaths) {
