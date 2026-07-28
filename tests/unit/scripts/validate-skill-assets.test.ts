@@ -50,6 +50,7 @@ function createValidSkillFixtureRoot(): string {
       'REVIEW-SILENT-MUTATION-003',
       'REVIEW-TIMER-005',
       'REVIEW-SKIP-EMPTY-006',
+      'REVIEW-GENERIC-MUTATION-007',
     ],
   ] as const;
   for (const [index, path] of fixtureFiles.entries()) {
@@ -110,6 +111,23 @@ describe('validateSkillAssets', () => {
     writeFileSync(join(rootDir, 'integrations/codex/relay-capture/SKILL.md'), '# Relay Capture\n');
 
     expect(() => validateSkillAssets({ rootDir })).toThrow(/canonical|vendor-specific/i);
+  });
+
+  it('accepts vendor skills that explicitly reference either canonical policy source', () => {
+    const rootDir = createValidSkillFixtureRoot();
+    createdRoots.push(rootDir);
+    mkdirSync(join(rootDir, 'integrations/codex/relay-capture'), { recursive: true });
+    mkdirSync(join(rootDir, 'integrations/codex/relay-session-review'), { recursive: true });
+    writeFileSync(
+      join(rootDir, 'integrations/codex/relay-capture/SKILL.md'),
+      '# Relay Capture\n\nSee [canonical source](../../../../skills/relay-capture/SKILL.md).\n',
+    );
+    writeFileSync(
+      join(rootDir, 'integrations/codex/relay-session-review/SKILL.md'),
+      '# Relay Session Review\n\nSee [canonical source](../../../../skills/relay-session-review/SKILL.md).\n',
+    );
+
+    expect(() => validateSkillAssets({ rootDir })).not.toThrow();
   });
 
   it('requires caller-owned capture provenance and Relay-owned fields', () => {
@@ -193,6 +211,18 @@ describe('validateSkillAssets', () => {
   it('allows canonical prohibition wording without treating it as permission', () => {
     const rootDir = createValidSkillFixtureRoot();
     createdRoots.push(rootDir);
+    expect(() => validateSkillAssets({ rootDir })).not.toThrow();
+  });
+
+  it.each([
+    'Do not skip the exact session lookup before final completion.',
+    'The agent must not omit the exact session lookup before final completion.',
+  ])('allows exact-session prohibitions: %s', (prohibition) => {
+    const rootDir = createValidSkillFixtureRoot();
+    createdRoots.push(rootDir);
+    const skillPath = join(rootDir, 'skills/relay-session-review/SKILL.md');
+    writeFileSync(skillPath, `${readFileSync(skillPath, 'utf-8')}\n${prohibition}\n`);
+
     expect(() => validateSkillAssets({ rootDir })).not.toThrow();
   });
 });

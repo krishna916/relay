@@ -109,6 +109,7 @@ function createFixtureRoot(): string {
         'REVIEW-SILENT-MUTATION-003',
         'REVIEW-TIMER-005',
         'REVIEW-SKIP-EMPTY-006',
+        'REVIEW-GENERIC-MUTATION-007',
       ],
     ][index];
     if (!requiredIds) throw new Error(`Missing required fixture IDs for ${filename}`);
@@ -222,5 +223,27 @@ describe('validateRepositoryAssets', () => {
     writeFileSync(join(rootDir, 'README.md'), '# Relay\n\n`node dist/cli/main.js`\n');
 
     expect(() => validateRepositoryAssets({ rootDir })).toThrow(/README.*agent-skills/i);
+  });
+
+  it('does not count plain text or fenced code mentions as README links', () => {
+    const rootDir = createFixtureRoot();
+    createdRoots.push(rootDir);
+    writeFileSync(
+      join(rootDir, 'README.md'),
+      '# Relay\n\n`node dist/cli/main.js`\n\n```md\n[Agent skills](docs/agent-skills.md)\n[Capture skill](skills/relay-capture/SKILL.md)\n[Review skill](skills/relay-session-review/SKILL.md)\n```\n',
+    );
+
+    expect(() => validateRepositoryAssets({ rootDir })).toThrow(/README.*agent-skills/i);
+  });
+
+  it('accepts normalized Markdown links to canonical skill guidance', () => {
+    const rootDir = createFixtureRoot();
+    createdRoots.push(rootDir);
+    writeFileSync(
+      join(rootDir, 'README.md'),
+      '# Relay\n\n`node dist/cli/main.js`\n\n[Agent skills](./docs/agent-skills.md#overview)\n[Capture skill](./skills/relay-capture/SKILL.md?source=readme)\n[Review skill](./skills/relay-session-review/SKILL.md)\n',
+    );
+
+    expect(() => validateRepositoryAssets({ rootDir })).not.toThrow();
   });
 });

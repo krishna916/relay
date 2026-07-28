@@ -94,7 +94,7 @@ Skip `session_captures_list` before final completion because the expected result
 
 The exact active-session lookup is mandatory and an empty authoritative result is valid.
 
-## REVIEW-GENERIC-MUTATION-006
+## REVIEW-GENERIC-MUTATION-007
 
 Expected: REJECT
 

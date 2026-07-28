@@ -96,6 +96,7 @@ function validateFixtureCoverage(fixturePath: string, cases: readonly SkillFixtu
             'REVIEW-SILENT-MUTATION-003',
             'REVIEW-TIMER-005',
             'REVIEW-SKIP-EMPTY-006',
+            'REVIEW-GENERIC-MUTATION-007',
           ];
   for (const id of required) {
     if (!cases.some((fixtureCase) => fixtureCase.id === id))
@@ -161,7 +162,7 @@ const forbiddenPolicyRules: readonly ForbiddenPolicyRule[] = [
     skill: 'review',
     label: 'skipping the exact-session lookup',
     pattern:
-      /(?<!never )\b(?:skip|omit|may skip|can omit)\b[^.\n]*\b(?:exact[- ]session|session)\b[^.\n]*\b(?:lookup|review)\b/i,
+      /(?<!never )(?<!do not )(?<!must not )(?<!should not )(?<!don't )\b(?:skip|omit|may skip|can omit)\b[^.\n]*\b(?:exact[- ]session|session)\b[^.\n]*\b(?:lookup|review)\b/i,
   },
   {
     skill: 'review',
@@ -292,14 +293,29 @@ function validateCanonicalSources(rootDir: string, currentDir = rootDir): void {
     const path = relative(rootDir, fullPath).replaceAll('\\', '/');
     if (canonicalSkillPaths.includes(path as (typeof canonicalSkillPaths)[number])) continue;
     const content = readFileSync(fullPath, 'utf-8');
-    const canonical = path.includes('relay-capture')
-      ? canonicalSkillPaths[0]
-      : canonicalSkillPaths[1];
-    if (
-      /relay-capture|relay-session-review|Relay Capture|Relay Session Review/i.test(content) &&
-      content !== readFileSync(join(rootDir, canonical), 'utf-8')
-    ) {
-      fail(`Vendor-specific Relay policy must reference a canonical source: ${path}.`);
+    const candidates = canonicalSkillPaths.filter((canonicalPath) => {
+      const skillName = canonicalPath.includes('relay-capture')
+        ? /relay-capture|Relay Capture/i
+        : /relay-session-review|Relay Session Review/i;
+      return skillName.test(content);
+    });
+    if (candidates.length === 0) continue;
+    if (candidates.length > 1) {
+      fail(`Vendor-specific Relay policy must identify one canonical source: ${path}.`);
+    }
+    const canonical = candidates[0];
+    if (!canonical) {
+      fail(`Vendor-specific Relay policy must identify a canonical source: ${path}.`);
+    }
+    const canonicalName = canonical.includes('relay-capture')
+      ? 'relay-capture'
+      : 'relay-session-review';
+    const sourcePattern = new RegExp(
+      `${canonicalName}/SKILL\\.md|${canonical.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}`,
+      'i',
+    );
+    if (!sourcePattern.test(content)) {
+      fail(`Vendor-specific Relay policy must explicitly reference its canonical source: ${path}.`);
     }
   }
 }

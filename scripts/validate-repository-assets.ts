@@ -32,32 +32,42 @@ function walkFiles(rootDir: string, startDir = rootDir): string[] {
   return files;
 }
 
-function validateMarkdownLinks(markdownPath: string, content: string): void {
-  const linkPattern = /\[[^\]]+\]\(([^)]+)\)/g;
+function extractMarkdownLinkTargets(content: string): readonly string[] {
+  const withoutCode = content.replace(/```[\s\S]*?```/g, '').replace(/`[^`\r\n]*`/g, '');
+  return [...withoutCode.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)]
+    .map((match) => match[1]?.trim())
+    .filter((target): target is string => Boolean(target));
+}
 
-  for (const match of content.matchAll(linkPattern)) {
-    const rawTarget = match[1];
-    if (!rawTarget) {
-      continue;
-    }
+function normalizeMarkdownLinkTarget(rawTarget: string): string | undefined {
+  let target = rawTarget.trim();
+  if (target.startsWith('<')) {
+    const closingBracket = target.indexOf('>');
+    target = closingBracket >= 0 ? target.slice(1, closingBracket) : target;
+  } else {
+    target = target.split(/\s+(?=["'])/)[0] ?? target;
+  }
+  const cleanTarget = target.split('#')[0]?.split('?')[0];
+  return cleanTarget?.replaceAll('\\', '/').replace(/^\.\//, '') || undefined;
+}
+
+function validateMarkdownLinks(markdownPath: string, content: string): void {
+  for (const rawTarget of extractMarkdownLinkTargets(content)) {
+    const normalizedTarget = normalizeMarkdownLinkTarget(rawTarget);
+    if (!normalizedTarget) continue;
 
     if (
-      rawTarget.startsWith('http://') ||
-      rawTarget.startsWith('https://') ||
-      rawTarget.startsWith('mailto:') ||
-      rawTarget.startsWith('#')
+      normalizedTarget.startsWith('http://') ||
+      normalizedTarget.startsWith('https://') ||
+      normalizedTarget.startsWith('mailto:') ||
+      normalizedTarget.startsWith('#')
     ) {
       continue;
     }
 
-    const cleanTarget = rawTarget.split('#')[0]?.split('?')[0];
-    if (!cleanTarget) {
-      continue;
-    }
-
-    const resolvedTarget = isAbsolute(cleanTarget)
-      ? cleanTarget
-      : resolve(markdownPath, '..', cleanTarget);
+    const resolvedTarget = isAbsolute(normalizedTarget)
+      ? normalizedTarget
+      : resolve(markdownPath, '..', normalizedTarget);
 
     if (!existsSync(resolvedTarget)) {
       fail(`README local link does not resolve: ${rawTarget}`);
@@ -198,12 +208,17 @@ export function validateRepositoryAssets(options: ValidateRepositoryAssetsOption
   if (!readme.includes('dist/cli/main.js') || !cliReference.includes('dist/cli/main.js')) {
     fail('README.md and docs/cli-reference.md must document the built CLI invocation.');
   }
+  const readmeLinkTargets = new Set(
+    extractMarkdownLinkTargets(readme)
+      .map(normalizeMarkdownLinkTarget)
+      .filter((target): target is string => Boolean(target)),
+  );
   for (const requiredLink of [
     'docs/agent-skills.md',
     'skills/relay-capture/SKILL.md',
     'skills/relay-session-review/SKILL.md',
   ]) {
-    if (!readme.includes(requiredLink)) {
+    if (!readmeLinkTargets.has(requiredLink)) {
       fail(`README.md must link to ${requiredLink}.`);
     }
   }
