@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { join, relative, resolve } from 'node:path';
 
 const canonicalSkillPaths = [
   'skills/relay-capture/SKILL.md',
@@ -58,7 +58,9 @@ function parseFixtureCases(fixturePath: string, content: string): readonly Skill
     const caseContent = content.slice(start, end);
     const expectedMatches = [...caseContent.matchAll(/^Expected: (ACCEPT|REJECT)\r?$/gm)];
     if (expectedMatches.length !== 1 || !expectedMatches[0]?.[1]) {
-      fail(`${fixturePath} case ${id} must contain exactly one Expected: ACCEPT or Expected: REJECT line.`);
+      fail(
+        `${fixturePath} case ${id} must contain exactly one Expected: ACCEPT or Expected: REJECT line.`,
+      );
     }
 
     return {
@@ -109,15 +111,45 @@ function validateCaptureSkill(content: string): void {
 
 function validateReviewSkill(content: string): void {
   for (const section of [
-    'Purpose', 'When to review', 'Session lookup', 'Review presentation',
-    'User-directed actions', 'Unresolved captures', 'Adapter selection', 'Prohibited behaviour',
-  ]) validateContains(content, new RegExp(`^## ${section}$`, 'mi'), section);
+    'Purpose',
+    'When to review',
+    'Session lookup',
+    'Review presentation',
+    'User-directed actions',
+    'Unresolved captures',
+    'Adapter selection',
+    'Prohibited behaviour',
+  ])
+    validateContains(content, new RegExp(`^## ${section}$`, 'mi'), section);
   for (const [pattern, label] of [
-    [/before final completion/i, 'pre-completion review'], [/exact active session ID/i, 'exact session ID'],
-    [/completed.*archived|archived.*completed/i, 'all-status review'], [/explicit user direction/i, 'explicit user direction'],
-    [/intent-specific/i, 'intent-specific actions'], [/unresolved.*INBOX/i, 'unresolved INBOX'],
-    [/never infer.*(?:timer|inactivity|process exit)/i, 'no timer inference'], [/never mix.*session/i, 'session isolation'],
-  ] as const) validateContains(content, pattern, label);
+    [/before final completion/i, 'pre-completion review'],
+    [/exact active session ID/i, 'exact session ID'],
+    [/completed.*archived|archived.*completed/i, 'all-status review'],
+    [/explicit user direction/i, 'explicit user direction'],
+    [/intent-specific/i, 'intent-specific actions'],
+    [/unresolved.*INBOX/i, 'unresolved INBOX'],
+    [/never infer.*(?:timer|inactivity|process exit)/i, 'no timer inference'],
+    [/never mix.*session/i, 'session isolation'],
+  ] as const)
+    validateContains(content, pattern, label);
+}
+
+function validateCanonicalSources(rootDir: string, currentDir = rootDir): void {
+  for (const entry of readdirSync(currentDir, { withFileTypes: true })) {
+    if (['.git', 'node_modules', 'dist', 'coverage'].includes(entry.name)) continue;
+    const fullPath = join(currentDir, entry.name);
+    if (entry.isDirectory()) {
+      validateCanonicalSources(rootDir, fullPath);
+      continue;
+    }
+    if (entry.name !== 'SKILL.md') continue;
+    const path = relative(rootDir, fullPath).replaceAll('\\', '/');
+    if (canonicalSkillPaths.includes(path as (typeof canonicalSkillPaths)[number])) continue;
+    const content = readFileSync(fullPath, 'utf-8');
+    if (/relay-capture|relay-session-review|Relay Capture|Relay Session Review/i.test(content)) {
+      fail(`Vendor-specific Relay policy must reference a canonical source: ${path}.`);
+    }
+  }
 }
 
 export function validateSkillAssets(options: ValidateSkillAssetsOptions = {}): void {
@@ -131,6 +163,7 @@ export function validateSkillAssets(options: ValidateSkillAssetsOptions = {}): v
 
   validateCaptureSkill(readFileSync(join(rootDir, canonicalSkillPaths[0]), 'utf-8'));
   validateReviewSkill(readFileSync(join(rootDir, canonicalSkillPaths[1]), 'utf-8'));
+  validateCanonicalSources(rootDir);
 
   const seenIds = new Set<string>();
   for (const fixturePath of fixturePaths) {

@@ -18,11 +18,7 @@ function fixtureCase(id: string, expected: 'ACCEPT' | 'REJECT'): string {
 function createValidSkillFixtureRoot(): string {
   const rootDir = mkdtempSync(join(tmpdir(), 'relay-skill-validator-'));
 
-  for (const path of [
-    'skills/relay-capture',
-    'skills/relay-session-review',
-    'skills/fixtures',
-  ]) {
+  for (const path of ['skills/relay-capture', 'skills/relay-session-review', 'skills/fixtures']) {
     mkdirSync(join(rootDir, path), { recursive: true });
   }
 
@@ -30,7 +26,10 @@ function createValidSkillFixtureRoot(): string {
     join(rootDir, 'skills/relay-capture/SKILL.md'),
     `## Purpose\n\nCapture a concrete, actionable follow-up.\n\n## When to capture\n\nUse it for a concrete, actionable follow-up.\n\n## Adapter selection\n\nMCP is preferred. CLI is the fallback with --output json and one adapter.\n\n## Session and provenance\n\nUse the exact session ID.\n\n## Capture procedure\n\nContinue the original work.\n\n## Duplicate handling\n\nA duplicate is advisory.\n\n## Context safety\n\nKeep context concise.\n\n## Autonomy boundaries\n\nAn agent must not edit, triage, start, complete, or archive tasks. Leave captures in INBOX.\n\n## Do not capture\n\nDo not capture speculation.\n`,
   );
-  writeFileSync(join(rootDir, 'skills/relay-session-review/SKILL.md'), `## Purpose\n\nReview before final completion.\n\n## When to review\n\nUse the exact active session ID.\n\n## Session lookup\n\nInclude completed and archived tasks; never mix sessions.\n\n## Review presentation\n\nPresent captures.\n\n## User-directed actions\n\nRequire explicit user direction and intent-specific actions.\n\n## Unresolved captures\n\nLeave unresolved tasks in INBOX.\n\n## Adapter selection\n\nUse the same adapter.\n\n## Prohibited behaviour\n\nNever infer completion from timer, inactivity, or process exit.\n`);
+  writeFileSync(
+    join(rootDir, 'skills/relay-session-review/SKILL.md'),
+    `## Purpose\n\nReview before final completion.\n\n## When to review\n\nUse the exact active session ID.\n\n## Session lookup\n\nInclude completed and archived tasks; never mix sessions.\n\n## Review presentation\n\nPresent captures.\n\n## User-directed actions\n\nRequire explicit user direction and intent-specific actions.\n\n## Unresolved captures\n\nLeave unresolved tasks in INBOX.\n\n## Adapter selection\n\nUse the same adapter.\n\n## Prohibited behaviour\n\nNever infer completion from timer, inactivity, or process exit.\n`,
+  );
   for (const [index, path] of fixtureFiles.entries()) {
     writeFileSync(
       join(rootDir, path),
@@ -79,5 +78,14 @@ describe('validateSkillAssets', () => {
     writeFileSync(join(rootDir, 'skills/relay-capture/SKILL.md'), '# Relay Capture\n');
 
     expect(() => validateSkillAssets({ rootDir })).toThrow(/Purpose|When to capture|MCP|INBOX/i);
+  });
+
+  it('rejects vendor-specific canonical policy files', () => {
+    const rootDir = createValidSkillFixtureRoot();
+    createdRoots.push(rootDir);
+    mkdirSync(join(rootDir, 'integrations/codex/relay-capture'), { recursive: true });
+    writeFileSync(join(rootDir, 'integrations/codex/relay-capture/SKILL.md'), '# Relay Capture\n');
+
+    expect(() => validateSkillAssets({ rootDir })).toThrow(/canonical|vendor-specific/i);
   });
 });

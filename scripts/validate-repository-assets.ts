@@ -198,6 +198,15 @@ export function validateRepositoryAssets(options: ValidateRepositoryAssetsOption
   if (!readme.includes('dist/cli/main.js') || !cliReference.includes('dist/cli/main.js')) {
     fail('README.md and docs/cli-reference.md must document the built CLI invocation.');
   }
+  for (const requiredLink of [
+    'docs/agent-skills.md',
+    'skills/relay-capture/SKILL.md',
+    'skills/relay-session-review/SKILL.md',
+  ]) {
+    if (!readme.includes(requiredLink)) {
+      fail(`README.md must link to ${requiredLink}.`);
+    }
+  }
 
   const allFiles = walkFiles(rootDir);
 
