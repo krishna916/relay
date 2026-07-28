@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -14,6 +14,9 @@ function createFixtureRoot(): string {
     'src/interfaces/http',
     'src/interfaces/cli',
     'web/src',
+    'skills/relay-capture',
+    'skills/relay-session-review',
+    'skills/fixtures',
   ];
 
   for (const dir of requiredDirs) {
@@ -43,7 +46,7 @@ function createFixtureRoot(): string {
   );
   writeFileSync(
     join(rootDir, 'README.md'),
-    '# Relay\n\n[Decision](docs/decisions/0001-product-and-architecture.md)\n\n`node dist/cli/main.js`\n',
+    '# Relay\n\n[Decision](docs/decisions/0001-product-and-architecture.md)\n\n`node dist/cli/main.js`\n\n[Agent skills](docs/agent-skills.md)\n\n[Capture skill](skills/relay-capture/SKILL.md)\n\n[Review skill](skills/relay-session-review/SKILL.md)\n',
   );
   writeFileSync(join(rootDir, 'src/application/health/get-health.ts'), 'export {};\n');
   writeFileSync(join(rootDir, 'src/database/connection.ts'), 'export {};\n');
@@ -65,6 +68,61 @@ function createFixtureRoot(): string {
     '# CLI reference\n\n`node dist/cli/main.js`\n',
   );
   writeFileSync(join(rootDir, 'docs/session-semantics.md'), '# Session semantics\n');
+  writeFileSync(join(rootDir, 'docs/agent-skills.md'), '# Agent skills\n');
+  writeFileSync(
+    join(rootDir, 'skills/relay-capture/SKILL.md'),
+    `## Purpose\n\nCapture a concrete, actionable follow-up.\n\n## When to capture\n\nUse it for a concrete, actionable follow-up.\n\n## Adapter selection\n\nMCP is preferred. CLI is the fallback with --output json and one adapter.\n\n## Session and provenance\n\nThe agent supplies createdByName and the exact active session ID. Relay supplies createdByType: AGENT and status: INBOX.\n\n## Capture procedure\n\nContinue the original work.\n\n## Duplicate handling\n\nA duplicate is advisory.\n\n## Context safety\n\nKeep context concise.\n\n## Autonomy boundaries\n\nAn agent must not edit, triage, start, complete, or archive tasks. Leave captures in INBOX.\n\n## Do not capture\n\nDo not capture speculation.\n`,
+  );
+  writeFileSync(
+    join(rootDir, 'skills/relay-session-review/SKILL.md'),
+    `## Purpose\n\nReview before final completion.\n\n## When to review\n\nAlways perform the exact active session lookup before final completion.\n\n## Session lookup\n\nUse the exact active session ID. Include completed and archived tasks; never mix sessions. An empty authoritative result is valid.\n\n## Review presentation\n\nPresent captures.\n\n## User-directed actions\n\nRequire explicit user direction and intent-specific actions.\n\n## Unresolved captures\n\nLeave unresolved tasks in INBOX.\n\n## Adapter selection\n\nUse the same adapter.\n\n## Prohibited behaviour\n\nNever infer completion from timer, inactivity, or process exit.\n`,
+  );
+  for (const [path, name, description] of [
+    ['skills/relay-capture/SKILL.md', 'relay-capture', 'Use when testing capture.'],
+    ['skills/relay-session-review/SKILL.md', 'relay-session-review', 'Use when testing review.'],
+  ] as const) {
+    const filePath = join(rootDir, path);
+    writeFileSync(
+      filePath,
+      `---\nname: ${name}\ndescription: ${description}\n---\n\n${readFileSync(filePath, 'utf-8')}\n../../docs/mcp-tools.md ../../docs/cli-reference.md ../../docs/session-semantics.md\n`,
+    );
+  }
+  for (const [index, filename] of [
+    'capture-positive.md',
+    'capture-negative.md',
+    'session-review-positive.md',
+    'session-review-negative.md',
+  ].entries()) {
+    const expected = filename.includes('positive') ? 'ACCEPT' : 'REJECT';
+    const requiredIds = [
+      ['CAPTURE-ACTIONABLE-001', 'CAPTURE-DUPLICATE-002', 'CAPTURE-CLI-FALLBACK-003'],
+      [
+        'CAPTURE-SENSITIVE-002',
+        'CAPTURE-MUTATION-003',
+        'CAPTURE-SESSION-005',
+        'CAPTURE-ADAPTER-006',
+      ],
+      ['REVIEW-ACTIVE-SESSION-001', 'REVIEW-EXPLICIT-ACTIONS-002', 'REVIEW-UNRESOLVED-003'],
+      [
+        'REVIEW-OMITTED-001',
+        'REVIEW-WRONG-SESSION-002',
+        'REVIEW-SILENT-MUTATION-003',
+        'REVIEW-TIMER-005',
+        'REVIEW-SKIP-EMPTY-006',
+        'REVIEW-GENERIC-MUTATION-007',
+      ],
+    ][index];
+    if (!requiredIds) throw new Error(`Missing required fixture IDs for ${filename}`);
+    writeFileSync(
+      join(rootDir, 'skills/fixtures', filename),
+      requiredIds
+        .map(
+          (id) =>
+            `## ${id}\n\nExpected: ${expected}\n\n### Scenario\nScenario\n\n### Agent action\nAction\n\n### Reason\nReason\n`,
+        )
+        .join('\n'),
+    );
+  }
   mkdirSync(join(rootDir, 'src/interfaces/contracts'), { recursive: true });
   for (const filename of [
     'contract-version.ts',
@@ -149,5 +207,43 @@ describe('validateRepositoryAssets', () => {
     rmSync(join(rootDir, 'dist/cli/main.js'));
 
     expect(() => validateRepositoryAssets({ rootDir })).toThrow(/CLI executable|dist\/cli/i);
+  });
+
+  it('accepts canonical skills but rejects legacy agent policy roots', () => {
+    const rootDir = createFixtureRoot();
+    createdRoots.push(rootDir);
+    mkdirSync(join(rootDir, 'agent/skills'), { recursive: true });
+
+    expect(() => validateRepositoryAssets({ rootDir })).toThrow(/legacy|agent\/skills/i);
+  });
+
+  it('requires README links to canonical skill guidance', () => {
+    const rootDir = createFixtureRoot();
+    createdRoots.push(rootDir);
+    writeFileSync(join(rootDir, 'README.md'), '# Relay\n\n`node dist/cli/main.js`\n');
+
+    expect(() => validateRepositoryAssets({ rootDir })).toThrow(/README.*agent-skills/i);
+  });
+
+  it('does not count plain text or fenced code mentions as README links', () => {
+    const rootDir = createFixtureRoot();
+    createdRoots.push(rootDir);
+    writeFileSync(
+      join(rootDir, 'README.md'),
+      '# Relay\n\n`node dist/cli/main.js`\n\n```md\n[Agent skills](docs/agent-skills.md)\n[Capture skill](skills/relay-capture/SKILL.md)\n[Review skill](skills/relay-session-review/SKILL.md)\n```\n',
+    );
+
+    expect(() => validateRepositoryAssets({ rootDir })).toThrow(/README.*agent-skills/i);
+  });
+
+  it('accepts normalized Markdown links to canonical skill guidance', () => {
+    const rootDir = createFixtureRoot();
+    createdRoots.push(rootDir);
+    writeFileSync(
+      join(rootDir, 'README.md'),
+      '# Relay\n\n`node dist/cli/main.js`\n\n[Agent skills](./docs/agent-skills.md#overview)\n[Capture skill](./skills/relay-capture/SKILL.md?source=readme)\n[Review skill](./skills/relay-session-review/SKILL.md)\n',
+    );
+
+    expect(() => validateRepositoryAssets({ rootDir })).not.toThrow();
   });
 });

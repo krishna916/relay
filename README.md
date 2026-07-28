@@ -4,6 +4,10 @@ The approved agent-integration contract is documented in the [decision record](d
 
 Relay is a local task sidecar for humanâ€“AI workflows. The current MVP is usable through its local web UI and through five safe local stdio MCP task tools.
 
+## Agent skills
+
+The canonical [Relay Capture](skills/relay-capture/SKILL.md) and [Relay Session Review](skills/relay-session-review/SKILL.md) files guide agent behaviour; they do not implement persistence or protocol handlers. MCP is preferred and the CLI JSON output is the fallback; one adapter is retained through one workflow unless unavailable. The caller supplies the agent name and exact active session ID, Relay owns `createdByType` and autonomous `INBOX` status, and the exact-session lookup always occurs before final completion, including when its authoritative result is empty. See [agent skill guidance](docs/agent-skills.md) and the authoritative [MCP](docs/mcp-tools.md), [CLI](docs/cli-reference.md), and [session](docs/session-semantics.md) contracts.
+
 ## Prerequisites and setup
 
 - Node.js `24.x` (see `.nvmrc`)

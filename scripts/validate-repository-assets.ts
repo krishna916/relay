@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { validateSkillAssets } from './validate-skill-assets.js';
 
 function fail(msg: string): never {
   throw new Error(`[ASSET VALIDATION FAILURE] ${msg}`);
@@ -31,32 +32,42 @@ function walkFiles(rootDir: string, startDir = rootDir): string[] {
   return files;
 }
 
-function validateMarkdownLinks(markdownPath: string, content: string): void {
-  const linkPattern = /\[[^\]]+\]\(([^)]+)\)/g;
+function extractMarkdownLinkTargets(content: string): readonly string[] {
+  const withoutCode = content.replace(/```[\s\S]*?```/g, '').replace(/`[^`\r\n]*`/g, '');
+  return [...withoutCode.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)]
+    .map((match) => match[1]?.trim())
+    .filter((target): target is string => Boolean(target));
+}
 
-  for (const match of content.matchAll(linkPattern)) {
-    const rawTarget = match[1];
-    if (!rawTarget) {
-      continue;
-    }
+function normalizeMarkdownLinkTarget(rawTarget: string): string | undefined {
+  let target = rawTarget.trim();
+  if (target.startsWith('<')) {
+    const closingBracket = target.indexOf('>');
+    target = closingBracket >= 0 ? target.slice(1, closingBracket) : target;
+  } else {
+    target = target.split(/\s+(?=["'])/)[0] ?? target;
+  }
+  const cleanTarget = target.split('#')[0]?.split('?')[0];
+  return cleanTarget?.replaceAll('\\', '/').replace(/^\.\//, '') || undefined;
+}
+
+function validateMarkdownLinks(markdownPath: string, content: string): void {
+  for (const rawTarget of extractMarkdownLinkTargets(content)) {
+    const normalizedTarget = normalizeMarkdownLinkTarget(rawTarget);
+    if (!normalizedTarget) continue;
 
     if (
-      rawTarget.startsWith('http://') ||
-      rawTarget.startsWith('https://') ||
-      rawTarget.startsWith('mailto:') ||
-      rawTarget.startsWith('#')
+      normalizedTarget.startsWith('http://') ||
+      normalizedTarget.startsWith('https://') ||
+      normalizedTarget.startsWith('mailto:') ||
+      normalizedTarget.startsWith('#')
     ) {
       continue;
     }
 
-    const cleanTarget = rawTarget.split('#')[0]?.split('?')[0];
-    if (!cleanTarget) {
-      continue;
-    }
-
-    const resolvedTarget = isAbsolute(cleanTarget)
-      ? cleanTarget
-      : resolve(markdownPath, '..', cleanTarget);
+    const resolvedTarget = isAbsolute(normalizedTarget)
+      ? normalizedTarget
+      : resolve(markdownPath, '..', normalizedTarget);
 
     if (!existsSync(resolvedTarget)) {
       fail(`README local link does not resolve: ${rawTarget}`);
@@ -124,6 +135,13 @@ export function validateRepositoryAssets(options: ValidateRepositoryAssetsOption
     'docs/mcp-tools.md',
     'docs/cli-reference.md',
     'docs/session-semantics.md',
+    'docs/agent-skills.md',
+    'skills/relay-capture/SKILL.md',
+    'skills/relay-session-review/SKILL.md',
+    'skills/fixtures/capture-positive.md',
+    'skills/fixtures/capture-negative.md',
+    'skills/fixtures/session-review-positive.md',
+    'skills/fixtures/session-review-negative.md',
     'tests/fixtures/contracts/capture-success.json',
     'tests/fixtures/contracts/capture-duplicate-warning.json',
     'tests/fixtures/contracts/validation-error.json',
@@ -190,8 +208,24 @@ export function validateRepositoryAssets(options: ValidateRepositoryAssetsOption
   if (!readme.includes('dist/cli/main.js') || !cliReference.includes('dist/cli/main.js')) {
     fail('README.md and docs/cli-reference.md must document the built CLI invocation.');
   }
+  const readmeLinkTargets = new Set(
+    extractMarkdownLinkTargets(readme)
+      .map(normalizeMarkdownLinkTarget)
+      .filter((target): target is string => Boolean(target)),
+  );
+  for (const requiredLink of [
+    'docs/agent-skills.md',
+    'skills/relay-capture/SKILL.md',
+    'skills/relay-session-review/SKILL.md',
+  ]) {
+    if (!readmeLinkTargets.has(requiredLink)) {
+      fail(`README.md must link to ${requiredLink}.`);
+    }
+  }
 
   const allFiles = walkFiles(rootDir);
+
+  validateSkillAssets({ rootDir });
 
   validateJsonFiles(allFiles);
   validatePlaceholders(allFiles);
@@ -200,8 +234,8 @@ export function validateRepositoryAssets(options: ValidateRepositoryAssetsOption
     readFileSync(join(rootDir, 'README.md'), 'utf-8'),
   );
 
-  // 4. No SKILL.md or agent configs in #1
-  const forbidden = ['SKILL.md', 'agent/skills', 'agent/mcp'];
+  // 4. No legacy agent integration roots
+  const forbidden = ['agent/skills', 'agent/mcp'];
   for (const f of forbidden) {
     if (existsSync(join(rootDir, f))) {
       fail(`Forbidden asset for Issue #1 present: ${f}`);
