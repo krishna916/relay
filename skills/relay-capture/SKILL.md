@@ -19,13 +19,13 @@ MCP is preferred for supported interactive clients. CLI is the deterministic fal
 
 ## Session and provenance
 
-Generate one valid opaque session ID for the active agent session or reuse its already-established ID. Retain that exact session ID for every capture and final review; never reuse it across unrelated concurrent agents or shells. Provide a concise title, agent name, exact session ID, workspace when known, and limited source context.
+Generate one valid opaque session ID for the active agent session or reuse its already-established ID. Retain that exact active session ID for every capture and final review; never reuse it across unrelated concurrent agents or shells. Provide a concise title, agent name as `createdByName`, exact active session ID, workspace when known, and limited source context.
 
 ## Capture procedure
 
 1. Decide that the follow-up is concrete and actionable.
 2. When practical, use `task_find_similar` or the matching CLI command before capture.
-3. Use `task_capture`, or the documented source-checkout CLI invocation for `task capture --output json`; do not supply status or provenance fields.
+3. Use `task_capture`, or the documented source-checkout CLI invocation for `task capture --output json`. The agent supplies `title`, `createdByName`, the exact active `sessionId`, and concise optional `workspace` and `sourceContext` when available; supply other optional fields only when allowed by the authoritative contract. Do not supply adapter-owned `createdByType`, `status`, lifecycle timestamps, or other forbidden fields; Relay sets autonomous captures to `INBOX`. See [MCP tool contracts](../../docs/mcp-tools.md) for the authoritative schema.
 4. Retain the returned task ID and warnings, then continue the original work without separately interrupting the user after every capture.
 
 ## Duplicate handling

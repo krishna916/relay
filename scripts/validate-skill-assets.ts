@@ -21,6 +21,12 @@ interface SkillFixtureCase {
   readonly reason: string;
 }
 
+interface ForbiddenPolicyRule {
+  readonly label: string;
+  readonly pattern: RegExp;
+  readonly skill: 'capture' | 'review';
+}
+
 export interface ValidateSkillAssetsOptions {
   readonly rootDir?: string;
 }
@@ -31,10 +37,9 @@ function fail(message: string): never {
 
 function requiredSection(caseContent: string, heading: string, fixturePath: string): string {
   const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = new RegExp(
-    `^### ${escapedHeading}\\r?\\n([\\s\\S]*?)(?=^### |^## |\\s*$)`,
-    'm',
-  ).exec(caseContent);
+  const match =
+    new RegExp(`^### ${escapedHeading}\\r?\\n([\\s\\S]*?)(?=^### |^## )`, 'm').exec(caseContent) ??
+    new RegExp(`^### ${escapedHeading}\\r?\\n([\\s\\S]*)$`, 'm').exec(caseContent);
   const value = match?.[1]?.trim();
   if (!value) {
     fail(`${fixturePath} case is missing a non-empty ${heading} section.`);
@@ -74,7 +79,6 @@ function parseFixtureCases(fixturePath: string, content: string): readonly Skill
 }
 
 function validateFixtureCoverage(fixturePath: string, cases: readonly SkillFixtureCase[]): void {
-  if (cases.every((fixtureCase) => fixtureCase.id.startsWith('CASE-'))) return;
   const required = fixturePath.endsWith('capture-positive.md')
     ? ['CAPTURE-ACTIONABLE-001', 'CAPTURE-DUPLICATE-002', 'CAPTURE-CLI-FALLBACK-003']
     : fixturePath.endsWith('capture-negative.md')
@@ -91,6 +95,7 @@ function validateFixtureCoverage(fixturePath: string, cases: readonly SkillFixtu
             'REVIEW-WRONG-SESSION-002',
             'REVIEW-SILENT-MUTATION-003',
             'REVIEW-TIMER-005',
+            'REVIEW-SKIP-EMPTY-006',
           ];
   for (const id of required) {
     if (!cases.some((fixtureCase) => fixtureCase.id === id))
@@ -101,6 +106,87 @@ function validateFixtureCoverage(fixturePath: string, cases: readonly SkillFixtu
 function validateContains(content: string, pattern: RegExp, label: string): void {
   if (!pattern.test(content)) {
     fail(`Canonical skill is missing required policy: ${label}.`);
+  }
+}
+
+const forbiddenPolicyRules: readonly ForbiddenPolicyRule[] = [
+  {
+    skill: 'capture',
+    label: 'autonomous mutation of an existing task',
+    pattern:
+      /\b(?:may|can)\s+(?:silently\s+)?(?:autonomously\s+)?(?:edit|triage|move|start|complete|archive|delete|merge)\b/i,
+  },
+  {
+    skill: 'capture',
+    label: 'moving a new autonomous capture out of INBOX',
+    pattern:
+      /(?:may|can|should)\b[^.\n]*\b(?:autonomous|new)\b[^.\n]*\b(?:move|remove|take)\b[^.\n]*\b(?:out of|from)\s+INBOX\b/i,
+  },
+  {
+    skill: 'capture',
+    label: 'storing sensitive or oversized context',
+    pattern:
+      /\b(?:may|can|should)\s+(?:store|include|attach|copy)\b[^.\n]*\b(?:prompts?|transcripts?|source files?|secrets?|credentials?|tokens?|large stack traces?|logs?|oversized)\b/i,
+  },
+  {
+    skill: 'capture',
+    label: 'reusing a session ID across unrelated sessions',
+    pattern: /\b(?:may|can|should)\b[^.\n]*\breuse\b[^.\n]*\bsession ID\b[^.\n]*\bunrelated\b/i,
+  },
+  {
+    skill: 'capture',
+    label: 'unjustified adapter switching',
+    pattern:
+      /\b(?:may|can|should)\b[^.\n]*\bswitch\b[^.\n]*\b(?:MCP|CLI)\b[^.\n]*\b(?:without|regardless of)\b[^.\n]*(?:failure|unavailable|reason|debug)/i,
+  },
+  {
+    skill: 'capture',
+    label: 'parsing decorative CLI output',
+    pattern:
+      /\b(?:may|can|should)\b[^.\n]*\bparse\b[^.\n]*\b(?:decorative|human|terminal)\b[^.\n]*(?:output|text)/i,
+  },
+  {
+    skill: 'review',
+    label: 'mutation without explicit user direction',
+    pattern:
+      /\b(?:may|can|should)\b[^.\n]*\b(?:mutate|change|update)\b[^.\n]*(?:without|no)\b[^.\n]*\buser direction\b/i,
+  },
+  {
+    skill: 'review',
+    label: 'generic status mutation',
+    pattern:
+      /\b(?:may|can|should)\b[^.\n]*\b(?:generic|unrestricted)\b[^.\n]*\bstatus\b[^.\n]*\b(?:mutation|update|change)\b/i,
+  },
+  {
+    skill: 'review',
+    label: 'skipping the exact-session lookup',
+    pattern:
+      /(?<!never )\b(?:skip|omit|may skip|can omit)\b[^.\n]*\b(?:exact[- ]session|session)\b[^.\n]*\b(?:lookup|review)\b/i,
+  },
+  {
+    skill: 'review',
+    label: 'guessed or different session ID',
+    pattern: /\b(?:may|can|should)\b[^.\n]*\b(?:guess|different|another)\b[^.\n]*\bsession ID\b/i,
+  },
+  {
+    skill: 'review',
+    label: 'hiding completed or archived captures',
+    pattern:
+      /\b(?:may|can|should)\b[^.\n]*\b(?:hide|omit|exclude)\b[^.\n]*\b(?:completed|archived)\b/i,
+  },
+  {
+    skill: 'review',
+    label: 'completion inferred from process state',
+    pattern:
+      /\b(?:may|can|should)\b[^.\n]*\binfer\b[^.\n]*\bcompletion\b[^.\n]*\b(?:timer|inactivity|process exit)\b/i,
+  },
+];
+
+function validateForbiddenPolicies(content: string, skill: ForbiddenPolicyRule['skill']): void {
+  for (const rule of forbiddenPolicyRules) {
+    if (rule.skill === skill && rule.pattern.test(content)) {
+      fail(`Canonical skill contains forbidden policy: ${rule.label}.`);
+    }
   }
 }
 
@@ -150,6 +236,10 @@ function validateCaptureSkill(content: string): void {
     [/--output json/i, 'CLI JSON output'],
     [/same adapter|one adapter/i, 'one adapter per workflow'],
     [/session ID/i, 'session ID'],
+    [/createdByName/i, 'caller-owned createdByName'],
+    [/exact active session ID/i, 'exact active session ID'],
+    [/createdByType/i, 'adapter-owned createdByType'],
+    [/Relay.*(?:INBOX|status)|(?:INBOX|status).*Relay/i, 'Relay-owned capture status'],
     [/INBOX/i, 'INBOX capture'],
     [/duplicate.*advisory/i, 'advisory duplicate handling'],
     [/continue.*original work/i, 'continue original work'],
@@ -157,6 +247,7 @@ function validateCaptureSkill(content: string): void {
   ] as const) {
     validateContains(content, pattern, label);
   }
+  validateForbiddenPolicies(content, 'capture');
 }
 
 function validateReviewSkill(content: string): void {
@@ -172,16 +263,21 @@ function validateReviewSkill(content: string): void {
   ])
     validateContains(content, new RegExp(`^## ${section}$`, 'mi'), section);
   for (const [pattern, label] of [
-    [/before final completion/i, 'pre-completion review'],
+    [
+      /always.*exact active[- ]session.*before final completion/i,
+      'unconditional pre-completion review',
+    ],
     [/exact active session ID/i, 'exact session ID'],
+    [/empty.*authoritative|authoritative.*empty/i, 'authoritative empty result'],
     [/completed.*archived|archived.*completed/i, 'all-status review'],
     [/explicit user direction/i, 'explicit user direction'],
     [/intent-specific/i, 'intent-specific actions'],
     [/unresolved.*INBOX/i, 'unresolved INBOX'],
     [/never infer.*(?:timer|inactivity|process exit)/i, 'no timer inference'],
-    [/never mix.*session/i, 'session isolation'],
+    [/never.*(?:mix|another).*session/i, 'session isolation'],
   ] as const)
     validateContains(content, pattern, label);
+  validateForbiddenPolicies(content, 'review');
 }
 
 function validateCanonicalSources(rootDir: string, currentDir = rootDir): void {

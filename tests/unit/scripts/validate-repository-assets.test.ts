@@ -71,11 +71,11 @@ function createFixtureRoot(): string {
   writeFileSync(join(rootDir, 'docs/agent-skills.md'), '# Agent skills\n');
   writeFileSync(
     join(rootDir, 'skills/relay-capture/SKILL.md'),
-    `## Purpose\n\nCapture a concrete, actionable follow-up.\n\n## When to capture\n\nUse it for a concrete, actionable follow-up.\n\n## Adapter selection\n\nMCP is preferred. CLI is the fallback with --output json and one adapter.\n\n## Session and provenance\n\nUse the exact session ID.\n\n## Capture procedure\n\nContinue the original work.\n\n## Duplicate handling\n\nA duplicate is advisory.\n\n## Context safety\n\nKeep context concise.\n\n## Autonomy boundaries\n\nAn agent must not edit, triage, start, complete, or archive tasks. Leave captures in INBOX.\n\n## Do not capture\n\nDo not capture speculation.\n`,
+    `## Purpose\n\nCapture a concrete, actionable follow-up.\n\n## When to capture\n\nUse it for a concrete, actionable follow-up.\n\n## Adapter selection\n\nMCP is preferred. CLI is the fallback with --output json and one adapter.\n\n## Session and provenance\n\nThe agent supplies createdByName and the exact active session ID. Relay supplies createdByType: AGENT and status: INBOX.\n\n## Capture procedure\n\nContinue the original work.\n\n## Duplicate handling\n\nA duplicate is advisory.\n\n## Context safety\n\nKeep context concise.\n\n## Autonomy boundaries\n\nAn agent must not edit, triage, start, complete, or archive tasks. Leave captures in INBOX.\n\n## Do not capture\n\nDo not capture speculation.\n`,
   );
   writeFileSync(
     join(rootDir, 'skills/relay-session-review/SKILL.md'),
-    `## Purpose\n\nReview before final completion.\n\n## When to review\n\nUse the exact active session ID.\n\n## Session lookup\n\nInclude completed and archived tasks; never mix sessions.\n\n## Review presentation\n\nPresent captures.\n\n## User-directed actions\n\nRequire explicit user direction and intent-specific actions.\n\n## Unresolved captures\n\nLeave unresolved tasks in INBOX.\n\n## Adapter selection\n\nUse the same adapter.\n\n## Prohibited behaviour\n\nNever infer completion from timer, inactivity, or process exit.\n`,
+    `## Purpose\n\nReview before final completion.\n\n## When to review\n\nAlways perform the exact active session lookup before final completion.\n\n## Session lookup\n\nUse the exact active session ID. Include completed and archived tasks; never mix sessions. An empty authoritative result is valid.\n\n## Review presentation\n\nPresent captures.\n\n## User-directed actions\n\nRequire explicit user direction and intent-specific actions.\n\n## Unresolved captures\n\nLeave unresolved tasks in INBOX.\n\n## Adapter selection\n\nUse the same adapter.\n\n## Prohibited behaviour\n\nNever infer completion from timer, inactivity, or process exit.\n`,
   );
   for (const [path, name, description] of [
     ['skills/relay-capture/SKILL.md', 'relay-capture', 'Use when testing capture.'],
@@ -94,9 +94,32 @@ function createFixtureRoot(): string {
     'session-review-negative.md',
   ].entries()) {
     const expected = filename.includes('positive') ? 'ACCEPT' : 'REJECT';
+    const requiredIds = [
+      ['CAPTURE-ACTIONABLE-001', 'CAPTURE-DUPLICATE-002', 'CAPTURE-CLI-FALLBACK-003'],
+      [
+        'CAPTURE-SENSITIVE-002',
+        'CAPTURE-MUTATION-003',
+        'CAPTURE-SESSION-005',
+        'CAPTURE-ADAPTER-006',
+      ],
+      ['REVIEW-ACTIVE-SESSION-001', 'REVIEW-EXPLICIT-ACTIONS-002', 'REVIEW-UNRESOLVED-003'],
+      [
+        'REVIEW-OMITTED-001',
+        'REVIEW-WRONG-SESSION-002',
+        'REVIEW-SILENT-MUTATION-003',
+        'REVIEW-TIMER-005',
+        'REVIEW-SKIP-EMPTY-006',
+      ],
+    ][index];
+    if (!requiredIds) throw new Error(`Missing required fixture IDs for ${filename}`);
     writeFileSync(
       join(rootDir, 'skills/fixtures', filename),
-      `## CASE-${String(index + 1).padStart(3, '0')}\n\nExpected: ${expected}\n\n### Scenario\nScenario\n\n### Agent action\nAction\n\n### Reason\nReason\n`,
+      requiredIds
+        .map(
+          (id) =>
+            `## ${id}\n\nExpected: ${expected}\n\n### Scenario\nScenario\n\n### Agent action\nAction\n\n### Reason\nReason\n`,
+        )
+        .join('\n'),
     );
   }
   mkdirSync(join(rootDir, 'src/interfaces/contracts'), { recursive: true });

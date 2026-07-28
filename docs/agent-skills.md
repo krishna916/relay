@@ -4,6 +4,6 @@ Relay capabilities live in the [MCP contracts](mcp-tools.md) and [CLI reference]
 
 MCP is preferred for supported interactive clients. The CLI is the JSON-only fallback for unsupported clients, scripts, debugging, or explicit one-shot use. Both use the same database and contracts, and one workflow retains one adapter unless it becomes unavailable.
 
-The active agent session owns one opaque session ID. Captures and final review use that exact ID, while concurrent sessions remain isolated; see [session semantics](session-semantics.md).
+The caller supplies the agent name and exact active session ID where required. Relay owns adapter provenance (`createdByType`) and autonomous capture status (`INBOX`). Before final completion, the exact active-session lookup always occurs; an empty authoritative result is valid. Concurrent sessions remain isolated; see [session semantics](session-semantics.md).
 
 Fixtures in `skills/fixtures/` are deterministic policy examples validated by `validateSkillAssets`; they are not live-model tests. Vendor integrations may reference or mechanically copy the canonical content, but may not independently alter policy. Vendor packaging, setup workflows, and live-LLM testing remain deferred.

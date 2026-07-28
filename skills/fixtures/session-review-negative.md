@@ -78,6 +78,22 @@ Infer wrap-up from timer or process exit.
 
 Completion is never inferred.
 
+## REVIEW-SKIP-EMPTY-006
+
+Expected: REJECT
+
+### Scenario
+
+The agent believes it captured nothing and is ready to finish.
+
+### Agent action
+
+Skip `session_captures_list` before final completion because the expected result is empty.
+
+### Reason
+
+The exact active-session lookup is mandatory and an empty authoritative result is valid.
+
 ## REVIEW-GENERIC-MUTATION-006
 
 Expected: REJECT

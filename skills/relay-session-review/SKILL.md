@@ -11,11 +11,11 @@ Before final completion, review every Relay task captured with the exact active 
 
 ## When to review
 
-Review before final completion or when the user asks to wrap up, show captured tasks, or review follow-ups. Never infer completion from a timer, inactivity, or process exit.
+Always perform the exact active-session lookup before final completion, even when the agent believes no captures exist. A user-triggered wrap-up or review is an additional trigger, not a replacement. Never infer completion from a timer, inactivity, or process exit.
 
 ## Session lookup
 
-Use `session_captures_list` with the exact active session ID, or the documented source-checkout CLI `session captures --session <id> --output json` fallback. Relay's ordered result is authoritative: include completed and archived captures as well as INBOX tasks. Never mix tasks from another session ID.
+Use `session_captures_list` with the exact active session ID, or the documented source-checkout CLI `session captures --session <id> --output json` fallback. Relay's ordered result is authoritative: an empty result is valid, and completed and archived captures must be included alongside INBOX tasks. Never query a guessed session or mix tasks from another session ID.
 
 ## Review presentation
 
@@ -35,6 +35,6 @@ Keep the adapter used for capture unless it is concretely unavailable. MCP is pr
 
 ## Prohibited behaviour
 
-Never query a guessed session, omit review before final completion when captures may exist, silently apply dispositions, use a generic status mutation, hide completed or archived captures, or infer completion from timer, inactivity, or process exit.
+Never omit the exact-session lookup before final completion, even when the agent believes no captures exist. Treat an empty authoritative result as valid. Never query a guessed session, reconstruct captures from memory or timestamps, silently apply dispositions, use a generic status mutation, hide completed or archived captures returned by Relay, or infer completion from a timer, inactivity, or process exit.
 
 See [MCP tool contracts](../../docs/mcp-tools.md), [CLI contract reference](../../docs/cli-reference.md), and [session semantics](../../docs/session-semantics.md).
