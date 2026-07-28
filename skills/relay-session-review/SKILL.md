@@ -1,6 +1,6 @@
 ---
 name: relay-session-review
-description: Use before final completion or when the user asks to wrap up, review, or show Relay tasks captured in the active agent session.
+description: Use when preparing final completion or when the user asks to wrap up, review, or show Relay tasks captured in the active agent session.
 ---
 
 # Relay Session Review

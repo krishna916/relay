@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -30,6 +30,16 @@ function createValidSkillFixtureRoot(): string {
     join(rootDir, 'skills/relay-session-review/SKILL.md'),
     `## Purpose\n\nReview before final completion.\n\n## When to review\n\nUse the exact active session ID.\n\n## Session lookup\n\nInclude completed and archived tasks; never mix sessions.\n\n## Review presentation\n\nPresent captures.\n\n## User-directed actions\n\nRequire explicit user direction and intent-specific actions.\n\n## Unresolved captures\n\nLeave unresolved tasks in INBOX.\n\n## Adapter selection\n\nUse the same adapter.\n\n## Prohibited behaviour\n\nNever infer completion from timer, inactivity, or process exit.\n`,
   );
+  for (const [path, name, description] of [
+    ['skills/relay-capture/SKILL.md', 'relay-capture', 'Use when testing capture.'],
+    ['skills/relay-session-review/SKILL.md', 'relay-session-review', 'Use when testing review.'],
+  ] as const) {
+    const filePath = join(rootDir, path);
+    writeFileSync(
+      filePath,
+      `---\nname: ${name}\ndescription: ${description}\n---\n\n${readFileSync(filePath, 'utf-8')}\n../../docs/mcp-tools.md ../../docs/cli-reference.md ../../docs/session-semantics.md\n`,
+    );
+  }
   for (const [index, path] of fixtureFiles.entries()) {
     writeFileSync(
       join(rootDir, path),
@@ -77,7 +87,9 @@ describe('validateSkillAssets', () => {
     createdRoots.push(rootDir);
     writeFileSync(join(rootDir, 'skills/relay-capture/SKILL.md'), '# Relay Capture\n');
 
-    expect(() => validateSkillAssets({ rootDir })).toThrow(/Purpose|When to capture|MCP|INBOX/i);
+    expect(() => validateSkillAssets({ rootDir })).toThrow(
+      /frontmatter|Purpose|When to capture|MCP|INBOX/i,
+    );
   });
 
   it('rejects vendor-specific canonical policy files', () => {

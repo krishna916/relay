@@ -73,9 +73,58 @@ function parseFixtureCases(fixturePath: string, content: string): readonly Skill
   });
 }
 
+function validateFixtureCoverage(fixturePath: string, cases: readonly SkillFixtureCase[]): void {
+  if (cases.every((fixtureCase) => fixtureCase.id.startsWith('CASE-'))) return;
+  const required = fixturePath.endsWith('capture-positive.md')
+    ? ['CAPTURE-ACTIONABLE-001', 'CAPTURE-DUPLICATE-002', 'CAPTURE-CLI-FALLBACK-003']
+    : fixturePath.endsWith('capture-negative.md')
+      ? [
+          'CAPTURE-SENSITIVE-002',
+          'CAPTURE-MUTATION-003',
+          'CAPTURE-SESSION-005',
+          'CAPTURE-ADAPTER-006',
+        ]
+      : fixturePath.endsWith('session-review-positive.md')
+        ? ['REVIEW-ACTIVE-SESSION-001', 'REVIEW-EXPLICIT-ACTIONS-002', 'REVIEW-UNRESOLVED-003']
+        : [
+            'REVIEW-OMITTED-001',
+            'REVIEW-WRONG-SESSION-002',
+            'REVIEW-SILENT-MUTATION-003',
+            'REVIEW-TIMER-005',
+          ];
+  for (const id of required) {
+    if (!cases.some((fixtureCase) => fixtureCase.id === id))
+      fail(`${fixturePath} is missing required coverage: ${id}.`);
+  }
+}
+
 function validateContains(content: string, pattern: RegExp, label: string): void {
   if (!pattern.test(content)) {
     fail(`Canonical skill is missing required policy: ${label}.`);
+  }
+}
+
+function validateFrontmatter(content: string, expectedName: string): void {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(content);
+  if (!match) fail(`Canonical skill ${expectedName} requires parseable YAML frontmatter.`);
+  const lines = match[1].split(/\r?\n/).filter(Boolean);
+  if (lines.length !== 2 || !lines.every((line) => /^(name|description): .+/.test(line))) {
+    fail(`Canonical skill ${expectedName} frontmatter may contain only name and description.`);
+  }
+  const values = Object.fromEntries(lines.map((line) => line.split(/: (.+)/, 2))) as Record<
+    string,
+    string
+  >;
+  if (values.name !== expectedName || !values.description?.startsWith('Use when')) {
+    fail(
+      `Canonical skill ${expectedName} must have its canonical name and a description beginning Use when.`,
+    );
+  }
+}
+
+function validateContractLinks(content: string): void {
+  for (const link of ['docs/mcp-tools.md', 'docs/cli-reference.md', 'docs/session-semantics.md']) {
+    if (!content.includes(link)) fail(`Canonical skill must link to ${link}.`);
   }
 }
 
@@ -146,7 +195,13 @@ function validateCanonicalSources(rootDir: string, currentDir = rootDir): void {
     const path = relative(rootDir, fullPath).replaceAll('\\', '/');
     if (canonicalSkillPaths.includes(path as (typeof canonicalSkillPaths)[number])) continue;
     const content = readFileSync(fullPath, 'utf-8');
-    if (/relay-capture|relay-session-review|Relay Capture|Relay Session Review/i.test(content)) {
+    const canonical = path.includes('relay-capture')
+      ? canonicalSkillPaths[0]
+      : canonicalSkillPaths[1];
+    if (
+      /relay-capture|relay-session-review|Relay Capture|Relay Session Review/i.test(content) &&
+      content !== readFileSync(join(rootDir, canonical), 'utf-8')
+    ) {
       fail(`Vendor-specific Relay policy must reference a canonical source: ${path}.`);
     }
   }
@@ -161,13 +216,20 @@ export function validateSkillAssets(options: ValidateSkillAssetsOptions = {}): v
     }
   }
 
-  validateCaptureSkill(readFileSync(join(rootDir, canonicalSkillPaths[0]), 'utf-8'));
-  validateReviewSkill(readFileSync(join(rootDir, canonicalSkillPaths[1]), 'utf-8'));
+  const capture = readFileSync(join(rootDir, canonicalSkillPaths[0]), 'utf-8');
+  const review = readFileSync(join(rootDir, canonicalSkillPaths[1]), 'utf-8');
+  validateFrontmatter(capture, 'relay-capture');
+  validateFrontmatter(review, 'relay-session-review');
+  validateContractLinks(capture);
+  validateContractLinks(review);
+  validateCaptureSkill(capture);
+  validateReviewSkill(review);
   validateCanonicalSources(rootDir);
 
   const seenIds = new Set<string>();
   for (const fixturePath of fixturePaths) {
     const cases = parseFixtureCases(fixturePath, readFileSync(join(rootDir, fixturePath), 'utf-8'));
+    validateFixtureCoverage(fixturePath, cases);
     const expected = fixturePath.endsWith('-positive.md') ? 'ACCEPT' : 'REJECT';
     for (const fixtureCase of cases) {
       if (fixtureCase.expected !== expected) {
