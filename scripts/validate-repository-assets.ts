@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { validateSkillAssets } from './validate-skill-assets.js';
 
 function fail(msg: string): never {
   throw new Error(`[ASSET VALIDATION FAILURE] ${msg}`);
@@ -124,6 +125,13 @@ export function validateRepositoryAssets(options: ValidateRepositoryAssetsOption
     'docs/mcp-tools.md',
     'docs/cli-reference.md',
     'docs/session-semantics.md',
+    'docs/agent-skills.md',
+    'skills/relay-capture/SKILL.md',
+    'skills/relay-session-review/SKILL.md',
+    'skills/fixtures/capture-positive.md',
+    'skills/fixtures/capture-negative.md',
+    'skills/fixtures/session-review-positive.md',
+    'skills/fixtures/session-review-negative.md',
     'tests/fixtures/contracts/capture-success.json',
     'tests/fixtures/contracts/capture-duplicate-warning.json',
     'tests/fixtures/contracts/validation-error.json',
@@ -193,6 +201,8 @@ export function validateRepositoryAssets(options: ValidateRepositoryAssetsOption
 
   const allFiles = walkFiles(rootDir);
 
+  validateSkillAssets({ rootDir });
+
   validateJsonFiles(allFiles);
   validatePlaceholders(allFiles);
   validateMarkdownLinks(
@@ -200,8 +210,8 @@ export function validateRepositoryAssets(options: ValidateRepositoryAssetsOption
     readFileSync(join(rootDir, 'README.md'), 'utf-8'),
   );
 
-  // 4. No SKILL.md or agent configs in #1
-  const forbidden = ['SKILL.md', 'agent/skills', 'agent/mcp'];
+  // 4. No legacy agent integration roots
+  const forbidden = ['agent/skills', 'agent/mcp'];
   for (const f of forbidden) {
     if (existsSync(join(rootDir, f))) {
       fail(`Forbidden asset for Issue #1 present: ${f}`);

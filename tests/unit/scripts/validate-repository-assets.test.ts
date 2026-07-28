@@ -14,6 +14,9 @@ function createFixtureRoot(): string {
     'src/interfaces/http',
     'src/interfaces/cli',
     'web/src',
+    'skills/relay-capture',
+    'skills/relay-session-review',
+    'skills/fixtures',
   ];
 
   for (const dir of requiredDirs) {
@@ -43,7 +46,7 @@ function createFixtureRoot(): string {
   );
   writeFileSync(
     join(rootDir, 'README.md'),
-    '# Relay\n\n[Decision](docs/decisions/0001-product-and-architecture.md)\n\n`node dist/cli/main.js`\n',
+    '# Relay\n\n[Decision](docs/decisions/0001-product-and-architecture.md)\n\n`node dist/cli/main.js`\n\n[Agent skills](docs/agent-skills.md)\n\n[Capture skill](skills/relay-capture/SKILL.md)\n\n[Review skill](skills/relay-session-review/SKILL.md)\n',
   );
   writeFileSync(join(rootDir, 'src/application/health/get-health.ts'), 'export {};\n');
   writeFileSync(join(rootDir, 'src/database/connection.ts'), 'export {};\n');
@@ -65,6 +68,21 @@ function createFixtureRoot(): string {
     '# CLI reference\n\n`node dist/cli/main.js`\n',
   );
   writeFileSync(join(rootDir, 'docs/session-semantics.md'), '# Session semantics\n');
+  writeFileSync(join(rootDir, 'docs/agent-skills.md'), '# Agent skills\n');
+  writeFileSync(join(rootDir, 'skills/relay-capture/SKILL.md'), '# Relay Capture\n');
+  writeFileSync(join(rootDir, 'skills/relay-session-review/SKILL.md'), '# Relay Session Review\n');
+  for (const [index, filename] of [
+    'capture-positive.md',
+    'capture-negative.md',
+    'session-review-positive.md',
+    'session-review-negative.md',
+  ].entries()) {
+    const expected = filename.includes('positive') ? 'ACCEPT' : 'REJECT';
+    writeFileSync(
+      join(rootDir, 'skills/fixtures', filename),
+      `## CASE-${String(index + 1).padStart(3, '0')}\n\nExpected: ${expected}\n\n### Scenario\nScenario\n\n### Agent action\nAction\n\n### Reason\nReason\n`,
+    );
+  }
   mkdirSync(join(rootDir, 'src/interfaces/contracts'), { recursive: true });
   for (const filename of [
     'contract-version.ts',
@@ -149,5 +167,13 @@ describe('validateRepositoryAssets', () => {
     rmSync(join(rootDir, 'dist/cli/main.js'));
 
     expect(() => validateRepositoryAssets({ rootDir })).toThrow(/CLI executable|dist\/cli/i);
+  });
+
+  it('accepts canonical skills but rejects legacy agent policy roots', () => {
+    const rootDir = createFixtureRoot();
+    createdRoots.push(rootDir);
+    mkdirSync(join(rootDir, 'agent/skills'), { recursive: true });
+
+    expect(() => validateRepositoryAssets({ rootDir })).toThrow(/legacy|agent\/skills/i);
   });
 });
