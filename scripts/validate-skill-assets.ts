@@ -107,6 +107,19 @@ function validateCaptureSkill(content: string): void {
   }
 }
 
+function validateReviewSkill(content: string): void {
+  for (const section of [
+    'Purpose', 'When to review', 'Session lookup', 'Review presentation',
+    'User-directed actions', 'Unresolved captures', 'Adapter selection', 'Prohibited behaviour',
+  ]) validateContains(content, new RegExp(`^## ${section}$`, 'mi'), section);
+  for (const [pattern, label] of [
+    [/before final completion/i, 'pre-completion review'], [/exact active session ID/i, 'exact session ID'],
+    [/completed.*archived|archived.*completed/i, 'all-status review'], [/explicit user direction/i, 'explicit user direction'],
+    [/intent-specific/i, 'intent-specific actions'], [/unresolved.*INBOX/i, 'unresolved INBOX'],
+    [/never infer.*(?:timer|inactivity|process exit)/i, 'no timer inference'], [/never mix.*session/i, 'session isolation'],
+  ] as const) validateContains(content, pattern, label);
+}
+
 export function validateSkillAssets(options: ValidateSkillAssetsOptions = {}): void {
   const rootDir = options.rootDir ? resolve(options.rootDir) : process.cwd();
 
@@ -117,6 +130,7 @@ export function validateSkillAssets(options: ValidateSkillAssetsOptions = {}): v
   }
 
   validateCaptureSkill(readFileSync(join(rootDir, canonicalSkillPaths[0]), 'utf-8'));
+  validateReviewSkill(readFileSync(join(rootDir, canonicalSkillPaths[1]), 'utf-8'));
 
   const seenIds = new Set<string>();
   for (const fixturePath of fixturePaths) {
