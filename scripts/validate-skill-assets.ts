@@ -106,8 +106,9 @@ function validateContains(content: string, pattern: RegExp, label: string): void
 
 function validateFrontmatter(content: string, expectedName: string): void {
   const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(content);
-  if (!match) fail(`Canonical skill ${expectedName} requires parseable YAML frontmatter.`);
-  const lines = match[1].split(/\r?\n/).filter(Boolean);
+  const frontmatter = match?.[1];
+  if (!frontmatter) fail(`Canonical skill ${expectedName} requires parseable YAML frontmatter.`);
+  const lines = frontmatter.split(/\r?\n/).filter(Boolean);
   if (lines.length !== 2 || !lines.every((line) => /^(name|description): .+/.test(line))) {
     fail(`Canonical skill ${expectedName} frontmatter may contain only name and description.`);
   }

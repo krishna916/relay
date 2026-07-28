@@ -77,12 +77,15 @@ Create a temporary fixture root helper that writes the six expected files. Each 
 Expected: ACCEPT
 
 ### Scenario
+
 A regression gap is discovered while implementing session expiry.
 
 ### Agent action
+
 Capture a concise follow-up task and continue the original work.
 
 ### Reason
+
 The work is concrete, actionable, and safely deferred.
 ```
 
