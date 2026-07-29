@@ -40,7 +40,7 @@ Scope: address every actionable item in the linked plan while preserving Relay's
 - [x] Record that Claude Code was unavailable and no live discovery, capture, retrieval, or removal test was performed.
 - [x] Record the exact 15-step future validation checklist.
 - [ ] Leave the live checklist unresolved until a real Claude Code environment supplies evidence.
-- [ ] Keep PR #33 in draft while this acceptance gate remains unmet.
+- [x] Keep PR #33 in draft while this acceptance gate remains unmet.
 
 ## Task 5 - Keep TOML validation development-only
 
@@ -65,10 +65,10 @@ Scope: address every actionable item in the linked plan while preserving Relay's
 
 - [x] Run focused validator and repository-asset tests.
 - [x] Run the authoritative `pnpm verify` gate.
-- [ ] Update PR #33 description with commands, official sources, honest live-validation status, and the deferred Claude checklist.
-- [ ] Push all reviewed commits.
+- [x] Update PR #33 description with commands, official sources, honest live-validation status, and the deferred Claude checklist.
+- [x] Push all reviewed commits.
 - [ ] Confirm the latest GitHub Actions run for the pushed head.
-- [ ] Leave the PR as draft.
+- [x] Leave the PR as draft.
 
 ## Verification log
 
@@ -78,11 +78,11 @@ Scope: address every actionable item in the linked plan while preserving Relay's
 | Focused validator tests | Pass    | `corepack pnpm exec vitest run tests/unit/scripts/validate-agent-integration-assets.test.ts`: 13 passed; aggregate run: 23 passed.                                                                                  |
 | Repository asset tests  | Pass    | `node --import tsx/esm scripts/validate-repository-assets.ts` passed.                                                                                                                                               |
 | Full `pnpm verify` gate | Pass    | 34 files, 469 tests, coverage 88.74% statements / 81.34% branches / 88.94% functions / 90.90% lines; build and asset validation passed; audit reported 1 low and 1 moderate vulnerability below the high threshold. |
-| GitHub Actions          | Pending |                                                                                                                                                                                                                     |
+| GitHub Actions          | Pending | `verify` is running for head `3bf4ce1`; CodeRabbit skipped review because the PR is draft.                                                                                                                          |
 
-## Publication blocker
+## Publication status
 
-The local branch contains the two verified commits `5449b89` and `35ebc28` and is two commits ahead of its remote. The push was rejected by the external-write approval boundary, so PR description update and GitHub Actions confirmation remain pending until those commits are published.
+The three verified commits `5449b89`, `35ebc28`, and `3bf4ce1` are pushed to `origin/feature/issue-24-agent-integration-assets`. The PR description is updated and PR #33 remains draft. GitHub Actions is the only remaining remote check.
 
 ## Deferred human gate
 
