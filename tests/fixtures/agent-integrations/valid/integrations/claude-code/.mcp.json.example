@@ -1,0 +1,3 @@
+{
+  "mcpServers": { "relay": { "command": "node", "args": ["__RELAY_CHECKOUT__/dist/mcp/main.js"] } }
+}

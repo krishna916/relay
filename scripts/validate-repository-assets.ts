@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { validateSkillAssets } from './validate-skill-assets.js';
+import { validateAgentIntegrationAssets } from './validate-agent-integration-assets.js';
 
 function fail(msg: string): never {
   throw new Error(`[ASSET VALIDATION FAILURE] ${msg}`);
@@ -226,6 +227,7 @@ export function validateRepositoryAssets(options: ValidateRepositoryAssetsOption
   const allFiles = walkFiles(rootDir);
 
   validateSkillAssets({ rootDir });
+  validateAgentIntegrationAssets({ rootDir });
 
   validateJsonFiles(allFiles);
   validatePlaceholders(allFiles);

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "relay": {
+      "command": "node",
+      "args": ["__RELAY_CHECKOUT__/dist/mcp/main.js"],
+      "env": {
+        "RELAY_DB_PATH": "__RELAY_CHECKOUT__/.relay-validation/relay.db"
+      }
+    }
+  }
+}
