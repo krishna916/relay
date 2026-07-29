@@ -19,7 +19,9 @@ import { createAgentTestRuntime } from '../support/agent-test-runtime.js';
 import { runRelayCli } from '../support/cli-test-process.js';
 import { createMcpTestClient } from '../support/mcp-test-client.js';
 import {
+  normalizeCliError,
   normalizeCliSuccess,
+  normalizeMcpError,
   normalizeMcpSuccess,
 } from '../support/external-contract-normalizers.js';
 
@@ -268,9 +270,8 @@ describe('built MCP and CLI contract parity', () => {
         workspace: 'relay-verification',
         sourceContext: 'issue-25',
       });
-      const capturedTask = (
-        normalizeMcpSuccess(capture).data as { task: Record<string, unknown> }
-      ).task;
+      const capturedTask = (normalizeMcpSuccess(capture).data as { task: Record<string, unknown> })
+        .task;
       const cli = await runRelayCli(
         runtime,
         ['task', 'get', String(capturedTask.id), '--output', 'json'],
@@ -307,9 +308,8 @@ describe('built MCP and CLI contract parity', () => {
         'json',
       ]);
       expect(cli.exitCode).toBe(0);
-      const capturedTask = (
-        normalizeCliSuccess(cli.json).data as { task: Record<string, unknown> }
-      ).task;
+      const capturedTask = (normalizeCliSuccess(cli.json).data as { task: Record<string, unknown> })
+        .task;
       const mcp = await client.callTool('task_get', { taskId: capturedTask.id });
 
       expect(normalizeMcpSuccess(mcp).data).toEqual({ task: capturedTask });
@@ -358,9 +358,7 @@ describe('built MCP and CLI contract parity', () => {
           workspace: 'relay-verification',
         }),
       );
-      const candidate = (
-        existing.data as { task: { id: string } }
-      ).task.id;
+      const candidate = (existing.data as { task: { id: string } }).task.id;
       const similar = normalizeMcpSuccess(
         await client.callTool('task_find_similar', {
           title: 'Duplicate candidate capture',
@@ -422,28 +420,37 @@ describe('built MCP and CLI contract parity', () => {
         'json',
       ]);
       expect(edit.exitCode).toBe(0);
-      expect(normalizeMcpSuccess(await client.callTool('task_get', { taskId })).data).toMatchObject({
-        task: { id: taskId, title: 'Mutation parity task edited' },
-      });
+      expect(normalizeMcpSuccess(await client.callTool('task_get', { taskId })).data).toMatchObject(
+        {
+          task: { id: taskId, title: 'Mutation parity task edited' },
+        },
+      );
 
       const triage = normalizeMcpSuccess(
         await client.callTool('task_triage', { taskId, target: 'ACTIVE' }),
       );
-      expect(triage.data).toMatchObject({ change: { action: 'TRIAGED', from: 'INBOX', to: 'ACTIVE' } });
+      expect(triage.data).toMatchObject({
+        change: { action: 'TRIAGED', from: 'INBOX', to: 'ACTIVE' },
+      });
       const start = await runRelayCli(runtime, ['task', 'start', taskId, '--output', 'json']);
       expect(start.exitCode).toBe(0);
-      expect(normalizeMcpSuccess(await client.callTool('task_get', { taskId })).data).toMatchObject({
-        task: { status: 'IN_PROGRESS' },
-      });
-      const complete = normalizeMcpSuccess(
-        await client.callTool('task_complete', { taskId }),
+      expect(normalizeMcpSuccess(await client.callTool('task_get', { taskId })).data).toMatchObject(
+        {
+          task: { status: 'IN_PROGRESS' },
+        },
       );
-      expect(complete.data).toMatchObject({ task: { status: 'DONE' }, change: { action: 'COMPLETED' } });
+      const complete = normalizeMcpSuccess(await client.callTool('task_complete', { taskId }));
+      expect(complete.data).toMatchObject({
+        task: { status: 'DONE' },
+        change: { action: 'COMPLETED' },
+      });
       const archive = await runRelayCli(runtime, ['task', 'archive', taskId, '--output', 'json']);
       expect(archive.exitCode).toBe(0);
-      expect(normalizeMcpSuccess(await client.callTool('task_get', { taskId })).data).toMatchObject({
-        task: { status: 'ARCHIVED' },
-      });
+      expect(normalizeMcpSuccess(await client.callTool('task_get', { taskId })).data).toMatchObject(
+        {
+          task: { status: 'ARCHIVED' },
+        },
+      );
     } finally {
       await client.close();
       await runtime.close();
@@ -492,7 +499,13 @@ describe('built MCP and CLI contract parity', () => {
     const runtime = await createAgentTestRuntime();
     const client = await createMcpTestClient(runtime);
     try {
-      const notFoundCli = await runRelayCli(runtime, ['task', 'get', 'missing-id', '--output', 'json']);
+      const notFoundCli = await runRelayCli(runtime, [
+        'task',
+        'get',
+        'missing-id',
+        '--output',
+        'json',
+      ]);
       const notFoundMcp = await client.callTool('task_get', { taskId: 'missing-id' });
       expect(notFoundCli.exitCode).toBe(3);
       expect(notFoundCli.json).toMatchObject({ error: { code: 'NOT_FOUND' } });
@@ -500,6 +513,7 @@ describe('built MCP and CLI contract parity', () => {
         isError: true,
         structuredContent: { error: { code: 'NOT_FOUND' } },
       });
+      expect(normalizeCliError(notFoundCli.json)).toEqual(normalizeMcpError(notFoundMcp));
 
       const capture = normalizeMcpSuccess(
         await client.callTool('task_capture', {
@@ -509,7 +523,13 @@ describe('built MCP and CLI contract parity', () => {
         }),
       );
       const taskId = String((capture.data as { task: { id: string } }).task.id);
-      const invalidCli = await runRelayCli(runtime, ['task', 'complete', taskId, '--output', 'json']);
+      const invalidCli = await runRelayCli(runtime, [
+        'task',
+        'complete',
+        taskId,
+        '--output',
+        'json',
+      ]);
       const invalidMcp = await client.callTool('task_complete', { taskId });
       expect(invalidCli.exitCode).toBe(4);
       expect(invalidCli.json).toMatchObject({ error: { code: 'CONFLICT' } });
@@ -517,6 +537,7 @@ describe('built MCP and CLI contract parity', () => {
         isError: true,
         structuredContent: { error: { code: 'CONFLICT' } },
       });
+      expect(normalizeCliError(invalidCli.json)).toEqual(normalizeMcpError(invalidMcp));
 
       await client.callTool('task_triage', { taskId, target: 'ACTIVE' });
       await client.callTool('task_start', { taskId });
@@ -538,7 +559,15 @@ describe('built MCP and CLI contract parity', () => {
         isError: true,
         structuredContent: { error: { code: 'ARCHIVED_TASK' } },
       });
-      for (const value of [notFoundCli.json, notFoundMcp, invalidCli.json, invalidMcp, archivedCli.json, archivedMcp]) {
+      expect(normalizeCliError(archivedCli.json)).toEqual(normalizeMcpError(archivedMcp));
+      for (const value of [
+        notFoundCli.json,
+        notFoundMcp,
+        invalidCli.json,
+        invalidMcp,
+        archivedCli.json,
+        archivedMcp,
+      ]) {
         expect(JSON.stringify(value)).not.toMatch(/SQL|stack|RELAY_DB_PATH|[A-Z]:\\Users\\/i);
       }
     } finally {
@@ -576,6 +605,50 @@ describe('built MCP and CLI contract parity', () => {
         content: [{ type: 'text', text: expect.stringMatching(/invalid arguments|title/i) }],
       });
       expect(cli.stderr).not.toMatch(/SQL|stack|RELAY_DB_PATH|[A-Z]:\\Users\\/i);
+    } finally {
+      await client.close();
+      await runtime.close();
+    }
+  });
+
+  it('matches built empty-session results and rejects malformed session IDs at each adapter boundary', async () => {
+    const runtime = await createAgentTestRuntime();
+    const client = await createMcpTestClient(runtime);
+    try {
+      const mcpMissing = normalizeMcpSuccess(
+        await client.callTool('session_captures_list', {
+          sessionId: 'missing-session',
+          limit: 100,
+        }),
+      );
+      const cliMissing = await runRelayCli(runtime, [
+        'session',
+        'captures',
+        '--session',
+        'missing-session',
+        '--output',
+        'json',
+      ]);
+      expect(cliMissing.exitCode).toBe(0);
+      expect(normalizeCliSuccess(cliMissing.json)).toEqual(mcpMissing);
+      expect(mcpMissing.data).toMatchObject({ sessionId: 'missing-session', tasks: [], count: 0 });
+
+      const cliMalformed = await runRelayCli(runtime, [
+        'session',
+        'captures',
+        '--session',
+        'bad session',
+        '--output',
+        'json',
+      ]);
+      expect(cliMalformed.exitCode).toBe(2);
+      expect(cliMalformed.json).toMatchObject({ error: { code: 'VALIDATION_ERROR' } });
+      await expect(
+        client.callTool('session_captures_list', { sessionId: 'bad session', limit: 100 }),
+      ).resolves.toMatchObject({
+        isError: true,
+        content: [{ type: 'text', text: expect.stringMatching(/invalid arguments|sessionId/i) }],
+      });
     } finally {
       await client.close();
       await runtime.close();

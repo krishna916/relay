@@ -12,6 +12,8 @@ export interface McpTestClient {
 
 export interface McpTestClientOptions {
   readonly cwd?: string;
+  readonly command?: string;
+  readonly args?: readonly string[];
   readonly environment?: NodeJS.ProcessEnv;
 }
 
@@ -20,8 +22,8 @@ export async function createMcpTestClient(
   options: McpTestClientOptions = {},
 ): Promise<McpTestClient> {
   const transport = new StdioClientTransport({
-    command: process.execPath,
-    args: [join(runtime.checkoutPath, 'dist', 'mcp', 'main.js')],
+    command: options.command ?? process.execPath,
+    args: [...(options.args ?? [join(runtime.checkoutPath, 'dist', 'mcp', 'main.js')])],
     cwd: options.cwd ?? runtime.checkoutPath,
     env: stringEnvironment(runtime.environment(options.environment)),
     stderr: 'pipe',
@@ -65,6 +67,8 @@ export async function createMcpTestClient(
 
 function stringEnvironment(environment: NodeJS.ProcessEnv): Record<string, string> {
   return Object.fromEntries(
-    Object.entries(environment).filter((entry): entry is [string, string] => entry[1] !== undefined),
+    Object.entries(environment).filter(
+      (entry): entry is [string, string] => entry[1] !== undefined,
+    ),
   );
 }

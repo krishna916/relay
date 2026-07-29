@@ -2,19 +2,26 @@ import { readdir, stat } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createTaskRuntime } from '../../src/interfaces/shared/create-task-runtime.js';
-import { createHttpServer, type HttpServerInstance } from '../../src/interfaces/http/create-http-server.js';
-import { createAgentTestRuntime } from '../support/agent-test-runtime.js';
+import {
+  createHttpServer,
+  type HttpServerInstance,
+} from '../../src/interfaces/http/create-http-server.js';
+import { createAgentTestRuntime, type AgentTestRuntime } from '../support/agent-test-runtime.js';
 import { runRelayCli } from '../support/cli-test-process.js';
 import { createMcpTestClient, type McpTestClient } from '../support/mcp-test-client.js';
-import { normalizeCliSuccess, normalizeMcpSuccess } from '../support/external-contract-normalizers.js';
+import {
+  normalizeCliSuccess,
+  normalizeMcpSuccess,
+} from '../support/external-contract-normalizers.js';
 
 describe('shared database path across HTTP, MCP, and CLI', () => {
   it('uses one configured database from arbitrary CWDs and preserves data after all adapters restart', async () => {
-    const runtime = await createAgentTestRuntime();
+    let runtime: AgentTestRuntime | undefined;
     let applicationRuntime: ReturnType<typeof createTaskRuntime> | undefined;
     let server: HttpServerInstance | undefined;
     let client: McpTestClient | undefined;
     try {
+      runtime = await createAgentTestRuntime();
       applicationRuntime = createTaskRuntime({ databasePath: runtime.databasePath });
       server = await createHttpServer({
         host: '127.0.0.1',
@@ -64,13 +71,17 @@ describe('shared database path across HTTP, MCP, and CLI', () => {
         body: JSON.stringify({ title: 'Shared human task' }),
       });
       expect(humanResponse.status).toBe(201);
-      const humanTask = (await humanResponse.json()) as { task: { id: string; createdByType: string } };
+      const humanTask = (await humanResponse.json()) as {
+        task: { id: string; createdByType: string };
+      };
       expect(humanTask.task.createdByType).toBe('HUMAN');
 
       const mcpHuman = normalizeMcpSuccess(
         await client.callTool('task_get', { taskId: humanTask.task.id }),
       );
-      expect(mcpHuman.data).toMatchObject({ task: { id: humanTask.task.id, createdByType: 'HUMAN' } });
+      expect(mcpHuman.data).toMatchObject({
+        task: { id: humanTask.task.id, createdByType: 'HUMAN' },
+      });
       const cliList = await runRelayCli(runtime, ['task', 'list', '--output', 'json']);
       expect(cliList.exitCode).toBe(0);
       expect(normalizeCliSuccess(cliList.json).data).toMatchObject({
@@ -112,19 +123,23 @@ describe('shared database path across HTTP, MCP, and CLI', () => {
       await client?.close();
       await server?.stop();
       applicationRuntime?.close();
-      await runtime.close();
+      await runtime?.close();
     }
-
   });
 
   it('does not create a default or CWD-local database file', async () => {
-    const runtime = await createAgentTestRuntime();
+    let runtime: AgentTestRuntime | undefined;
     let applicationRuntime: ReturnType<typeof createTaskRuntime> | undefined;
     let server: HttpServerInstance | undefined;
     let client: McpTestClient | undefined;
     try {
+      runtime = await createAgentTestRuntime();
       applicationRuntime = createTaskRuntime({ databasePath: runtime.databasePath });
-      server = await createHttpServer({ host: '127.0.0.1', port: 0, taskApplication: applicationRuntime.taskApplication });
+      server = await createHttpServer({
+        host: '127.0.0.1',
+        port: 0,
+        taskApplication: applicationRuntime.taskApplication,
+      });
       const mcpCwd = await runtime.createWorkingDirectory('mcp');
       const cliCwd = await runtime.createWorkingDirectory('cli');
       client = await createMcpTestClient(runtime, { cwd: mcpCwd });
@@ -143,7 +158,7 @@ describe('shared database path across HTTP, MCP, and CLI', () => {
       await client?.close();
       await server?.stop();
       applicationRuntime?.close();
-      await runtime.close();
+      await runtime?.close();
     }
   });
 });

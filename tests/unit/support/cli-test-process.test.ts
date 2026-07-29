@@ -33,4 +33,15 @@ describe('runRelayCli', () => {
       await runtime.close();
     }
   });
+
+  it('terminates a child process that exceeds the configured timeout', async () => {
+    const runtime = await createAgentTestRuntime();
+    try {
+      await expect(
+        runRelayCli(runtime, ['task', 'list', '--output', 'json'], { timeoutMs: 1 }),
+      ).rejects.toThrow(/timed out/i);
+    } finally {
+      await runtime.close();
+    }
+  });
 });

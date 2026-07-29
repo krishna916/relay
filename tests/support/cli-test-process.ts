@@ -5,6 +5,7 @@ import type { AgentTestRuntime } from './agent-test-runtime.js';
 export interface CliProcessOptions {
   readonly cwd?: string;
   readonly environment?: NodeJS.ProcessEnv;
+  readonly timeoutMs?: number;
 }
 
 export interface CliProcessResult {
@@ -37,8 +38,22 @@ export function runRelayCli(
   });
 
   return new Promise<CliProcessResult>((resolve, reject) => {
-    child.once('error', reject);
+    let settled = false;
+    const timeout = setTimeout(() => {
+      settled = true;
+      child.kill();
+      reject(new Error(`Relay CLI timed out after ${options.timeoutMs ?? 30_000}ms.`));
+    }, options.timeoutMs ?? 30_000);
+    child.once('error', (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      reject(error);
+    });
     child.once('close', (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
       try {
         resolve({
           exitCode: code ?? 1,

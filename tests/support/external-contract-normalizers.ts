@@ -69,7 +69,6 @@ function number(value: unknown): number {
 }
 
 function array(value: unknown): readonly unknown[] {
-  if (value === undefined) return [];
   if (!Array.isArray(value)) throw new Error('Expected an array contract field.');
   return value;
 }
