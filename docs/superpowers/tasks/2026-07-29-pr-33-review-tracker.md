@@ -72,13 +72,17 @@ Scope: address every actionable item in the linked plan while preserving Relay's
 
 ## Verification log
 
-| Check                   | Result  | Evidence                                                                                                                                                                                                 |
-| ----------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Baseline inspection     | Pass    | Clean working tree on `feature/issue-24-agent-integration-assets`; linked comment fetched from PR #33.                                                                                                   |
-| Focused validator tests | Pass    | `corepack pnpm exec vitest run tests/unit/scripts/validate-agent-integration-assets.test.ts`: 13 passed; aggregate run: 23 passed.                                                                       |
-| Repository asset tests  | Pass    | `node --import tsx/esm scripts/validate-repository-assets.ts` passed.                                                                                                                                     |
+| Check                   | Result  | Evidence                                                                                                                                                                                                            |
+| ----------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Baseline inspection     | Pass    | Clean working tree on `feature/issue-24-agent-integration-assets`; linked comment fetched from PR #33.                                                                                                              |
+| Focused validator tests | Pass    | `corepack pnpm exec vitest run tests/unit/scripts/validate-agent-integration-assets.test.ts`: 13 passed; aggregate run: 23 passed.                                                                                  |
+| Repository asset tests  | Pass    | `node --import tsx/esm scripts/validate-repository-assets.ts` passed.                                                                                                                                               |
 | Full `pnpm verify` gate | Pass    | 34 files, 469 tests, coverage 88.74% statements / 81.34% branches / 88.94% functions / 90.90% lines; build and asset validation passed; audit reported 1 low and 1 moderate vulnerability below the high threshold. |
-| GitHub Actions          | Pending |                                                                                                                                                                                                          |
+| GitHub Actions          | Pending |                                                                                                                                                                                                                     |
+
+## Publication blocker
+
+The local branch contains the two verified commits `5449b89` and `35ebc28` and is two commits ahead of its remote. The push was rejected by the external-write approval boundary, so PR description update and GitHub Actions confirmation remain pending until those commits are published.
 
 ## Deferred human gate
 
