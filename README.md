@@ -1,5 +1,7 @@
 # Relay
 
+Agent integrations: see [setup](docs/agent-integration.md) and [troubleshooting](docs/troubleshooting-agent-integration.md).
+
 The approved agent-integration contract is documented in the [decision record](docs/decisions/0002-agent-integration-contracts.md), [MCP tool reference](docs/mcp-tools.md), [CLI reference](docs/cli-reference.md), and [session semantics](docs/session-semantics.md). The production MCP task tools and source-checkout CLI are shipped.
 
 Relay is a local task sidecar for humanâ€“AI workflows. The current MVP is usable through its local web UI and through five safe local stdio MCP task tools.

@@ -1,0 +1,1 @@
+skills/relay-capture/SKILL.md skills/relay-session-review/SKILL.md Validation requires explicit isolated RELAY_DB_PATH; omission is permitted only for non-validation use. relay_health task_capture task_list task_get task_find_similar session_captures_list SQLite database remains untouched.

@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -69,6 +69,9 @@ function createFixtureRoot(): string {
   );
   writeFileSync(join(rootDir, 'docs/session-semantics.md'), '# Session semantics\n');
   writeFileSync(join(rootDir, 'docs/agent-skills.md'), '# Agent skills\n');
+  cpSync(join(process.cwd(), 'tests/fixtures/agent-integrations/valid'), rootDir, {
+    recursive: true,
+  });
   writeFileSync(
     join(rootDir, 'skills/relay-capture/SKILL.md'),
     `## Purpose\n\nCapture a concrete, actionable follow-up.\n\n## When to capture\n\nUse it for a concrete, actionable follow-up.\n\n## Adapter selection\n\nMCP is preferred. CLI is the fallback with --output json and one adapter.\n\n## Session and provenance\n\nThe agent supplies createdByName and the exact active session ID. Relay supplies createdByType: AGENT and status: INBOX.\n\n## Capture procedure\n\nContinue the original work.\n\n## Duplicate handling\n\nA duplicate is advisory.\n\n## Context safety\n\nKeep context concise.\n\n## Autonomy boundaries\n\nAn agent must not edit, triage, start, complete, or archive tasks. Leave captures in INBOX.\n\n## Do not capture\n\nDo not capture speculation.\n`,
@@ -245,5 +248,13 @@ describe('validateRepositoryAssets', () => {
     );
 
     expect(() => validateRepositoryAssets({ rootDir })).not.toThrow();
+  });
+
+  it('rejects a missing integration asset through aggregate validation', () => {
+    const rootDir = createFixtureRoot();
+    createdRoots.push(rootDir);
+    rmSync(join(rootDir, 'integrations/codex/config.toml.example'));
+
+    expect(() => validateRepositoryAssets({ rootDir })).toThrow(/agent integration.*config\.toml/i);
   });
 });
