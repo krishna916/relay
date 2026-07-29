@@ -84,4 +84,4 @@ Scope: complete every actionable task in the linked plan while preserving issue 
 
 ## Publication status
 
-Local implementation and verification only. GitHub review replies/thread resolution are intentionally not performed by this tracker unless separately requested.
+Verified commits `5142625`, `b3703ca`, `cc3380a`, `e190f1f`, and `c64efa8` are pushed to `origin/feature/issue-25-mcp-cli-compatibility`. PR #34 remains draft and its description records the clean-checkout verification evidence. The GitHub review thread remains unresolved; no follow-up comment was posted because that remote write requires an explicit user request.
