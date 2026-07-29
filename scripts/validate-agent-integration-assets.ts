@@ -75,6 +75,9 @@ function validateCompatibilityClaims(shared: string): void {
 function validateVendorClaims(rootDir: string, shared: string): void {
   for (const readme of vendorReadmes) {
     const text = readAsset(rootDir, `integrations/${readme}/README.md`);
+    if (/^## Autonomy boundaries$/im.test(text) || /autonomously\s+(?:edit|triage|start|complete|archive|delete|merge)/i.test(text)) {
+      fail(`${readme} must reference canonical behavioural policy instead of redefining mutation autonomy.`);
+    }
     const claimsNoLiveTest = /(?:live smoke test|live validation)[^\n]*not completed/i.test(text);
     const claimsLiveEvidence =
       /(?:live|manual)[^\n]*(?:tested|performed|verified|discovered|captured)/i.test(text);
@@ -96,6 +99,34 @@ function validateVendorClaims(rootDir: string, shared: string): void {
   for (let step = 1; step <= 15; step += 1) {
     if (!new RegExp(`^\\s*${step}\\.\\s+`, 'm').test(claudeValidationText))
       fail(`Claude validation assets must include 15-step checklist item ${step}.`);
+  }
+}
+
+function validateCanonicalSkills(rootDir: string): void {
+  const capture = readAsset(rootDir, canonicalSkills[0]);
+  if (!/autonomously create only a new Relay task in `?INBOX`?/i.test(capture))
+    fail('Canonical capture skill must define autonomous creation as INBOX-only.');
+  if (!/must not edit, triage, start, complete, archive, delete, merge, or move any task/i.test(capture))
+    fail('Canonical capture skill must prohibit autonomous lifecycle mutation.');
+  if (/autonomously\s+(?:edit|triage|start|complete|archive|delete|merge)/i.test(capture))
+    fail('Canonical capture skill must not grant autonomous lifecycle mutation.');
+
+  const review = readAsset(rootDir, canonicalSkills[1]);
+  if (!/completed and archived captures/i.test(review))
+    fail('Canonical session-review skill must require all-status retrieval including completed and archived captures.');
+  if (!/explicit user direction/i.test(review))
+    fail('Canonical session-review skill must require explicit user direction for mutations.');
+}
+
+function validateRemovalGuidance(rootDir: string): void {
+  for (const readme of vendorReadmes) {
+    const text = readAsset(rootDir, `integrations/${readme}/README.md`);
+    if (/(?:remove|delete)\s+(?:the\s+)?(?:SQLite\s+)?database\b|(?:SQLite\s+)?database\b[^\n]{0,80}\b(?:remove|delete)\b/i.test(text))
+      fail(`${readme} removal guidance must not delete the SQLite database.`);
+    if (!/(?:remov(?:e|ing)|delete)[\s\S]{0,160}(?:configuration|integration|client assets?)/i.test(text))
+      fail(`${readme} removal guidance must distinguish configuration removal from stored data.`);
+    if (!/SQLite database remains untouched/i.test(text))
+      fail(`${readme} removal guidance must state that the SQLite database remains untouched.`);
   }
 }
 
@@ -121,7 +152,7 @@ function validateTemplateShape(rootDir: string): void {
       fail(`${path} must separate command and arguments for a stdio server.`);
     }
     if (server.args[0] !== expectedMcpPath) {
-      fail(`${path} must use the exact dist/mcp/main.js entry path.`);
+      fail(`${path} must use the canonical dist/mcp/main.js entry path.`);
     }
     if (typeof server.command !== 'string' || /[\\/\s]/.test(server.command)) {
       fail(`${path} must not embed a shell command in command.`);
@@ -149,7 +180,7 @@ function validateTemplateShape(rootDir: string): void {
     codexServer.args[0] !== expectedMcpPath
   ) {
     fail(
-      'integrations/codex/config.toml.example must use node plus dist/mcp/main.js as separate fields.',
+      'integrations/codex/config.toml.example must use node plus the canonical dist/mcp/main.js entry as separate fields.',
     );
   }
   if (codexServer.env?.RELAY_DB_PATH !== '/tmp/relay-checkout/.relay-validation/relay.db') {
@@ -164,6 +195,9 @@ export function validateAgentIntegrationAssets(
   for (const path of requiredPaths) {
     if (!existsSync(join(rootDir, path))) fail(`Required path missing: ${path}`);
   }
+  for (const path of canonicalSkills) {
+    if (!existsSync(join(rootDir, path))) fail(`Canonical skill path missing: ${path}`);
+  }
 
   const integrationRoot = join(rootDir, 'integrations');
   const contents = filesUnder(integrationRoot)
@@ -172,6 +206,8 @@ export function validateAgentIntegrationAssets(
   const shared = readAsset(rootDir, 'docs/agent-integration.md');
   const troubleshooting = readAsset(rootDir, 'docs/troubleshooting-agent-integration.md');
   const all = `${contents}\n${shared}\n${troubleshooting}`;
+
+  validateCanonicalSkills(rootDir);
 
   if (/(?:[A-Z]:[\\/]Users[\\/]|\/Users\/|\/home\/|~\/)[^\s"'`]+/i.test(all))
     fail('Machine-specific absolute path found.');
@@ -220,11 +256,7 @@ export function validateAgentIntegrationAssets(
     fail('Claude README must preserve complete canonical skill directories unchanged.');
   if (/^## Autonomy boundaries$/m.test(contents))
     fail('Vendor assets must not copy behavioural policy.');
-  for (const readme of vendorReadmes) {
-    const text = readAsset(rootDir, `integrations/${readme}/README.md`);
-    if (!/SQLite database remains untouched/i.test(text))
-      fail(`${readme} removal guidance must state that the SQLite database remains untouched.`);
-  }
+  validateRemovalGuidance(rootDir);
   for (const match of all.matchAll(/relay mcp/gi)) {
     const context = all.slice(Math.max(0, match.index! - 80), match.index! + 100);
     if (!/(future|not available|Epic #18)/i.test(context))

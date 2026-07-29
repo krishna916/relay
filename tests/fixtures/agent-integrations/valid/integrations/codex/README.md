@@ -1,1 +1,1 @@
-skills/relay-capture/SKILL.md skills/relay-session-review/SKILL.md .agents/skills/relay-capture/ .agents/skills/relay-session-review/ SQLite database remains untouched.
+skills/relay-capture/SKILL.md skills/relay-session-review/SKILL.md .agents/skills/relay-capture/ .agents/skills/relay-session-review/ Remove only the client configuration and skill references; the SQLite database remains untouched.
