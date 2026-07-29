@@ -1,1 +1,1 @@
-skills/relay-capture/SKILL.md skills/relay-session-review/SKILL.md database remains
+skills/relay-capture/SKILL.md skills/relay-session-review/SKILL.md SQLite database remains untouched.

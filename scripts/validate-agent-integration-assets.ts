@@ -18,6 +18,27 @@ const requiredPaths = [
   'integrations/claude-code/README.md',
 ] as const;
 
+const canonicalSkills = [
+  'skills/relay-capture/SKILL.md',
+  'skills/relay-session-review/SKILL.md',
+] as const;
+
+const vendorReadmes = ['generic-mcp', 'generic-cli', 'codex', 'claude-code'] as const;
+
+const expectedMcpTools = [
+  'relay_health',
+  'task_capture',
+  'task_list',
+  'task_get',
+  'task_find_similar',
+  'session_captures_list',
+  'task_edit',
+  'task_triage',
+  'task_start',
+  'task_complete',
+  'task_archive',
+] as const;
+
 function fail(message: string): never {
   throw new Error(`[AGENT INTEGRATION ASSET FAILURE] ${message}`);
 }
@@ -27,6 +48,86 @@ function filesUnder(dir: string): string[] {
     const path = join(dir, entry.name);
     return entry.isDirectory() ? filesUnder(path) : [path];
   });
+}
+
+function readAsset(rootDir: string, path: string): string {
+  return readFileSync(join(rootDir, path), 'utf8');
+}
+
+function requireText(text: string, expected: string, message: string): void {
+  if (!text.includes(expected)) fail(message);
+}
+
+function validateCompatibilityClaims(shared: string): void {
+  const claimsTesting = /(?:version tested|tested on|verified client version)/i.test(shared);
+  const claimsNoSmokeTest =
+    /(?:live smoke test|manual client smoke test)[^\n]*not completed|(?:smoke tests?|live validation)[^\n]*not performed/i.test(
+      shared,
+    );
+  if (claimsTesting && claimsNoSmokeTest) {
+    fail('Compatibility documentation contradicts its live-validation status.');
+  }
+}
+
+function validateVendorClaims(rootDir: string): void {
+  for (const readme of vendorReadmes) {
+    const text = readAsset(rootDir, `integrations/${readme}/README.md`);
+    const claimsNoLiveTest = /(?:live smoke test|live validation)[^\n]*not completed/i.test(text);
+    const claimsLiveEvidence =
+      /(?:live|manual)[^\n]*(?:tested|performed|verified|discovered|captured)/i.test(text);
+    if (claimsNoLiveTest && claimsLiveEvidence) {
+      fail(`${readme} README contradicts its live-validation status.`);
+    }
+  }
+}
+
+function validateTemplateShape(rootDir: string): void {
+  const expectedMcpPath = '/tmp/relay-checkout/dist/mcp/main.js';
+  const jsonTemplates = [
+    'integrations/generic-mcp/server-config.json.example',
+    'integrations/claude-code/.mcp.json.example',
+  ] as const;
+
+  for (const path of jsonTemplates) {
+    const source = readAsset(rootDir, path);
+    if (/(?:[A-Z]:[\\/]Users[\\/]|\/Users\/|\/home\/|~\/)/i.test(source)) {
+      fail(`${path} must not contain a machine-specific home path.`);
+    }
+    const parsed = JSON.parse(source.replaceAll('__RELAY_CHECKOUT__', '/tmp/relay-checkout')) as {
+      command?: unknown;
+      args?: unknown;
+      mcpServers?: Record<string, { command?: unknown; args?: unknown }>;
+    };
+    const server = parsed.mcpServers?.relay ?? parsed;
+    if (server.command !== 'node' || !Array.isArray(server.args) || server.args.length !== 1) {
+      fail(`${path} must separate command and arguments for a stdio server.`);
+    }
+    if (server.args[0] !== expectedMcpPath) {
+      fail(`${path} must use the exact dist/mcp/main.js entry path.`);
+    }
+    if (typeof server.command !== 'string' || /[\\/\s]/.test(server.command)) {
+      fail(`${path} must not embed a shell command in command.`);
+    }
+  }
+
+  const tomlSource = readAsset(rootDir, 'integrations/codex/config.toml.example');
+  if (/(?:[A-Z]:[\\/]Users[\\/]|\/Users\/|\/home\/|~\/)/i.test(tomlSource)) {
+    fail('integrations/codex/config.toml.example must not contain a machine-specific home path.');
+  }
+  const toml = parse(tomlSource.replaceAll('__RELAY_CHECKOUT__', '/tmp/relay-checkout')) as {
+    mcp_servers?: { relay?: { command?: unknown; args?: unknown } };
+  };
+  const codexServer = toml.mcp_servers?.relay;
+  if (
+    codexServer?.command !== 'node' ||
+    !Array.isArray(codexServer.args) ||
+    codexServer.args.length !== 1 ||
+    codexServer.args[0] !== expectedMcpPath
+  ) {
+    fail(
+      'integrations/codex/config.toml.example must use node plus dist/mcp/main.js as separate fields.',
+    );
+  }
 }
 
 export function validateAgentIntegrationAssets(
@@ -41,47 +142,55 @@ export function validateAgentIntegrationAssets(
   const contents = filesUnder(integrationRoot)
     .map((file) => readFileSync(file, 'utf8'))
     .join('\n');
-  const shared = readFileSync(join(rootDir, 'docs/agent-integration.md'), 'utf8');
-  const troubleshooting = readFileSync(
-    join(rootDir, 'docs/troubleshooting-agent-integration.md'),
-    'utf8',
-  );
+  const shared = readAsset(rootDir, 'docs/agent-integration.md');
+  const troubleshooting = readAsset(rootDir, 'docs/troubleshooting-agent-integration.md');
   const all = `${contents}\n${shared}\n${troubleshooting}`;
 
   if (/(?:[A-Z]:[\\/]Users[\\/]|\/Users\/)[^\s"'`]+/i.test(all))
     fail('Machine-specific absolute path found.');
-  for (const skill of ['skills/relay-capture/SKILL.md', 'skills/relay-session-review/SKILL.md']) {
-    for (const readme of ['generic-mcp', 'generic-cli', 'codex', 'claude-code']) {
-      const text = readFileSync(join(integrationRoot, readme, 'README.md'), 'utf8');
-      if (!text.includes(skill)) fail(`${readme} README must reference ${skill}.`);
+  for (const skill of canonicalSkills) {
+    for (const readme of vendorReadmes) {
+      const text = readAsset(rootDir, `integrations/${readme}/README.md`);
+      requireText(text, skill, `${readme} README must reference ${skill}.`);
     }
   }
-  for (const tool of [
-    'relay_health',
-    'task_capture',
-    'task_list',
-    'task_get',
-    'task_find_similar',
-    'session_captures_list',
+  const claudeReadme = readAsset(rootDir, 'integrations/claude-code/README.md');
+  for (const path of [
+    '.claude/skills/relay-capture/SKILL.md',
+    '.claude/skills/relay-session-review/SKILL.md',
   ]) {
-    if (
-      !shared.includes(tool) &&
-      !readFileSync(join(integrationRoot, 'generic-mcp/README.md'), 'utf8').includes(tool)
-    )
-      fail(`Missing MCP tool ${tool}.`);
+    requireText(claudeReadme, path, `Claude README must document ${path}.`);
   }
+  const codexReadme = readAsset(rootDir, 'integrations/codex/README.md');
+  for (const path of [
+    '.agents/skills/relay-capture/SKILL.md',
+    '.agents/skills/relay-session-review/SKILL.md',
+  ]) {
+    requireText(codexReadme, path, `Codex README must document ${path}.`);
+  }
+  const genericMcpReadme = readAsset(rootDir, 'integrations/generic-mcp/README.md');
+  for (const tool of expectedMcpTools) {
+    requireText(genericMcpReadme, tool, `Generic MCP README must list ${tool}.`);
+  }
+  validateCompatibilityClaims(shared);
+  validateVendorClaims(rootDir);
+  if (/CLAUDE\.md[\s\S]*(?:skill|import)|(?:skill|import)[\s\S]*CLAUDE\.md/i.test(claudeReadme))
+    fail('Claude README must use .claude/skills for skill discovery, not CLAUDE.md imports.');
+  if (!/copy|symlink/i.test(claudeReadme) || !/unchanged/i.test(claudeReadme))
+    fail('Claude README must preserve complete canonical skill directories unchanged.');
   if (/^## Autonomy boundaries$/m.test(contents))
     fail('Vendor assets must not copy behavioural policy.');
-  for (const readme of ['generic-mcp', 'generic-cli', 'codex', 'claude-code']) {
-    const text = readFileSync(join(integrationRoot, readme, 'README.md'), 'utf8');
-    if (!/(database remains|preserve.{0,40}database)/is.test(text))
-      fail(`${readme} removal guidance must preserve the database.`);
+  for (const readme of vendorReadmes) {
+    const text = readAsset(rootDir, `integrations/${readme}/README.md`);
+    if (!/SQLite database remains untouched/i.test(text))
+      fail(`${readme} removal guidance must state that the SQLite database remains untouched.`);
   }
   for (const match of all.matchAll(/relay mcp/gi)) {
     const context = all.slice(Math.max(0, match.index! - 80), match.index! + 100);
     if (!/(future|not available|Epic #18)/i.test(context))
       fail('relay mcp must be marked as future-only.');
   }
+  validateTemplateShape(rootDir);
   const replaceCheckout = (text: string) =>
     text.replaceAll('__RELAY_CHECKOUT__', '/tmp/relay-checkout');
   JSON.parse(

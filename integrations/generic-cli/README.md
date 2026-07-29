@@ -10,4 +10,4 @@ node __RELAY_CHECKOUT__/dist/cli/main.js task complete TASK_ID --output json
 node __RELAY_CHECKOUT__/dist/cli/main.js task archive TASK_ID --output json
 ```
 
-Exit codes are documented in [the CLI reference](../../docs/cli-reference.md). Capture can be autonomous; edit, triage, start, complete, and archive require explicit user direction. See [Relay Capture](../../skills/relay-capture/SKILL.md) and [Relay Session Review](../../skills/relay-session-review/SKILL.md). Removing a client integration does not delete the database; the database remains.
+Exit codes are documented in [the CLI reference](../../docs/cli-reference.md). Capture can be autonomous; edit, triage, start, complete, and archive require explicit user direction. See [Relay Capture](../../skills/relay-capture/SKILL.md) and [Relay Session Review](../../skills/relay-session-review/SKILL.md). Removing a client integration does not delete data; the SQLite database remains untouched.

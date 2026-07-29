@@ -1,1 +1,1 @@
-skills/relay-capture/SKILL.md skills/relay-session-review/SKILL.md database remains
+skills/relay-capture/SKILL.md skills/relay-session-review/SKILL.md .claude/skills/relay-capture/SKILL.md .claude/skills/relay-session-review/SKILL.md Copy or symlink the complete canonical skill directories and preserve each SKILL.md unchanged. SQLite database remains untouched.

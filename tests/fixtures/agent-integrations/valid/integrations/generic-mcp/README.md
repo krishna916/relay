@@ -1,1 +1,1 @@
-skills/relay-capture/SKILL.md skills/relay-session-review/SKILL.md database remains
+skills/relay-capture/SKILL.md skills/relay-session-review/SKILL.md relay_health task_capture task_list task_get task_find_similar session_captures_list task_edit task_triage task_start task_complete task_archive SQLite database remains untouched.
