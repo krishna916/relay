@@ -1,8 +1,10 @@
 # Generic CLI integration
 
-Use the CLI when MCP is unavailable or for an explicit one-shot operation. Build first, use the same isolated `RELAY_DB_PATH`, and parse only `--output json` stdout. For example:
+Use the CLI when MCP is unavailable or for an explicit one-shot operation. Build first, use the same isolated `RELAY_DB_PATH`, and parse only `--output json` stdout. Set the isolated validation database before every example command:
 
 ```bash
+export RELAY_DB_PATH="__RELAY_CHECKOUT__/.relay-validation/relay.db"
+
 node __RELAY_CHECKOUT__/dist/cli/main.js task capture --title "Disposable integration check" --agent generic-cli --session relay-check-20260729-001 --workspace relay --source-context "Issue 24 validation" --output json
 node __RELAY_CHECKOUT__/dist/cli/main.js session captures --session relay-check-20260729-001 --output json
 node __RELAY_CHECKOUT__/dist/cli/main.js task triage TASK_ID --to BACKLOG --output json

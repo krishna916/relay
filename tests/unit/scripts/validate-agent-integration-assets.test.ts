@@ -35,6 +35,16 @@ describe('validateAgentIntegrationAssets', () => {
     expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/machine-specific/i);
   });
 
+  it.each(['/home/name/relay', '~/relay'])('rejects a machine-specific path: %s', (path) => {
+    const rootDir = createRoot();
+    writeFileSync(
+      join(rootDir, 'integrations/codex/README.md'),
+      `${path} skills/relay-capture/SKILL.md skills/relay-session-review/SKILL.md .agents/skills/relay-capture/ .agents/skills/relay-session-review/ SQLite database remains untouched`,
+    );
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/machine-specific/i);
+  });
+
   it('rejects a missing required asset', () => {
     const rootDir = createRoot();
     rmSync(join(rootDir, 'integrations/codex/config.toml.example'));
@@ -64,7 +74,7 @@ describe('validateAgentIntegrationAssets', () => {
     const path = join(rootDir, 'integrations/claude-code/README.md');
     writeFileSync(
       path,
-      readFileSync(path, 'utf8').replace('.claude/skills/relay-session-review/SKILL.md', ''),
+      readFileSync(path, 'utf8').replace('.claude/skills/relay-session-review/', ''),
     );
 
     expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/claude.*\.claude\/skills/i);
@@ -80,15 +90,95 @@ describe('validateAgentIntegrationAssets', () => {
     expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/contradict/i);
   });
 
-  it('requires the exact shipped MCP tool list in the generic README', () => {
+  it('requires the shipped mutation MCP tools in the production README', () => {
+    const rootDir = createRoot();
+    writeFileSync(join(rootDir, 'docs/mcp-tools.md'), '# MCP tools\n\ntask_archive\n');
+    const path = join(rootDir, 'integrations/generic-mcp/README.md');
+    writeFileSync(
+      path,
+      `${readFileSync(path, 'utf8')} task_edit task_triage task_start task_complete task_archive`.replace(
+        'task_archive',
+        'unspecified mutation tools',
+      ),
+    );
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/task_archive/i);
+  });
+
+  it('rejects a Codex config that falls back to the default database', () => {
+    const rootDir = createRoot();
+    const path = join(rootDir, 'integrations/codex/config.toml.example');
+    writeFileSync(
+      path,
+      readFileSync(path, 'utf8').replace(
+        'RELAY_DB_PATH = "__RELAY_CHECKOUT__/.relay-validation/relay.db"',
+        'RELAY_DB_PATH = "/default/relay.db"',
+      ),
+    );
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/isolated.*RELAY_DB_PATH/i);
+  });
+
+  it('rejects generic MCP guidance without explicit validation database isolation', () => {
     const rootDir = createRoot();
     const path = join(rootDir, 'integrations/generic-mcp/README.md');
     writeFileSync(
       path,
-      readFileSync(path, 'utf8').replace('task_archive', 'unspecified mutation tools'),
+      readFileSync(path, 'utf8').replace(
+        'Validation requires explicit isolated RELAY_DB_PATH; omission is permitted only for non-validation use.',
+        'The database is available.',
+      ),
     );
 
-    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/task_archive/i);
+    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/generic MCP.*distinguish/i);
+  });
+
+  it('rejects generic CLI guidance without an isolated export', () => {
+    const rootDir = createRoot();
+    const path = join(rootDir, 'integrations/generic-cli/README.md');
+    writeFileSync(
+      path,
+      readFileSync(path, 'utf8').replace(
+        'export RELAY_DB_PATH="__RELAY_CHECKOUT__/.relay-validation/relay.db"',
+        'RELAY_DB_PATH uses the default database',
+      ),
+    );
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/generic CLI.*isolated/i);
+  });
+
+  it.each([
+    ['deferred Claude validation status', '## Deferred live validation'],
+    ['unavailable Claude status', 'Claude Code was unavailable'],
+    ['official Claude source evidence', 'https://code.claude.com/docs/en/mcp'],
+    ['Claude validation limitations', '## Current limitations'],
+    ['15-step Claude validation checklist', '15. Record evidence and limitations.'],
+  ])('rejects Claude validation assets missing %s', (_label, marker) => {
+    const rootDir = createRoot();
+    const path = join(rootDir, 'docs/agent-integration.md');
+    const source = readFileSync(path, 'utf8');
+    const updated = marker.startsWith('https://')
+      ? source
+          .replaceAll('https://code.claude.com/docs/en/mcp', 'removed marker')
+          .replaceAll('https://code.claude.com/docs/en/skills', 'removed marker')
+      : source.replace(marker, 'removed marker');
+    writeFileSync(path, updated);
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/Claude validation assets/i);
+  });
+
+  it('rejects a Claude validation checklist missing an intermediate step', () => {
+    const rootDir = createRoot();
+    const path = join(rootDir, 'docs/agent-integration.md');
+    writeFileSync(
+      path,
+      readFileSync(path, 'utf8').replace(
+        '7. Install the canonical skills.',
+        'removed checklist step',
+      ),
+    );
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/15-step checklist item 7/i);
   });
 
   it('rejects live evidence claims beside an incomplete vendor status', () => {
@@ -116,7 +206,7 @@ describe('validateAgentIntegrationAssets', () => {
     const rootDir = createRoot();
     writeFileSync(
       join(rootDir, 'integrations/codex/README.md'),
-      '## Autonomy boundaries\nskills/relay-capture/SKILL.md skills/relay-session-review/SKILL.md .agents/skills/relay-capture/SKILL.md .agents/skills/relay-session-review/SKILL.md SQLite database remains untouched.',
+      '## Autonomy boundaries\nskills/relay-capture/SKILL.md skills/relay-session-review/SKILL.md .agents/skills/relay-capture/ .agents/skills/relay-session-review/ SQLite database remains untouched.',
     );
 
     expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/behavioural policy/i);
@@ -131,10 +221,8 @@ describe('validateAgentIntegrationAssets', () => {
 
   it('rejects an unqualified packaged relay mcp command', () => {
     const rootDir = createRoot();
-    writeFileSync(
-      join(rootDir, 'docs/agent-integration.md'),
-      'relay_health task_capture task_list task_get task_find_similar session_captures_list Use relay mcp now.',
-    );
+    const path = join(rootDir, 'docs/agent-integration.md');
+    writeFileSync(path, `${readFileSync(path, 'utf8')} Use relay mcp now.`);
 
     expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/future-only/i);
   });

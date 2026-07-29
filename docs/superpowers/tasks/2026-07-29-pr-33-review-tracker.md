@@ -87,3 +87,17 @@ The three verified commits `5449b89`, `35ebc28`, and `3bf4ce1` are pushed to `or
 ## Deferred human gate
 
 The Claude Code live smoke test cannot be performed in this environment because Claude Code is unavailable. This is recorded as an unresolved acceptance item, not as a successful test. The implementation and automated validation work may be complete while this human gate remains visibly deferred and PR #33 remains draft.
+
+## Inline review follow-up
+
+- [x] Verify and correct Claude Code and Codex skill-directory installation targets.
+- [x] Require isolated `RELAY_DB_PATH` in validation guidance and CLI examples.
+- [x] Add isolated database configuration to the accepted Codex fixture and reject fallback configuration.
+- [x] Require Claude deferred/unavailable status, official-source evidence, limitations, and the complete 15-step future checklist in validation assets.
+- [x] Reject Windows, macOS, Linux `/home/`, and `~/` machine-specific paths.
+- [x] Align the accepted generic-MCP fixture with its supported five task tools plus `relay_health`.
+- [x] Verify each finding with focused tests, then run the full repository gate.
+
+## Inline review verification
+
+All five inline findings were valid against the current checkout. No requested finding was skipped. Focused validator and repository-asset tests passed: 33 tests. The full `corepack pnpm verify` gate passed with 34 test files and 480 tests, coverage of 88.74% statements / 81.34% branches / 88.94% functions / 90.90% lines, successful build and asset validation, and audit findings of 1 low plus 1 moderate vulnerability below the high-severity threshold.
