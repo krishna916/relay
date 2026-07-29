@@ -1,6 +1,5 @@
+import Database from 'better-sqlite3';
 import { describe, expect, it, vi } from 'vitest';
-import { dirname } from 'node:path';
-import { rm, writeFile } from 'node:fs/promises';
 import {
   createTaskApplication,
   type TaskApplication,
@@ -655,21 +654,63 @@ describe('built MCP and CLI contract parity', () => {
     }
   });
 
-  it('maps a deterministic unusable database parent without touching the default database', async () => {
+  it('maps a locked-database write failure to the same structured storage error', async () => {
     const runtime = await createAgentTestRuntime();
-    const databaseParent = dirname(runtime.databasePath);
-    await rm(databaseParent, { recursive: true, force: true });
-    await writeFile(databaseParent, 'not a directory');
-    try {
-      const cli = await runRelayCli(runtime, ['task', 'list', '--output', 'json']);
-      expect(cli.exitCode).toBe(5);
-      expect(cli.json).toMatchObject({ error: { code: 'STORAGE_ERROR' } });
-      expect(cli.stderr).not.toMatch(/SQL|stack|RELAY_DB_PATH|[A-Z]:\\Users\\/i);
+    const client = await createMcpTestClient(runtime);
+    const lock = new Database(runtime.databasePath);
 
-      await expect(createMcpTestClient(runtime)).rejects.toThrow();
+    try {
+      await client.callTool('relay_health', {});
+
+      lock.pragma('busy_timeout = 100');
+      lock.exec('BEGIN IMMEDIATE');
+
+      const [cli, mcp] = await Promise.all([
+        runRelayCli(runtime, [
+          'task',
+          'capture',
+          '--title',
+          'Locked CLI capture',
+          '--agent',
+          'Codex',
+          '--session',
+          'session-alpha',
+          '--output',
+          'json',
+        ]),
+        client.callTool('task_capture', {
+          title: 'Locked MCP capture',
+          createdByName: 'Codex',
+          sessionId: 'session-alpha',
+        }),
+      ]);
+
+      expect(cli.exitCode).toBe(5);
+      expect(cli.json).toMatchObject({
+        error: { code: 'STORAGE_ERROR', message: expect.any(String) },
+      });
+      expect(mcp).toMatchObject({
+        isError: true,
+        structuredContent: {
+          error: { code: 'STORAGE_ERROR', message: expect.any(String) },
+        },
+      });
+      expect(normalizeCliError(cli.json)).toEqual(normalizeMcpError(mcp));
+
+      for (const value of [cli.json, mcp, cli.stderr, client.stderr()]) {
+        expect(JSON.stringify(value)).not.toMatch(
+          /SQL|stack|RELAY_DB_PATH|[A-Z]:\\Users\\|\/Users\//i,
+        );
+      }
     } finally {
-      await rm(databaseParent, { force: true });
+      try {
+        lock.exec('ROLLBACK');
+      } catch {
+        // The transaction may already be closed after a setup failure.
+      }
+      lock.close();
+      await client.close();
       await runtime.close();
     }
-  });
+  }, 15_000);
 });
