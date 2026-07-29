@@ -668,12 +668,19 @@ Use these exact top-level sections:
 # Agent Integration Verification
 
 ## Scope and safety statement
+
 ## Automated scenario matrix
+
 ## Clean-checkout environment
+
 ## Codex validation
+
 ## Claude Code validation
+
 ## Cross-client differences and limitations
+
 ## Data and configuration preservation
+
 ## Epic #2 closure checklist
 ```
 

@@ -75,8 +75,13 @@ function validateCompatibilityClaims(shared: string): void {
 function validateVendorClaims(rootDir: string, shared: string): void {
   for (const readme of vendorReadmes) {
     const text = readAsset(rootDir, `integrations/${readme}/README.md`);
-    if (/^## Autonomy boundaries$/im.test(text) || /autonomously\s+(?:edit|triage|start|complete|archive|delete|merge)/i.test(text)) {
-      fail(`${readme} must reference canonical behavioural policy instead of redefining mutation autonomy.`);
+    if (
+      /^## Autonomy boundaries$/im.test(text) ||
+      /autonomously\s+(?:edit|triage|start|complete|archive|delete|merge)/i.test(text)
+    ) {
+      fail(
+        `${readme} must reference canonical behavioural policy instead of redefining mutation autonomy.`,
+      );
     }
     const claimsNoLiveTest = /(?:live smoke test|live validation)[^\n]*not completed/i.test(text);
     const claimsLiveEvidence =
@@ -106,14 +111,20 @@ function validateCanonicalSkills(rootDir: string): void {
   const capture = readAsset(rootDir, canonicalSkills[0]);
   if (!/autonomously create only a new Relay task in `?INBOX`?/i.test(capture))
     fail('Canonical capture skill must define autonomous creation as INBOX-only.');
-  if (!/must not edit, triage, start, complete, archive, delete, merge, or move any task/i.test(capture))
+  if (
+    !/must not edit, triage, start, complete, archive, delete, merge, or move any task/i.test(
+      capture,
+    )
+  )
     fail('Canonical capture skill must prohibit autonomous lifecycle mutation.');
   if (/autonomously\s+(?:edit|triage|start|complete|archive|delete|merge)/i.test(capture))
     fail('Canonical capture skill must not grant autonomous lifecycle mutation.');
 
   const review = readAsset(rootDir, canonicalSkills[1]);
   if (!/completed and archived captures/i.test(review))
-    fail('Canonical session-review skill must require all-status retrieval including completed and archived captures.');
+    fail(
+      'Canonical session-review skill must require all-status retrieval including completed and archived captures.',
+    );
   if (!/explicit user direction/i.test(review))
     fail('Canonical session-review skill must require explicit user direction for mutations.');
 }
@@ -121,9 +132,17 @@ function validateCanonicalSkills(rootDir: string): void {
 function validateRemovalGuidance(rootDir: string): void {
   for (const readme of vendorReadmes) {
     const text = readAsset(rootDir, `integrations/${readme}/README.md`);
-    if (/(?:remove|delete)\s+(?:the\s+)?(?:SQLite\s+)?database\b|(?:SQLite\s+)?database\b[^\n]{0,80}\b(?:remove|delete)\b/i.test(text))
+    if (
+      /(?:remove|delete)\s+(?:the\s+)?(?:SQLite\s+)?database\b|(?:SQLite\s+)?database\b[^\n]{0,80}\b(?:remove|delete)\b/i.test(
+        text,
+      )
+    )
       fail(`${readme} removal guidance must not delete the SQLite database.`);
-    if (!/(?:remov(?:e|ing)|delete)[\s\S]{0,160}(?:configuration|integration|client assets?)/i.test(text))
+    if (
+      !/(?:remov(?:e|ing)|delete)[\s\S]{0,160}(?:configuration|integration|client assets?)/i.test(
+        text,
+      )
+    )
       fail(`${readme} removal guidance must distinguish configuration removal from stored data.`);
     if (!/SQLite database remains untouched/i.test(text))
       fail(`${readme} removal guidance must state that the SQLite database remains untouched.`);
