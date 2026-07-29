@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import { dirname } from 'node:path';
+import { rm, writeFile } from 'node:fs/promises';
 import {
   createTaskApplication,
   type TaskApplication,
@@ -444,6 +446,156 @@ describe('built MCP and CLI contract parity', () => {
       });
     } finally {
       await client.close();
+      await runtime.close();
+    }
+  });
+
+  it('returns identical no-op change metadata without changing task timestamps', async () => {
+    const runtime = await createAgentTestRuntime();
+    const client = await createMcpTestClient(runtime);
+    try {
+      const capture = normalizeMcpSuccess(
+        await client.callTool('task_capture', {
+          title: 'No-op parity task',
+          createdByName: 'Codex',
+          sessionId: 'session-alpha',
+        }),
+      );
+      const task = (capture.data as { task: Record<string, unknown> }).task;
+      const taskId = String(task.id);
+      const cli = await runRelayCli(runtime, [
+        'task',
+        'edit',
+        taskId,
+        '--title',
+        'No-op parity task',
+        '--output',
+        'json',
+      ]);
+      const mcp = normalizeMcpSuccess(
+        await client.callTool('task_edit', { taskId, title: 'No-op parity task' }),
+      );
+
+      expect(cli.exitCode).toBe(0);
+      expect(normalizeCliSuccess(cli.json)).toEqual(mcp);
+      expect(mcp.data).toMatchObject({
+        task: { id: taskId, createdAt: task.createdAt, updatedAt: task.updatedAt },
+        change: { action: 'NO_CHANGE', fields: [] },
+      });
+    } finally {
+      await client.close();
+      await runtime.close();
+    }
+  });
+
+  it('maps not-found, invalid transition, and archived mutation errors consistently', async () => {
+    const runtime = await createAgentTestRuntime();
+    const client = await createMcpTestClient(runtime);
+    try {
+      const notFoundCli = await runRelayCli(runtime, ['task', 'get', 'missing-id', '--output', 'json']);
+      const notFoundMcp = await client.callTool('task_get', { taskId: 'missing-id' });
+      expect(notFoundCli.exitCode).toBe(3);
+      expect(notFoundCli.json).toMatchObject({ error: { code: 'NOT_FOUND' } });
+      expect(notFoundMcp).toMatchObject({
+        isError: true,
+        structuredContent: { error: { code: 'NOT_FOUND' } },
+      });
+
+      const capture = normalizeMcpSuccess(
+        await client.callTool('task_capture', {
+          title: 'Error parity task',
+          createdByName: 'Codex',
+          sessionId: 'session-alpha',
+        }),
+      );
+      const taskId = String((capture.data as { task: { id: string } }).task.id);
+      const invalidCli = await runRelayCli(runtime, ['task', 'complete', taskId, '--output', 'json']);
+      const invalidMcp = await client.callTool('task_complete', { taskId });
+      expect(invalidCli.exitCode).toBe(4);
+      expect(invalidCli.json).toMatchObject({ error: { code: 'CONFLICT' } });
+      expect(invalidMcp).toMatchObject({
+        isError: true,
+        structuredContent: { error: { code: 'CONFLICT' } },
+      });
+
+      await client.callTool('task_triage', { taskId, target: 'ACTIVE' });
+      await client.callTool('task_start', { taskId });
+      await client.callTool('task_complete', { taskId });
+      await client.callTool('task_archive', { taskId });
+      const archivedCli = await runRelayCli(runtime, [
+        'task',
+        'edit',
+        taskId,
+        '--title',
+        'Archived edit',
+        '--output',
+        'json',
+      ]);
+      const archivedMcp = await client.callTool('task_edit', { taskId, title: 'Archived edit' });
+      expect(archivedCli.exitCode).toBe(4);
+      expect(archivedCli.json).toMatchObject({ error: { code: 'ARCHIVED_TASK' } });
+      expect(archivedMcp).toMatchObject({
+        isError: true,
+        structuredContent: { error: { code: 'ARCHIVED_TASK' } },
+      });
+      for (const value of [notFoundCli.json, notFoundMcp, invalidCli.json, invalidMcp, archivedCli.json, archivedMcp]) {
+        expect(JSON.stringify(value)).not.toMatch(/SQL|stack|RELAY_DB_PATH|[A-Z]:\\Users\\/i);
+      }
+    } finally {
+      await client.close();
+      await runtime.close();
+    }
+  });
+
+  it('keeps malformed inputs at validation/protocol boundaries and preserves exit code 2', async () => {
+    const runtime = await createAgentTestRuntime();
+    const client = await createMcpTestClient(runtime);
+    try {
+      const cli = await runRelayCli(runtime, [
+        'task',
+        'capture',
+        '--title',
+        '',
+        '--agent',
+        'Codex',
+        '--session',
+        'session-alpha',
+        '--output',
+        'json',
+      ]);
+      expect(cli.exitCode).toBe(2);
+      expect(cli.json).toMatchObject({ error: { code: 'VALIDATION_ERROR' } });
+      await expect(
+        client.callTool('task_capture', {
+          title: '',
+          createdByName: 'Codex',
+          sessionId: 'session-alpha',
+        }),
+      ).resolves.toMatchObject({
+        isError: true,
+        content: [{ type: 'text', text: expect.stringMatching(/invalid arguments|title/i) }],
+      });
+      expect(cli.stderr).not.toMatch(/SQL|stack|RELAY_DB_PATH|[A-Z]:\\Users\\/i);
+    } finally {
+      await client.close();
+      await runtime.close();
+    }
+  });
+
+  it('maps a deterministic unusable database parent without touching the default database', async () => {
+    const runtime = await createAgentTestRuntime();
+    const databaseParent = dirname(runtime.databasePath);
+    await rm(databaseParent, { recursive: true, force: true });
+    await writeFile(databaseParent, 'not a directory');
+    try {
+      const cli = await runRelayCli(runtime, ['task', 'list', '--output', 'json']);
+      expect(cli.exitCode).toBe(5);
+      expect(cli.json).toMatchObject({ error: { code: 'STORAGE_ERROR' } });
+      expect(cli.stderr).not.toMatch(/SQL|stack|RELAY_DB_PATH|[A-Z]:\\Users\\/i);
+
+      await expect(createMcpTestClient(runtime)).rejects.toThrow();
+    } finally {
+      await rm(databaseParent, { force: true });
       await runtime.close();
     }
   });
