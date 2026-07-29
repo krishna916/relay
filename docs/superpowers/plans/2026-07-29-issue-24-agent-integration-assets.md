@@ -55,6 +55,7 @@
 ### Task 1: Verify dependency contracts and current vendor documentation
 
 **Files:**
+
 - Read: `package.json`
 - Read: `docs/mcp-tools.md`
 - Read: `docs/cli-reference.md`
@@ -65,6 +66,7 @@
 - Create: `docs/agent-integration.md`
 
 **Interfaces:**
+
 - Consumes: built MCP entry `dist/mcp/main.js`, built CLI entry `dist/cli/main.js`, `relay_health`, `task_capture`, `task_list`, `task_get`, `task_find_similar`, `session_captures_list`, and the ten CLI task/session commands documented in `docs/cli-reference.md`.
 - Produces: a compatibility section that later vendor README files link to rather than re-state.
 
@@ -116,13 +118,21 @@ Create `docs/agent-integration.md` with these exact top-level sections:
 # Agent Integration
 
 ## Supported source-checkout model
+
 ## Compatibility verification
+
 ## Prerequisites
+
 ## Isolated validation database
+
 ## Canonical MCP and CLI entry points
+
 ## Session and provenance example
+
 ## Validation workflow
+
 ## Disable and removal semantics
+
 ## Current limitations
 ```
 
@@ -140,12 +150,14 @@ git commit -m "docs: record agent integration compatibility baseline"
 ### Task 2: Add failing integration-asset validator tests
 
 **Files:**
+
 - Create: `scripts/validate-agent-integration-assets.ts`
 - Create: `tests/unit/scripts/validate-agent-integration-assets.test.ts`
 - Create: `tests/fixtures/agent-integrations/valid/integrations/**`
 - Create: `tests/fixtures/agent-integrations/valid/docs/**`
 
 **Interfaces:**
+
 - Produces: `validateAgentIntegrationAssets(options?: { readonly rootDir?: string }): void`.
 - Consumes: canonical paths and tool names from Task 1.
 
@@ -182,7 +194,7 @@ reject invalid JSON in *.json.example after replacing the documented checkout to
 reject invalid TOML in config.toml.example after replacing the documented checkout token
 ```
 
-Use the single token `__RELAY_CHECKOUT__` for checkout substitution. It is visible, deterministic, and does not trip the repository-wide `TODO`/`TBD` placeholder check.
+Use the single token `__RELAY_CHECKOUT__` for checkout substitution. It is visible, deterministic, and does not trip the repository-wide unresolved-placeholder check.
 
 - [ ] **Step 4: Run tests and verify failure**
 
@@ -204,12 +216,14 @@ git commit -m "test: define agent integration asset validation"
 ### Task 3: Implement generic MCP and CLI assets first
 
 **Files:**
+
 - Create: `integrations/generic-mcp/server-config.json.example`
 - Create: `integrations/generic-mcp/README.md`
 - Create: `integrations/generic-cli/README.md`
 - Modify: `docs/agent-integration.md`
 
 **Interfaces:**
+
 - Consumes: `node __RELAY_CHECKOUT__/dist/mcp/main.js`, optional `RELAY_DB_PATH`, canonical MCP tool names, and CLI commands from `docs/cli-reference.md`.
 - Produces: vendor-neutral examples reused by vendor READMEs through links.
 
@@ -267,11 +281,13 @@ git commit -m "docs: add generic MCP and CLI integration assets"
 ### Task 4: Add and manually validate Codex assets
 
 **Files:**
+
 - Create: `integrations/codex/config.toml.example`
 - Create: `integrations/codex/README.md`
 - Modify: `docs/agent-integration.md`
 
 **Interfaces:**
+
 - Consumes: verified Codex syntax from Task 1, generic MCP/CLI docs from Task 3, and both canonical skills.
 - Produces: a minimal Codex-specific wrapper with no copied lifecycle policy.
 
@@ -332,11 +348,13 @@ git commit -m "docs: add verified Codex integration assets"
 ### Task 5: Add and manually validate Claude Code assets
 
 **Files:**
+
 - Create: `integrations/claude-code/.mcp.json.example`
 - Create: `integrations/claude-code/README.md`
 - Modify: `docs/agent-integration.md`
 
 **Interfaces:**
+
 - Consumes: verified Claude Code syntax from Task 1, generic MCP/CLI docs, and both canonical skills.
 - Produces: a Claude-native wrapper rather than a Codex-shaped translation.
 
@@ -377,12 +395,14 @@ git commit -m "docs: add verified Claude Code integration assets"
 ### Task 6: Implement the focused validator and aggregate wiring
 
 **Files:**
+
 - Modify: `scripts/validate-agent-integration-assets.ts`
 - Modify: `scripts/validate-repository-assets.ts`
 - Modify: `tests/unit/scripts/validate-agent-integration-assets.test.ts`
 - Modify: `tests/unit/scripts/validate-repository-assets.test.ts`
 
 **Interfaces:**
+
 - Produces: deterministic validation called by `pnpm validate:assets` through `validateRepositoryAssets()`.
 - Consumes: all integration assets from Tasks 3–5.
 
@@ -441,11 +461,13 @@ git commit -m "test: validate agent integration assets"
 ### Task 7: Add shared troubleshooting and README entry point
 
 **Files:**
+
 - Create: `docs/troubleshooting-agent-integration.md`
 - Modify: `docs/agent-integration.md`
 - Modify: `README.md`
 
 **Interfaces:**
+
 - Consumes: real build commands, database semantics, client validation evidence, and stable CLI errors.
 - Produces: one shared diagnosis guide linked from all integration READMEs.
 
@@ -455,15 +477,25 @@ Use one section per required case:
 
 ```markdown
 ## Node 24 or pnpm 10.2.0 mismatch
+
 ## Missing dist/mcp/main.js or dist/cli/main.js
+
 ## Incorrect absolute checkout path
+
 ## better-sqlite3 native installation failure
+
 ## Malformed client configuration
+
 ## MCP process exits immediately
+
 ## MCP stdout contamination
+
 ## Different RELAY_DB_PATH values
+
 ## Malformed or reused session ID
+
 ## CLI JSON parsing mistakes
+
 ## Removing an integration without deleting task data
 ```
 
@@ -498,16 +530,18 @@ git commit -m "docs: complete agent integration setup and troubleshooting"
 ### Task 8: Final verification and human review evidence
 
 **Files:**
+
 - Modify only if verification exposes a concrete defect in issue #24 assets.
 - Update: PR description with manual validation evidence and official sources.
 
 **Interfaces:**
+
 - Produces: a reviewable PR that satisfies the automated and manual acceptance gates.
 
 - [ ] **Step 1: Scan for forbidden scope and unresolved markers**
 
 ```bash
-git grep -n -E 'TODO|TBD|npm install -g|automatic.*config|doctor command|marketplace|daemon|delete.*relay\.db' -- integrations docs/agent-integration.md docs/troubleshooting-agent-integration.md
+git grep -n -E 'unresolved-placeholder|npm install -g|automatic.*config|doctor command|marketplace|daemon|delete.*relay\.db' -- integrations docs/agent-integration.md docs/troubleshooting-agent-integration.md
 ```
 
 Expected: no forbidden implementation guidance. Legitimate negative statements must be reviewed manually rather than blindly removed.
@@ -537,11 +571,17 @@ Include:
 
 ```markdown
 ## Official documentation verification
+
 ## Codex manual validation
+
 ## Claude Code manual validation
+
 ## Generic MCP/CLI validation
+
 ## Automated verification
+
 ## Known limitations
+
 ## Data-preserving removal check
 ```
 
