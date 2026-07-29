@@ -1,6 +1,7 @@
-import { stat } from 'node:fs/promises';
+import { rm, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { dirname, isAbsolute } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { createAgentTestRuntime } from '../../support/agent-test-runtime.js';
 
@@ -19,6 +20,23 @@ describe('createAgentTestRuntime', () => {
       const environment = runtime.environment({ RELAY_TEST_MARKER: 'isolated' });
       expect(environment.RELAY_DB_PATH).toBe(runtime.databasePath);
       expect(environment.RELAY_TEST_MARKER).toBe('isolated');
+    } finally {
+      await runtime.close();
+    }
+  });
+
+  it('creates the shared temporary parent when it is absent', async () => {
+    const repositoryTemporaryRoot = resolve(
+      dirname(fileURLToPath(import.meta.url)),
+      '../../..',
+      'tmp',
+    );
+    await rm(repositoryTemporaryRoot, { recursive: true, force: true });
+
+    const runtime = await createAgentTestRuntime();
+    try {
+      expect(runtime.databasePath).toContain(join('tmp', 'relay-agent-verification-'));
+      await expect(stat(dirname(runtime.databasePath))).resolves.toBeDefined();
     } finally {
       await runtime.close();
     }

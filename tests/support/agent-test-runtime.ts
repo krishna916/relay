@@ -19,7 +19,9 @@ const checkoutPath = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 export async function createAgentTestRuntime(
   options: AgentTestRuntimeOptions = {},
 ): Promise<AgentTestRuntime> {
-  const root = await mkdtemp(join(checkoutPath, 'tmp', 'relay-agent-verification-'));
+  const temporaryRoot = join(checkoutPath, 'tmp');
+  await mkdir(temporaryRoot, { recursive: true });
+  const root = await mkdtemp(join(temporaryRoot, 'relay-agent-verification-'));
   const dataDirectory = join(root, 'data');
   const workingDirectoryRoot = join(root, 'cwd');
   await Promise.all([mkdir(dataDirectory), mkdir(workingDirectoryRoot)]);
