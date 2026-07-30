@@ -21,6 +21,11 @@
     "format:check": "prettier --check .",
     "build:node": "tsup",
     "build:web": "vite build",
+    "build:mcpb:stage": "pnpm build:node && node --import tsx/esm scripts/mcpb/stage-linux-mcpb.ts",
+    "validate:mcpb": "mcpb validate .mcpb/relay",
+    "verify:mcpb:stage": "node --import tsx/esm scripts/mcpb/verify-linux-mcpb.ts",
+    "pack:mcpb": "node --import tsx/esm scripts/mcpb/pack-linux-mcpb.ts",
+    "build:mcpb": "pnpm build:mcpb:stage && pnpm validate:mcpb && pnpm verify:mcpb:stage && pnpm pack:mcpb",
     "build:clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "pnpm build:clean && pnpm build:node && pnpm build:web",
     "dev:mcp": "node --import tsx/esm src/interfaces/mcp/main.ts",
@@ -33,6 +38,7 @@
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm build && pnpm validate:assets && pnpm audit --audit-level high"
   },
   "devDependencies": {
+    "@anthropic-ai/mcpb": "2.1.2",
     "@iarna/toml": "2.2.5",
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
