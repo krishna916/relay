@@ -20,7 +20,11 @@ export interface CommandOptions {
   readonly cwd: string;
   readonly env?: NodeJS.ProcessEnv;
 }
-export type CommandRunner = (command: string, args: readonly string[], options: CommandOptions) => Promise<void>;
+export type CommandRunner = (
+  command: string,
+  args: readonly string[],
+  options: CommandOptions,
+) => Promise<void>;
 export interface StageLinuxMcpbOptions {
   readonly rootDir?: string;
   readonly platform?: NodeJS.Platform;
@@ -28,7 +32,13 @@ export interface StageLinuxMcpbOptions {
   readonly runCommand?: CommandRunner;
 }
 
-const sourceAssets = ['manifest.json', 'package.json', 'pnpm-lock.yaml', '.mcpbignore', 'NOTICE.md'];
+const sourceAssets = [
+  'manifest.json',
+  'package.json',
+  'pnpm-lock.yaml',
+  '.mcpbignore',
+  'NOTICE.md',
+];
 const prohibitedNames = new Set(['.env', '.git', '.github', 'coverage', 'tests']);
 
 function json<T>(path: string): T {
@@ -41,11 +51,19 @@ function requireText(path: string): string {
 
 export const spawnCommand: CommandRunner = (command, args, options) =>
   new Promise((resolvePromise, reject) => {
-    const child = spawn(command, args, { cwd: options.cwd, env: options.env, shell: false, stdio: 'inherit' });
+    const child = spawn(command, args, {
+      cwd: options.cwd,
+      env: options.env,
+      shell: false,
+      stdio: 'inherit',
+    });
     child.once('error', reject);
     child.once('exit', (code) => {
       if (code === 0) resolvePromise();
-      else reject(new Error(`MCPB command failed: ${command} ${args.join(' ')} (exit ${String(code)}).`));
+      else
+        reject(
+          new Error(`MCPB command failed: ${command} ${args.join(' ')} (exit ${String(code)}).`),
+        );
     });
   });
 
@@ -57,7 +75,11 @@ async function copyFile(source: string, destination: string): Promise<void> {
 async function copyMigrations(sourceDir: string, destinationDir: string): Promise<void> {
   const migrations = (await readdir(sourceDir)).filter((entry) => entry.endsWith('.sql'));
   if (migrations.length === 0) throw new Error('MCPB staging requires at least one SQL migration.');
-  await Promise.all(migrations.map((migration) => copyFile(join(sourceDir, migration), join(destinationDir, migration))));
+  await Promise.all(
+    migrations.map((migration) =>
+      copyFile(join(sourceDir, migration), join(destinationDir, migration)),
+    ),
+  );
 }
 
 async function assertSafeStageInventory(stageDir: string): Promise<void> {
@@ -87,20 +109,32 @@ export async function stageLinuxMcpb(options: StageLinuxMcpbOptions = {}): Promi
   const migrationsDir = join(rootDir, 'src', 'database', 'migrations');
   requireText(builtEntry);
   for (const asset of sourceAssets) requireText(join(paths.sourceDir, asset));
-  if (!existsSync(migrationsDir)) throw new Error(`MCPB required source path is missing: ${migrationsDir}`);
+  if (!existsSync(migrationsDir))
+    throw new Error(`MCPB required source path is missing: ${migrationsDir}`);
 
   await rm(paths.stageDir, { recursive: true, force: true });
-  await Promise.all([mkdir(join(paths.stageDir, 'server'), { recursive: true }), mkdir(join(paths.stageDir, 'src/database/migrations'), { recursive: true })]);
   await Promise.all([
-    writeFile(join(paths.stageDir, 'manifest.json'), `${JSON.stringify(createStagedManifest(sourceManifest, relay), null, 2)}\n`),
-    writeFile(join(paths.stageDir, 'package.json'), `${JSON.stringify(createStagedRuntimePackage(sourcePackage, relay), null, 2)}\n`),
+    mkdir(join(paths.stageDir, 'server'), { recursive: true }),
+    mkdir(join(paths.stageDir, 'src/database/migrations'), { recursive: true }),
+  ]);
+  await Promise.all([
+    writeFile(
+      join(paths.stageDir, 'manifest.json'),
+      `${JSON.stringify(createStagedManifest(sourceManifest, relay), null, 2)}\n`,
+    ),
+    writeFile(
+      join(paths.stageDir, 'package.json'),
+      `${JSON.stringify(createStagedRuntimePackage(sourcePackage, relay), null, 2)}\n`,
+    ),
     copyFile(join(paths.sourceDir, 'pnpm-lock.yaml'), join(paths.stageDir, 'pnpm-lock.yaml')),
     copyFile(join(paths.sourceDir, '.mcpbignore'), join(paths.stageDir, '.mcpbignore')),
     copyFile(join(paths.sourceDir, 'NOTICE.md'), join(paths.stageDir, 'NOTICE.md')),
     copyFile(builtEntry, join(paths.stageDir, 'server', 'main.js')),
     copyMigrations(migrationsDir, join(paths.stageDir, 'src/database/migrations')),
   ]);
-  await (options.runCommand ?? spawnCommand)('pnpm', ['install', '--prod', '--frozen-lockfile'], { cwd: paths.stageDir });
+  await (options.runCommand ?? spawnCommand)('pnpm', ['install', '--prod', '--frozen-lockfile'], {
+    cwd: paths.stageDir,
+  });
   await assertSafeStageInventory(paths.stageDir);
   return paths;
 }

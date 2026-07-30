@@ -1,5 +1,7 @@
 # Relay
 
+For Linux-only Claude Desktop MCPB evaluation, see [the MCPB guide](integrations/claude-desktop/README.md) and [verification record](docs/claude-desktop-mcpb-verification.md).
+
 **Testing Relay for the first time?** Follow the [source-checkout installation and usage guide](docs/source-checkout-guide.md) to clone, run, connect an AI client, and complete a safe smoke test.
 
 Agent integrations: see [setup](docs/agent-integration.md) and [troubleshooting](docs/troubleshooting-agent-integration.md).

@@ -16,12 +16,52 @@ async function fixtureRoot(): Promise<string> {
     mkdir(join(rootDir, 'integrations/claude-desktop'), { recursive: true }),
   ]);
   await Promise.all([
-    writeFile(join(rootDir, 'package.json'), JSON.stringify({ name: 'relay', version: '0.1.0', engines: { node: '>=24 <25' }, dependencies: { '@modelcontextprotocol/sdk': '1.29.0', 'better-sqlite3': '13.0.1', zod: '4.4.3' } })),
+    writeFile(
+      join(rootDir, 'package.json'),
+      JSON.stringify({
+        name: 'relay',
+        version: '0.1.0',
+        engines: { node: '>=24 <25' },
+        dependencies: {
+          '@modelcontextprotocol/sdk': '1.29.0',
+          'better-sqlite3': '13.0.1',
+          zod: '4.4.3',
+        },
+      }),
+    ),
     writeFile(join(rootDir, 'dist/mcp/main.js'), 'process.exit(0);'),
     writeFile(join(rootDir, 'src/database/migrations/0001_create_tasks.sql'), 'select 1;'),
-    writeFile(join(rootDir, 'integrations/claude-desktop/manifest.json'), JSON.stringify({ manifest_version: '0.3', name: 'relay', version: '0.1.0', server: { type: 'node', entry_point: 'server/main.js', mcp_config: { command: 'node', args: ['${__dirname}/server/main.js'], env: {} } } })),
-    writeFile(join(rootDir, 'integrations/claude-desktop/package.json'), JSON.stringify({ name: 'relay', version: '0.1.0', type: 'module', engines: { node: '>=24 <25' }, dependencies: { '@modelcontextprotocol/sdk': '1.29.0', 'better-sqlite3': '13.0.1', zod: '4.4.3' } })),
-    writeFile(join(rootDir, 'integrations/claude-desktop/pnpm-lock.yaml'), 'lockfileVersion: "9.0"\n'),
+    writeFile(
+      join(rootDir, 'integrations/claude-desktop/manifest.json'),
+      JSON.stringify({
+        manifest_version: '0.3',
+        name: 'relay',
+        version: '0.1.0',
+        server: {
+          type: 'node',
+          entry_point: 'server/main.js',
+          mcp_config: { command: 'node', args: ['${__dirname}/server/main.js'], env: {} },
+        },
+      }),
+    ),
+    writeFile(
+      join(rootDir, 'integrations/claude-desktop/package.json'),
+      JSON.stringify({
+        name: 'relay',
+        version: '0.1.0',
+        type: 'module',
+        engines: { node: '>=24 <25' },
+        dependencies: {
+          '@modelcontextprotocol/sdk': '1.29.0',
+          'better-sqlite3': '13.0.1',
+          zod: '4.4.3',
+        },
+      }),
+    ),
+    writeFile(
+      join(rootDir, 'integrations/claude-desktop/pnpm-lock.yaml'),
+      'lockfileVersion: "9.0"\n',
+    ),
     writeFile(join(rootDir, 'integrations/claude-desktop/.mcpbignore'), '*.db\n'),
     writeFile(join(rootDir, 'integrations/claude-desktop/NOTICE.md'), '# notice\n'),
   ]);
@@ -29,7 +69,13 @@ async function fixtureRoot(): Promise<string> {
 }
 
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map(async (root) => (await import('node:fs/promises')).rm(root, { recursive: true, force: true })));
+  await Promise.all(
+    roots
+      .splice(0)
+      .map(async (root) =>
+        (await import('node:fs/promises')).rm(root, { recursive: true, force: true }),
+      ),
+  );
 });
 
 describe('stageLinuxMcpb', () => {
@@ -39,17 +85,41 @@ describe('stageLinuxMcpb', () => {
     const result = await stageLinuxMcpb({ rootDir, platform: 'linux', arch: 'x64', runCommand });
     const files = await readdir(result.stageDir, { recursive: true });
 
-    expect(files).toEqual(expect.arrayContaining(['manifest.json', 'package.json', 'pnpm-lock.yaml', '.mcpbignore', 'NOTICE.md', 'server', 'src']));
-    expect(await readFile(join(result.stageDir, 'server/main.js'), 'utf8')).toContain('process.exit');
-    expect(runCommand).toHaveBeenCalledWith('pnpm', ['install', '--prod', '--frozen-lockfile'], expect.objectContaining({ cwd: result.stageDir }));
+    expect(files).toEqual(
+      expect.arrayContaining([
+        'manifest.json',
+        'package.json',
+        'pnpm-lock.yaml',
+        '.mcpbignore',
+        'NOTICE.md',
+        'server',
+        'src',
+      ]),
+    );
+    expect(await readFile(join(result.stageDir, 'server/main.js'), 'utf8')).toContain(
+      'process.exit',
+    );
+    expect(runCommand).toHaveBeenCalledWith(
+      'pnpm',
+      ['install', '--prod', '--frozen-lockfile'],
+      expect.objectContaining({ cwd: result.stageDir }),
+    );
   });
 
   it('cleans stale staging content without touching artifacts', async () => {
     const rootDir = await fixtureRoot();
     await mkdir(join(rootDir, '.mcpb/relay'), { recursive: true });
     await mkdir(join(rootDir, 'artifacts'), { recursive: true });
-    await Promise.all([writeFile(join(rootDir, '.mcpb/relay/stale.txt'), 'stale'), writeFile(join(rootDir, 'artifacts/keep.txt'), 'keep')]);
-    await stageLinuxMcpb({ rootDir, platform: 'linux', arch: 'x64', runCommand: async () => undefined });
+    await Promise.all([
+      writeFile(join(rootDir, '.mcpb/relay/stale.txt'), 'stale'),
+      writeFile(join(rootDir, 'artifacts/keep.txt'), 'keep'),
+    ]);
+    await stageLinuxMcpb({
+      rootDir,
+      platform: 'linux',
+      arch: 'x64',
+      runCommand: async () => undefined,
+    });
 
     await expect(readFile(join(rootDir, '.mcpb/relay/stale.txt'))).rejects.toThrow();
     await expect(readFile(join(rootDir, 'artifacts/keep.txt'), 'utf8')).resolves.toBe('keep');
@@ -57,6 +127,8 @@ describe('stageLinuxMcpb', () => {
 
   it('rejects non-Linux targets before mutation', async () => {
     const rootDir = await fixtureRoot();
-    await expect(stageLinuxMcpb({ rootDir, platform: 'win32' })).rejects.toThrow(/Current platform: win32/);
+    await expect(stageLinuxMcpb({ rootDir, platform: 'win32' })).rejects.toThrow(
+      /Current platform: win32/,
+    );
   });
 });

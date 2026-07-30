@@ -61,12 +61,18 @@ export function readRelayPackageMetadata(rootDir: string): RelayPackageMetadata 
     engines?: { node?: string };
   }>(join(resolve(rootDir), 'package.json'));
   if (packageJson.name !== 'relay') {
-    throw new Error(`MCPB packaging requires root package name relay; received ${String(packageJson.name)}.`);
+    throw new Error(
+      `MCPB packaging requires root package name relay; received ${String(packageJson.name)}.`,
+    );
   }
   if (!packageJson.version || !packageJson.engines?.node) {
     throw new Error('MCPB packaging requires a root version and Node engine.');
   }
-  return { name: packageJson.name, version: packageJson.version, nodeEngine: packageJson.engines.node };
+  return {
+    name: packageJson.name,
+    version: packageJson.version,
+    nodeEngine: packageJson.engines.node,
+  };
 }
 
 export function resolveLinuxMcpbPaths(
@@ -75,7 +81,9 @@ export function resolveLinuxMcpbPaths(
   version = readRelayPackageMetadata(rootDir).version,
 ): LinuxMcpbPaths {
   if (!supportedArchitectures.includes(arch as (typeof supportedArchitectures)[number])) {
-    throw new Error(`Unsupported Linux MCPB architecture: ${arch}. Supported architectures: x64, arm64.`);
+    throw new Error(
+      `Unsupported Linux MCPB architecture: ${arch}. Supported architectures: x64, arm64.`,
+    );
   }
   const resolvedRoot = resolve(rootDir);
   const sourceDir = join(resolvedRoot, 'integrations', 'claude-desktop');
@@ -138,14 +146,19 @@ export function assertRuntimeDependencyParity(
   for (const dependency of runtimeDependencies) {
     const rootVersion = rootPackage.dependencies[dependency];
     const runtimeVersion = runtimePackage.dependencies[dependency];
-    if (!rootVersion || !runtimeVersion || resolvedVersion(rootVersion) !== resolvedVersion(runtimeVersion)) {
+    if (
+      !rootVersion ||
+      !runtimeVersion ||
+      resolvedVersion(rootVersion) !== resolvedVersion(runtimeVersion)
+    ) {
       throw new Error(
         `MCPB runtime dependency ${dependency} must match the root resolved version ${resolvedVersion(rootVersion ?? 'missing')}.`,
       );
     }
   }
   const extras = Object.keys(runtimePackage.dependencies).filter(
-    (dependency) => !runtimeDependencies.includes(dependency as (typeof runtimeDependencies)[number]),
+    (dependency) =>
+      !runtimeDependencies.includes(dependency as (typeof runtimeDependencies)[number]),
   );
   if (extras.length > 0) {
     throw new Error(`MCPB runtime package contains unsupported dependency: ${extras[0]}.`);

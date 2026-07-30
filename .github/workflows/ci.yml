@@ -30,3 +30,6 @@ jobs:
 
       - name: Run verification gate
         run: pnpm verify
+
+      - name: Build and verify Linux MCPB
+        run: pnpm build:mcpb

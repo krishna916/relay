@@ -16,25 +16,21 @@ Windows implementation environment. Linux runtime testing was unavailable.
 
 The staged bundle is designed to include the canonical `dist/mcp/main.js`, package metadata, migrations, and production dependencies only. Durable SQLite data remains outside the extension directory through Relay's existing data-path resolution and `RELAY_DB_PATH` override.
 
-## Automated verification
+## Windows implementation verification
 
-Platform-independent tests are pending implementation and execution in this checkout.
+Platform-independent model, staging, source-asset, and command-orchestration tests run on Windows. The Linux-only commands reject `win32` before staging production dependencies, generating an artifact, or altering repository output.
 
-## Claude Desktop installation
+## Linux native build verification
 
-Not executed; pending a supported Linux environment.
+Not executed; pending a supported Linux environment. In particular, `better-sqlite3` loading, Node ABI compatibility, libc compatibility, migrations from the staged bundle, and staged stdio startup are unverified.
 
-## Tool and workflow verification
+## Claude Desktop Linux verification
 
-Not executed from a Linux staged package; pending a supported Linux environment.
+Not executed; pending a supported Linux environment and an installed Claude Desktop client.
 
-## Restart and update verification
+## Pending evidence
 
-Not executed; pending a supported Linux environment.
-
-## Disable and removal verification
-
-Not executed; pending a supported Linux environment.
+The Linux build, MCPB validation and packing, staged native runtime verification, Claude Desktop installation, tool discovery, capture and session retrieval, explicit mutation, restart, update, disable, and removal data-retention checks remain pending.
 
 ## Failures and limitations
 

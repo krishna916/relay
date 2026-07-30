@@ -13,6 +13,7 @@ import {
   type RootPackage,
   type RuntimePackage,
 } from '../../../../scripts/mcpb/model.js';
+import { createPackCommands } from '../../../../scripts/mcpb/pack-linux-mcpb.js';
 
 const sourceManifest: McpbManifest = {
   manifest_version: '0.3',
@@ -97,7 +98,9 @@ describe('Linux MCPB package model', () => {
   });
 
   it('rejects unsupported architectures', () => {
-    expect(() => resolveLinuxMcpbPaths('/repo', 'ia32', '0.1.0')).toThrow(/Unsupported Linux MCPB architecture/);
+    expect(() => resolveLinuxMcpbPaths('/repo', 'ia32', '0.1.0')).toThrow(
+      /Unsupported Linux MCPB architecture/,
+    );
   });
 
   it('rejects dependency drift and React runtime dependencies', () => {
@@ -106,12 +109,23 @@ describe('Linux MCPB package model', () => {
         ...sourceRuntimePackage,
         dependencies: { ...sourceRuntimePackage.dependencies, 'better-sqlite3': '13.0.0' },
       }),
-    ).toThrow('MCPB runtime dependency better-sqlite3 must match the root resolved version 13.0.1.');
+    ).toThrow(
+      'MCPB runtime dependency better-sqlite3 must match the root resolved version 13.0.1.',
+    );
     expect(() =>
       assertRuntimeDependencyParity(rootPackage, {
         ...sourceRuntimePackage,
         dependencies: { ...sourceRuntimePackage.dependencies, react: '19.2.8' },
       }),
     ).toThrow(/must not include React/);
+  });
+
+  it('constructs deterministic MCPB CLI commands', () => {
+    const paths = resolveLinuxMcpbPaths(resolve('repo'), 'x64', '0.1.0');
+    expect(createPackCommands(paths)).toEqual([
+      { command: 'mcpb', args: ['validate', paths.stageDir] },
+      { command: 'mcpb', args: ['pack', paths.stageDir, paths.artifactPath] },
+      { command: 'mcpb', args: ['info', paths.artifactPath] },
+    ]);
   });
 });

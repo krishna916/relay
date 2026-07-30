@@ -153,6 +153,13 @@ function createFixtureRoot(): string {
   mkdirSync(join(rootDir, 'dist/cli'), { recursive: true });
   writeFileSync(join(rootDir, 'dist/cli/main.js'), 'console.log("ok");\n');
 
+  cpSync(join(process.cwd(), 'package.json'), join(rootDir, 'package.json'));
+  cpSync(
+    join(process.cwd(), 'integrations/claude-desktop'),
+    join(rootDir, 'integrations/claude-desktop'),
+    { recursive: true },
+  );
+
   return rootDir;
 }
 
