@@ -8,6 +8,11 @@
     "node": ">=24 <25"
   },
   "packageManager": "pnpm@10.2.0",
+  "pnpm": {
+    "overrides": {
+      "tmp": "0.2.7"
+    }
+  },
   "bin": {
     "relay": "./dist/cli/main.js",
     "relay-mcp": "./dist/mcp/main.js"
