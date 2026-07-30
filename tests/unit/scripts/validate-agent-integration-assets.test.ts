@@ -12,6 +12,7 @@ describe('validateAgentIntegrationAssets', () => {
   function createRoot(): string {
     const rootDir = mkdtempSync(join(tmpdir(), 'relay-agent-integration-assets-'));
     cpSync(fixtureRoot, rootDir, { recursive: true });
+    cpSync(join(process.cwd(), 'skills'), join(rootDir, 'skills'), { recursive: true });
     roots.push(rootDir);
     return rootDir;
   }
@@ -225,5 +226,141 @@ describe('validateAgentIntegrationAssets', () => {
     writeFileSync(path, `${readFileSync(path, 'utf8')} Use relay mcp now.`);
 
     expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/future-only/i);
+  });
+
+  it('rejects a canonical capture skill without autonomous-create permission', () => {
+    const rootDir = createRoot();
+    const path = join(rootDir, 'skills/relay-capture/SKILL.md');
+    writeFileSync(
+      path,
+      readFileSync(path, 'utf8').replace('autonomously create only', 'may create only'),
+    );
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(
+      /canonical capture.*autonom/i,
+    );
+  });
+
+  it('rejects a canonical capture skill that permits lifecycle mutation', () => {
+    const rootDir = createRoot();
+    const path = join(rootDir, 'skills/relay-capture/SKILL.md');
+    writeFileSync(
+      path,
+      readFileSync(path, 'utf8').replace(
+        'It must not edit, triage, start, complete, archive, delete, merge, or move any task',
+        'It may edit, triage, start, complete, archive, delete, merge, or move any task',
+      ),
+    );
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(
+      /canonical capture.*lifecycle/i,
+    );
+  });
+
+  it('rejects a canonical session-review skill that omits completed and archived captures', () => {
+    const rootDir = createRoot();
+    const path = join(rootDir, 'skills/relay-session-review/SKILL.md');
+    writeFileSync(
+      path,
+      readFileSync(path, 'utf8').replace('completed and archived captures', 'INBOX tasks'),
+    );
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/session-review.*status/i);
+  });
+
+  it('rejects a canonical session-review skill without explicit user-action guidance', () => {
+    const rootDir = createRoot();
+    const path = join(rootDir, 'skills/relay-session-review/SKILL.md');
+    writeFileSync(
+      path,
+      readFileSync(path, 'utf8').replaceAll('explicit user direction', 'automatic action'),
+    );
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/session-review.*explicit/i);
+  });
+
+  it('rejects a vendor wrapper that copies mutation autonomy policy', () => {
+    const rootDir = createRoot();
+    const path = join(rootDir, 'integrations/generic-cli/README.md');
+    writeFileSync(
+      path,
+      `${readFileSync(path, 'utf8')}\n## Autonomy boundaries\nThe agent may autonomously edit and archive tasks.`,
+    );
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(
+      /vendor.*policy|behavioural policy/i,
+    );
+  });
+
+  it('accepts vendor guidance that explicitly prohibits autonomous edits', () => {
+    const rootDir = createRoot();
+    const path = join(rootDir, 'integrations/generic-cli/README.md');
+    writeFileSync(
+      path,
+      `${readFileSync(path, 'utf8')}\nThe agent must not autonomously edit tasks.`,
+    );
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).not.toThrow();
+  });
+
+  it('rejects a vendor wrapper without both canonical skill references', () => {
+    const rootDir = createRoot();
+    const path = join(rootDir, 'integrations/generic-mcp/README.md');
+    writeFileSync(
+      path,
+      readFileSync(path, 'utf8').replace('skills/relay-session-review/SKILL.md', ''),
+    );
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/generic-mcp.*skill/i);
+  });
+
+  it('rejects a configuration template that points at a non-canonical MCP entry', () => {
+    const rootDir = createRoot();
+    const path = join(rootDir, 'integrations/generic-mcp/server-config.json.example');
+    writeFileSync(
+      path,
+      readFileSync(path, 'utf8').replace('dist/mcp/main.js', 'dist/other-mcp.js'),
+    );
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(
+      /canonical.*dist\/mcp\/main\.js/i,
+    );
+  });
+
+  it('rejects removal guidance that deletes the SQLite database', () => {
+    const rootDir = createRoot();
+    const path = join(rootDir, 'integrations/generic-cli/README.md');
+    writeFileSync(
+      path,
+      `${readFileSync(path, 'utf8')} Remove the SQLite database when disabling Relay.`,
+    );
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(
+      /removal.*database|destructive/i,
+    );
+  });
+
+  it('accepts removal guidance that explicitly prohibits deleting the SQLite database', () => {
+    const rootDir = createRoot();
+    const path = join(rootDir, 'integrations/generic-cli/README.md');
+    writeFileSync(path, `${readFileSync(path, 'utf8')}\nDo not delete the SQLite database.`);
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).not.toThrow();
+  });
+
+  it('rejects removal guidance that does not distinguish configuration from stored data', () => {
+    const rootDir = createRoot();
+    const path = join(rootDir, 'integrations/generic-cli/README.md');
+    writeFileSync(
+      path,
+      readFileSync(path, 'utf8').replace(
+        'SQLite database remains untouched',
+        'Relay data may be deleted',
+      ),
+    );
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(
+      /removal.*configuration|database remains/i,
+    );
   });
 });

@@ -13,8 +13,8 @@
     "relay-mcp": "./dist/mcp/main.js"
   },
   "scripts": {
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
+    "test": "pnpm build:node && vitest run",
+    "test:coverage": "pnpm build:node && vitest run --coverage",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --build --noEmit",
     "format": "prettier --write .",
