@@ -15,14 +15,14 @@ Branch: `feature/issue-36-linux-mcpb`
 
 ## Evidence log
 
-| Task | Status   | Evidence                                                               |
-| ---- | -------- | ---------------------------------------------------------------------- |
-| 1    | Complete | Plan formatted; unchanged baseline formatting remains outside this PR. |
-| 2    | Complete | Staged suite is opt-in and CI order is explicit.                       |
-| 3    | Complete | Real stderr capture and raw startup-failure probe implemented.         |
+| Task | Status   | Evidence                                                                                                              |
+| ---- | -------- | --------------------------------------------------------------------------------------------------------------------- |
+| 1    | Complete | Plan formatted; unchanged baseline formatting remains outside this PR.                                                |
+| 2    | Complete | Staged suite is opt-in and CI order is explicit.                                                                      |
+| 3    | Complete | Real stderr capture and raw startup-failure probe implemented.                                                        |
 | 4    | Complete | Build, lint, typecheck, and asset validation pass; audit and coverage limitations recorded; guard produced no output. |
-| 5    | Pending  |                                                                        |
-| 6    | Pending  |                                                                        |
+| 5    | Pending  |                                                                                                                       |
+| 6    | Pending  |                                                                                                                       |
 
 ## Fixed constraints
 
