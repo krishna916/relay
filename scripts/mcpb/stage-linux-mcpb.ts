@@ -82,6 +82,15 @@ async function copyMigrations(sourceDir: string, destinationDir: string): Promis
   );
 }
 
+async function copyMcpRuntimeChunks(distDir: string, stageDir: string): Promise<void> {
+  const chunks = (await readdir(distDir, { withFileTypes: true })).filter(
+    (entry) => entry.isFile() && entry.name.startsWith('chunk-') && entry.name.endsWith('.js'),
+  );
+  await Promise.all(
+    chunks.map((chunk) => copyFile(join(distDir, chunk.name), join(stageDir, chunk.name))),
+  );
+}
+
 async function assertSafeStageInventory(stageDir: string): Promise<void> {
   const visit = async (directory: string): Promise<void> => {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -130,6 +139,7 @@ export async function stageLinuxMcpb(options: StageLinuxMcpbOptions = {}): Promi
     copyFile(join(paths.sourceDir, '.mcpbignore'), join(paths.stageDir, '.mcpbignore')),
     copyFile(join(paths.sourceDir, 'NOTICE.md'), join(paths.stageDir, 'NOTICE.md')),
     copyFile(builtEntry, join(paths.stageDir, 'server', 'main.js')),
+    copyMcpRuntimeChunks(join(rootDir, 'dist'), paths.stageDir),
     copyMigrations(migrationsDir, join(paths.stageDir, 'src/database/migrations')),
   ]);
   await (options.runCommand ?? spawnCommand)(

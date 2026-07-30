@@ -34,6 +34,7 @@ async function fixtureRoot(): Promise<string> {
       "importers:\n\n  .:\n    dependencies:\n      '@modelcontextprotocol/sdk':\n        specifier: ^1.29.0\n        version: 1.29.0\n      better-sqlite3:\n        specifier: ^13.0.1\n        version: 13.0.1\n      zod:\n        specifier: ^4.4.3\n        version: 4.4.3\npackages:\n",
     ),
     writeFile(join(rootDir, 'dist/mcp/main.js'), 'process.exit(0);'),
+    writeFile(join(rootDir, 'dist/chunk-runtime.js'), 'export const runtime = true;'),
     writeFile(join(rootDir, 'src/database/migrations/0001_create_tasks.sql'), 'select 1;'),
     writeFile(
       join(rootDir, 'integrations/claude-desktop/manifest.json'),
@@ -103,6 +104,7 @@ describe('stageLinuxMcpb', () => {
     expect(await readFile(join(result.stageDir, 'server/main.js'), 'utf8')).toContain(
       'process.exit',
     );
+    expect(await readFile(join(result.stageDir, 'chunk-runtime.js'), 'utf8')).toContain('runtime');
     expect(runCommand).toHaveBeenCalledWith(
       'pnpm',
       ['install', '--prod', '--frozen-lockfile', '--ignore-workspace'],
