@@ -1,10 +1,12 @@
 # Relay
 
+**Testing Relay for the first time?** Follow the [source-checkout installation and usage guide](docs/source-checkout-guide.md) to clone, run, connect an AI client, and complete a safe smoke test.
+
 Agent integrations: see [setup](docs/agent-integration.md) and [troubleshooting](docs/troubleshooting-agent-integration.md).
 
 The approved agent-integration contract is documented in the [decision record](docs/decisions/0002-agent-integration-contracts.md), [MCP tool reference](docs/mcp-tools.md), [CLI reference](docs/cli-reference.md), and [session semantics](docs/session-semantics.md). The production MCP task tools and source-checkout CLI are shipped.
 
-Relay is a local task sidecar for humanâ€“AI workflows. The current MVP is usable through its local web UI and through five safe local stdio MCP task tools.
+Relay is a local task sidecar for human–AI workflows. The current MVP is usable through its local web UI and through five safe local stdio MCP task tools.
 
 ## Agent skills
 
@@ -58,7 +60,7 @@ RELAY_DB_PATH=/tmp/relay.db node /absolute/path/to/relay/dist/cli/main.js task l
 
 The CLI calls `TaskApplication` directly; it does not start HTTP or MCP processes. Its JSON envelope is authoritative: stdout contains one JSON document and newline, success writes no stderr, and failures also print one human-readable diagnostic to stderr. See the [CLI reference](docs/cli-reference.md) for all commands and stable exit codes.
 
-It exposes five task toolsâ€”`task_capture`, `task_list`, `task_get`, `task_find_similar`, and `session_captures_list`â€”plus the separate `relay_health` tool. MCP task results use structured schema-versioned payloads; capture records AGENT provenance and reports possible duplicates as advisory warnings.
+It exposes five task tools—`task_capture`, `task_list`, `task_get`, `task_find_similar`, and `session_captures_list`—plus the separate `relay_health` tool. MCP task results use structured schema-versioned payloads; capture records AGENT provenance and reports possible duplicates as advisory warnings.
 
 ## Database and safe development data
 
