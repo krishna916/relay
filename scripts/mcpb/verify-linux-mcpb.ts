@@ -5,11 +5,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import {
-  assertLinuxBuildTarget,
-  readRelayPackageMetadata,
-  resolveLinuxMcpbPaths,
-} from './model.js';
+import { assertLinuxBuildTarget, resolveLinuxMcpbPaths } from './model.js';
 
 export interface VerifyLinuxMcpbStageOptions {
   readonly rootDir?: string;
