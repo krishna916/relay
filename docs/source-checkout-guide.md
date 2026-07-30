@@ -44,29 +44,38 @@ corepack enable
 nvm use
 pnpm install --frozen-lockfile
 pnpm build
-pnpm link --global
+pnpm link
 ```
 
 If you use `fnm`, `asdf`, Volta, or another version manager, select Node 24 before running `pnpm install`.
 
-Confirm that both linked commands are available:
+With pnpm 10, running `pnpm link` from a package checkout registers that package and its `bin` commands globally.
+
+Confirm that both commands are available.
+
+### macOS or Linux
 
 ```bash
-relay --help
-relay-mcp --help
+command -v relay
+command -v relay-mcp
 ```
 
-`relay-mcp` is a stdio server, so some terminals may leave it waiting for MCP input rather than printing conventional help. Press `Ctrl+C` after confirming the command starts without a command-not-found error.
+### Windows PowerShell
+
+```powershell
+Get-Command relay
+Get-Command relay-mcp
+```
 
 The global link points back to this checkout. It does not copy Relay into a separate installation directory.
 
-If your shell cannot find the commands, ensure the pnpm global binary directory is on `PATH`:
+If your shell cannot find the commands, inspect the pnpm global binary directory:
 
 ```bash
 pnpm bin --global
 ```
 
-Restart the terminal after changing `PATH`.
+Ensure that directory is on `PATH`, then restart the terminal and AI client.
 
 ## 2. Choose the database
 
@@ -293,7 +302,7 @@ pnpm install --frozen-lockfile
 pnpm build
 ```
 
-The global link continues pointing to the same checkout, so `pnpm link --global` normally does not need to be repeated.
+The global link continues pointing to the same checkout, so `pnpm link` normally does not need to be repeated.
 
 Restart the UI and AI client after rebuilding.
 
@@ -315,19 +324,13 @@ These actions disable agent integration but leave the SQLite database and global
 
 ### Remove the global source link
 
-From the Relay checkout:
+Run:
 
 ```bash
-pnpm unlink --global relay
+pnpm uninstall --global relay
 ```
 
-Depending on the installed pnpm version, `pnpm unlink --global` from the checkout may be the accepted equivalent. Confirm removal with:
-
-```bash
-relay --help
-```
-
-A command-not-found result confirms the link is no longer available.
+Confirm that the commands are no longer resolvable with `command -v` on macOS/Linux or `Get-Command` in PowerShell.
 
 Unlinking does not delete the checkout or SQLite database.
 
@@ -351,7 +354,7 @@ This fallback is reliable because MCP clients do not guarantee that their workin
 
 ## Troubleshooting
 
-- **`relay` or `relay-mcp` is not found:** run `pnpm link --global`, inspect `pnpm bin --global`, ensure that directory is on `PATH`, and restart the terminal or client.
+- **`relay` or `relay-mcp` is not found:** run `pnpm link` from the Relay checkout, inspect `pnpm bin --global`, ensure that directory is on `PATH`, and restart the terminal or client.
 - **MCP server is missing:** rebuild with `pnpm build`, restart the client, and inspect its MCP server list.
 - **Agent and UI show different tasks:** either remove `RELAY_DB_PATH` from both, or ensure both use the exact same isolated path.
 - **Database cannot be opened:** use an absolute path in a directory your operating-system account can create and write to.
