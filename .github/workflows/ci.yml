@@ -37,7 +37,7 @@ jobs:
       - name: Run staged Linux MCPB integration tests
         env:
           RELAY_RUN_MCPB_STAGE_TESTS: '1'
-        run: pnpm exec vitest run tests/integration/mcpb-stage.test.ts
+        run: pnpm test:mcpb:stage
 
       - name: Validate staged Linux MCPB
         run: pnpm validate:mcpb

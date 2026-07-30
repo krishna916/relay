@@ -20,6 +20,7 @@
   "scripts": {
     "test": "pnpm build:node && vitest run",
     "test:coverage": "pnpm build:node && vitest run --coverage",
+    "test:mcpb:stage": "vitest run tests/integration/mcpb-stage.test.ts",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --build --noEmit",
     "format": "prettier --write .",
