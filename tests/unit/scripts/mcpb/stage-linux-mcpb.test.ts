@@ -105,7 +105,7 @@ describe('stageLinuxMcpb', () => {
     );
     expect(runCommand).toHaveBeenCalledWith(
       'pnpm',
-      ['install', '--prod', '--frozen-lockfile'],
+      ['install', '--prod', '--frozen-lockfile', '--ignore-workspace'],
       expect.objectContaining({ cwd: result.stageDir }),
     );
   });

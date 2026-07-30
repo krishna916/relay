@@ -132,9 +132,13 @@ export async function stageLinuxMcpb(options: StageLinuxMcpbOptions = {}): Promi
     copyFile(builtEntry, join(paths.stageDir, 'server', 'main.js')),
     copyMigrations(migrationsDir, join(paths.stageDir, 'src/database/migrations')),
   ]);
-  await (options.runCommand ?? spawnCommand)('pnpm', ['install', '--prod', '--frozen-lockfile'], {
-    cwd: paths.stageDir,
-  });
+  await (options.runCommand ?? spawnCommand)(
+    'pnpm',
+    ['install', '--prod', '--frozen-lockfile', '--ignore-workspace'],
+    {
+      cwd: paths.stageDir,
+    },
+  );
   await assertSafeStageInventory(paths.stageDir);
   return paths;
 }
