@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -43,6 +43,7 @@ export async function verifyLinuxMcpbStage(
   const temporaryRoot = await mkdtemp(join(tmpdir(), 'relay-mcpb-verify-'));
   const databasePath = join(temporaryRoot, 'data', 'relay.db');
   const cwd = join(temporaryRoot, 'cwd');
+  await mkdir(cwd, { recursive: true });
   const transport = new StdioClientTransport({
     command: 'node',
     args: [serverPath],

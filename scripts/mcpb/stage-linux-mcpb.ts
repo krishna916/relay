@@ -8,11 +8,11 @@ import {
   assertRuntimeDependencyParity,
   createStagedManifest,
   createStagedRuntimePackage,
+  readLockedRuntimeDependencies,
   readRelayPackageMetadata,
   resolveLinuxMcpbPaths,
   type LinuxMcpbPaths,
   type McpbManifest,
-  type RootPackage,
   type RuntimePackage,
 } from './model.js';
 
@@ -100,7 +100,7 @@ export async function stageLinuxMcpb(options: StageLinuxMcpbOptions = {}): Promi
   assertLinuxBuildTarget(options.platform);
   const relay = readRelayPackageMetadata(rootDir);
   const paths = resolveLinuxMcpbPaths(rootDir, options.arch, relay.version);
-  const rootPackage = json<RootPackage>(join(rootDir, 'package.json'));
+  const rootPackage = readLockedRuntimeDependencies(rootDir);
   const sourceManifest = json<McpbManifest>(join(paths.sourceDir, 'manifest.json'));
   const sourcePackage = json<RuntimePackage>(join(paths.sourceDir, 'package.json'));
   assertRuntimeDependencyParity(rootPackage, sourcePackage);

@@ -43,3 +43,8 @@ it('rejects a non-Linux manifest', () => {
   );
   expect(() => validateMcpbAssets({ rootDir: root })).toThrow(/platforms/);
 });
+it('rejects prohibited source secrets', () => {
+  const root = fixture();
+  writeFileSync(join(root, 'integrations/claude-desktop/.env'), 'TOKEN=secret\n');
+  expect(() => validateMcpbAssets({ rootDir: root })).toThrow(/Prohibited MCPB source path/);
+});

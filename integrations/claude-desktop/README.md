@@ -14,8 +14,12 @@ In Claude Desktop, open Settings → Extensions → Advanced settings → Extens
 
 Fully quit and restart Claude Desktop, then repeat retrieval. For a local update, build a deliberately incremented test version and use the supported custom-extension update flow. Record the tested Linux distribution, architecture, Claude Desktop version, and any Node ABI information in the verification record.
 
+Use session ID `claude-desktop-mcpb-20260730-001`, capture `Verify Relay Linux MCPB persistence`, retrieve that exact session, then explicitly direct `task_triage` to move the captured task to `ACTIVE`. Confirm the same task and session remain available after restart and an incremented local bundle update.
+
 ## Data safety and troubleshooting
 
 Relay durable data stays in its normal Linux location or the explicit `RELAY_DB_PATH`; it must never be placed in Claude's unpacked extension directory. Disabling or removing the extension does not delete the Relay database.
+
+Use Claude Desktop's extension controls to disable or remove the extension only. Do not delete the database. After removal, run the built Relay CLI with the recorded absolute `RELAY_DB_PATH` and task ID to verify that the retained task remains `ACTIVE`.
 
 Inspect Claude extension logs for startup diagnostics. If Claude's hosted Node runtime does not meet Relay's `>=24 <25` requirement, or `better-sqlite3` cannot load for its Node ABI and Linux libc, stop and record the failure. Do not claim compatibility or lower the Node requirement without review.

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 export interface ValidateMcpbAssetsOptions {
@@ -10,6 +10,22 @@ function fail(message: string): never {
 }
 function json<T>(path: string): T {
   return JSON.parse(readFileSync(path, 'utf8')) as T;
+}
+function validateSourceInventory(root: string, directory = root): void {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const relative = join(directory.slice(root.length + 1), entry.name).replaceAll('\\', '/');
+    if (entry.isDirectory()) {
+      if (['tests', 'coverage', '.git', '.github', 'node_modules'].includes(entry.name))
+        fail(`Prohibited MCPB source directory: ${relative}`);
+      validateSourceInventory(root, join(directory, entry.name));
+    } else if (
+      entry.name === '.env' ||
+      entry.name.startsWith('.env.') ||
+      /\.(?:db|db-wal|db-shm|log|map)$/i.test(entry.name)
+    ) {
+      fail(`Prohibited MCPB source path: ${relative}`);
+    }
+  }
 }
 
 export function validateMcpbAssets(options: ValidateMcpbAssetsOptions = {}): void {
@@ -24,6 +40,7 @@ export function validateMcpbAssets(options: ValidateMcpbAssetsOptions = {}): voi
     'README.md',
   ])
     if (!existsSync(join(sourceDir, file))) fail(`Required MCPB asset missing: ${file}`);
+  validateSourceInventory(sourceDir);
   const root = json<{
     version?: string;
     engines?: { node?: string };

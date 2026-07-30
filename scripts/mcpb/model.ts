@@ -75,6 +75,27 @@ export function readRelayPackageMetadata(rootDir: string): RelayPackageMetadata 
   };
 }
 
+/** Reads the pnpm importer resolutions rather than package.json semver ranges. */
+export function readLockedRuntimeDependencies(rootDir: string): RootPackage {
+  const lockfile = readFileSync(join(resolve(rootDir), 'pnpm-lock.yaml'), 'utf8');
+  const importer = lockfile.match(/^importers:\r?\n  \.:\r?\n([\s\S]*?)^packages:/m)?.[1];
+  if (!importer) throw new Error('MCPB packaging could not read the root pnpm lockfile importer.');
+  const dependencies: Record<string, string> = {};
+  for (const dependency of runtimeDependencies) {
+    const escaped = dependency.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const value = importer.match(
+      new RegExp(
+        `^      ['"]?${escaped}['"]?:\\r?\\n(?:        .*\\r?\\n){0,2}        version: ([^\\r\\n]+)`,
+        'm',
+      ),
+    )?.[1];
+    if (!value)
+      throw new Error(`MCPB packaging could not resolve ${dependency} from pnpm-lock.yaml.`);
+    dependencies[dependency] = value.split('(')[0] ?? value;
+  }
+  return { dependencies };
+}
+
 export function resolveLinuxMcpbPaths(
   rootDir: string,
   arch: NodeJS.Architecture = process.arch,

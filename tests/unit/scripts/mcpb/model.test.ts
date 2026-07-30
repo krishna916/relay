@@ -8,6 +8,7 @@ import {
   createStagedManifest,
   createStagedRuntimePackage,
   readRelayPackageMetadata,
+  readLockedRuntimeDependencies,
   resolveLinuxMcpbPaths,
   type McpbManifest,
   type RootPackage,
@@ -74,6 +75,16 @@ describe('Linux MCPB package model', () => {
       version: '0.1.0',
       nodeEngine: '>=24 <25',
     });
+  });
+
+  it('uses exact pnpm-lock importer resolutions for dependency parity', () => {
+    const rootDir = mkdtempSync(join(tmpdir(), 'relay-mcpb-lock-'));
+    temporaryDirectories.push(rootDir);
+    writeFileSync(
+      join(rootDir, 'pnpm-lock.yaml'),
+      "importers:\n  .:\n    dependencies:\n      '@modelcontextprotocol/sdk':\n        specifier: ^1.29.0\n        version: 1.29.0\n      better-sqlite3:\n        specifier: ^13.0.1\n        version: 13.0.1\n      zod:\n        specifier: ^4.4.3\n        version: 4.4.3\npackages:\n",
+    );
+    expect(readLockedRuntimeDependencies(rootDir).dependencies).toEqual(rootPackage.dependencies);
   });
 
   it('copies the root version and Node engine into staged metadata', () => {
