@@ -268,15 +268,25 @@ Create `docs/claude-desktop-mcpb-verification.md` with these exact top-level sec
 # Claude Desktop Linux MCPB Verification
 
 ## Scope and support statement
+
 ## Official-source verification
+
 ## Build environment
+
 ## Bundle contents
+
 ## Automated verification
+
 ## Claude Desktop installation
+
 ## Tool and workflow verification
+
 ## Restart and update verification
+
 ## Disable and removal verification
+
 ## Failures and limitations
+
 ## Completion decision
 ```
 
@@ -535,9 +545,7 @@ export interface StageLinuxMcpbOptions {
   readonly runCommand?: CommandRunner;
 }
 
-export async function stageLinuxMcpb(
-  options: StageLinuxMcpbOptions = {},
-): Promise<LinuxMcpbPaths>;
+export async function stageLinuxMcpb(options: StageLinuxMcpbOptions = {}): Promise<LinuxMcpbPaths>;
 ```
 
 Implementation sequence:
@@ -855,8 +863,8 @@ Import and call `validateMcpbAssets({ rootDir })` from `scripts/validate-reposit
 Append after the existing `Run verification gate` step in `.github/workflows/ci.yml`:
 
 ```yaml
-      - name: Build and verify Linux MCPB
-        run: pnpm build:mcpb
+- name: Build and verify Linux MCPB
+  run: pnpm build:mcpb
 ```
 
 Do not upload or publish the generated artifact. GitHub Actions proves Ubuntu x64 construction only; it does not establish support for the maintainer's Linux distribution or Claude Desktop.
@@ -1147,6 +1155,7 @@ Post:
 Implementation plan executed: `docs/superpowers/plans/2026-07-30-issue-36-linux-mcpb.md`
 
 Evidence:
+
 - implementation PR: <PR link>
 - verification record: `docs/claude-desktop-mcpb-verification.md`
 - tested artifact: `<exact filename and SHA-256>`
