@@ -1,17 +1,25 @@
 import { rm, stat } from 'node:fs/promises';
-import { homedir } from 'node:os';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { getDefaultDatabasePath } from '../../../src/database/database-config.js';
 import { createAgentTestRuntime } from '../../support/agent-test-runtime.js';
 
 describe('createAgentTestRuntime', () => {
   it('creates an isolated absolute database path and arbitrary working directories', async () => {
     const runtime = await createAgentTestRuntime();
     try {
-      expect(runtime.databasePath).toMatch(/relay\.db$/);
+      const disposableRoot = dirname(dirname(runtime.databasePath));
+      const repositoryTemporaryRoot = resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        '../../..',
+        'tmp',
+      );
+
+      expect(runtime.databasePath).toBe(join(disposableRoot, 'data', 'relay.db'));
       expect(isAbsolute(runtime.databasePath)).toBe(true);
-      expect(runtime.databasePath).not.toContain(homedir());
+      expect(relative(repositoryTemporaryRoot, disposableRoot)).not.toMatch(/^\.\.(?:[\\/]|$)/);
+      expect(runtime.databasePath).not.toBe(getDefaultDatabasePath());
 
       const cwd = await runtime.createWorkingDirectory('nested/client');
       expect(isAbsolute(cwd)).toBe(true);
