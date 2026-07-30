@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { join } from 'node:path';
 import type { AgentTestRuntime } from './agent-test-runtime.js';
 
@@ -41,8 +41,11 @@ export function runRelayCli(
     let settled = false;
     const timeout = setTimeout(() => {
       settled = true;
-      child.kill();
-      reject(new Error(`Relay CLI timed out after ${options.timeoutMs ?? 30_000}ms.`));
+      const timeoutError = new Error(`Relay CLI timed out after ${options.timeoutMs ?? 30_000}ms.`);
+      void terminateChild(child).then(
+        () => reject(timeoutError),
+        () => reject(timeoutError),
+      );
     }, options.timeoutMs ?? 30_000);
     child.once('error', (error) => {
       if (settled) return;
@@ -65,6 +68,39 @@ export function runRelayCli(
         reject(error);
       }
     });
+  });
+}
+
+async function terminateChild(child: ChildProcess): Promise<void> {
+  if (hasExited(child)) return;
+
+  child.kill();
+  if (await waitForClose(child, 250)) return;
+
+  child.kill('SIGKILL');
+  await waitForClose(child);
+}
+
+function hasExited(child: ChildProcess): boolean {
+  return child.exitCode !== null || child.signalCode !== null;
+}
+
+function waitForClose(child: ChildProcess, timeoutMs?: number): Promise<boolean> {
+  if (hasExited(child)) return Promise.resolve(true);
+
+  return new Promise((resolve) => {
+    let timeout: NodeJS.Timeout | undefined;
+    const onClose = () => {
+      if (timeout !== undefined) clearTimeout(timeout);
+      resolve(true);
+    };
+    child.once('close', onClose);
+    if (timeoutMs !== undefined) {
+      timeout = setTimeout(() => {
+        child.removeListener('close', onClose);
+        resolve(false);
+      }, timeoutMs);
+    }
   });
 }
 

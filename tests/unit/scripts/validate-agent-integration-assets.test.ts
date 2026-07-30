@@ -292,6 +292,17 @@ describe('validateAgentIntegrationAssets', () => {
     );
   });
 
+  it('accepts vendor guidance that explicitly prohibits autonomous edits', () => {
+    const rootDir = createRoot();
+    const path = join(rootDir, 'integrations/generic-cli/README.md');
+    writeFileSync(
+      path,
+      `${readFileSync(path, 'utf8')}\nThe agent must not autonomously edit tasks.`,
+    );
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).not.toThrow();
+  });
+
   it('rejects a vendor wrapper without both canonical skill references', () => {
     const rootDir = createRoot();
     const path = join(rootDir, 'integrations/generic-mcp/README.md');
@@ -327,6 +338,14 @@ describe('validateAgentIntegrationAssets', () => {
     expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(
       /removal.*database|destructive/i,
     );
+  });
+
+  it('accepts removal guidance that explicitly prohibits deleting the SQLite database', () => {
+    const rootDir = createRoot();
+    const path = join(rootDir, 'integrations/generic-cli/README.md');
+    writeFileSync(path, `${readFileSync(path, 'utf8')}\nDo not delete the SQLite database.`);
+
+    expect(() => validateAgentIntegrationAssets({ rootDir })).not.toThrow();
   });
 
   it('rejects removal guidance that does not distinguish configuration from stored data', () => {

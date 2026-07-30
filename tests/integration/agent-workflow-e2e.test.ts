@@ -98,52 +98,53 @@ describe('built agent workflow end to end', () => {
   it('persists tasks and mutations across short-lived MCP and CLI restarts', async () => {
     let runtime: AgentTestRuntime | undefined;
     let client: McpTestClient | undefined;
-    let taskId: string;
+    let taskId: string | undefined;
     try {
       runtime = await createAgentTestRuntime();
       client = await createMcpTestClient(runtime, {
         cwd: await runtime.createWorkingDirectory('restart/mcp-1'),
       });
       const capture = normalizeMcpSuccess(
-        await client!.callTool('task_capture', {
+        await client.callTool('task_capture', {
           title: 'Restart persistence task',
           createdByName: 'Codex',
           sessionId: 'session-alpha',
         }),
       );
       taskId = String((capture.data as { task: { id: string } }).task.id);
-    } finally {
-      await client?.close();
-    }
+      await client.close();
+      client = undefined;
 
-    try {
-      const get = await runRelayCli(runtime, ['task', 'get', taskId!, '--output', 'json'], {
+      const get = await runRelayCli(runtime, ['task', 'get', taskId, '--output', 'json'], {
         cwd: await runtime.createWorkingDirectory('restart/cli-1'),
       });
       expect(get.exitCode).toBe(0);
       const edit = await runRelayCli(runtime, [
         'task',
         'edit',
-        taskId!,
+        taskId,
         '--description',
         'survives restart',
         '--output',
         'json',
       ]);
       expect(edit.exitCode).toBe(0);
-    } finally {
-      client = await createMcpTestClient(runtime!, {
+
+      client = await createMcpTestClient(runtime, {
         cwd: await runtime.createWorkingDirectory('restart/mcp-2'),
       });
       try {
-        const get = normalizeMcpSuccess(await client.callTool('task_get', { taskId: taskId! }));
+        const get = normalizeMcpSuccess(await client.callTool('task_get', { taskId }));
         expect(get.data).toMatchObject({
-          task: { id: taskId!, description: 'survives restart', sessionId: 'session-alpha' },
+          task: { id: taskId, description: 'survives restart', sessionId: 'session-alpha' },
         });
       } finally {
         await client.close();
-        await runtime!.close();
+        client = undefined;
       }
+    } finally {
+      await client?.close();
+      await runtime?.close();
     }
   });
 

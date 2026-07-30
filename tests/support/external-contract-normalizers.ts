@@ -12,6 +12,7 @@ export interface ExternalOperationResult {
 
 export function normalizeCliSuccess(value: unknown): ExternalOperationResult {
   const envelope = record(value, 'CLI result');
+  assertKeys(envelope, ['schemaVersion', 'ok', 'data', 'warnings'], 'CLI result');
   return {
     schemaVersion: number(envelope.schemaVersion),
     data: envelope.data,
@@ -22,6 +23,7 @@ export function normalizeCliSuccess(value: unknown): ExternalOperationResult {
 export function normalizeMcpSuccess(value: unknown): ExternalOperationResult {
   const envelope = record(value, 'MCP result');
   const structuredContent = record(envelope.structuredContent, 'MCP structured result');
+  assertKeys(structuredContent, ['schemaVersion', 'data', 'warnings'], 'MCP structured result');
   return {
     schemaVersion: number(structuredContent.schemaVersion),
     data: structuredContent.data,
@@ -56,6 +58,23 @@ function record(value: unknown, label: string): Record<string, unknown> {
     throw new Error(`${label} must be an object.`);
   }
   return value as Record<string, unknown>;
+}
+
+function assertKeys(
+  value: Record<string, unknown>,
+  expectedKeys: readonly string[],
+  label: string,
+): void {
+  const actualKeys = Object.keys(value).sort();
+  const sortedExpectedKeys = [...expectedKeys].sort();
+  if (
+    actualKeys.length !== sortedExpectedKeys.length ||
+    actualKeys.some((key, index) => key !== sortedExpectedKeys[index])
+  ) {
+    throw new Error(
+      `${label} keys must be exactly ${sortedExpectedKeys.join(', ')}; received ${actualKeys.join(', ')}.`,
+    );
+  }
 }
 
 function string(value: unknown): string {

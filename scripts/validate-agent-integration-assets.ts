@@ -75,9 +75,15 @@ function validateCompatibilityClaims(shared: string): void {
 function validateVendorClaims(rootDir: string, shared: string): void {
   for (const readme of vendorReadmes) {
     const text = readAsset(rootDir, `integrations/${readme}/README.md`);
+    const affirmativeAutonomyText = text.replace(
+      /\b(?:(?:(?:must|should|shall|may|can|will|do(?:es)?|did)\s+)?not|never)\s+autonomously\s+(?:edit|triage|start|complete|archive|delete|merge)\b/gi,
+      '',
+    );
     if (
       /^## Autonomy boundaries$/im.test(text) ||
-      /autonomously\s+(?:edit|triage|start|complete|archive|delete|merge)/i.test(text)
+      /autonomously\s+(?:edit|triage|start|complete|archive|delete|merge)\b/i.test(
+        affirmativeAutonomyText,
+      )
     ) {
       fail(
         `${readme} must reference canonical behavioural policy instead of redefining mutation autonomy.`,
@@ -132,9 +138,13 @@ function validateCanonicalSkills(rootDir: string): void {
 function validateRemovalGuidance(rootDir: string): void {
   for (const readme of vendorReadmes) {
     const text = readAsset(rootDir, `integrations/${readme}/README.md`);
+    const affirmativeRemovalText = text.replace(
+      /\b(?:(?:(?:must|should|shall|may|can|will|do(?:es)?|did)\s+)?not|never)\s+(?:remove|delete)\s+(?:the\s+)?(?:SQLite\s+)?database\b/gi,
+      '',
+    );
     if (
       /(?:remove|delete)\s+(?:the\s+)?(?:SQLite\s+)?database\b|(?:SQLite\s+)?database\b[^\n]{0,80}\b(?:remove|delete)\b/i.test(
-        text,
+        affirmativeRemovalText,
       )
     )
       fail(`${readme} removal guidance must not delete the SQLite database.`);

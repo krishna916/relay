@@ -13,7 +13,9 @@ import {
   FixedIdGenerator,
   InMemoryTaskRepository,
 } from '../unit/application/tasks/task-test-fixtures.js';
+import type { AgentTestRuntime } from '../support/agent-test-runtime.js';
 import { connectMcp } from '../unit/interfaces/mcp/mcp-test-utils.js';
+import type { McpTestClient } from '../support/mcp-test-client.js';
 import { createAgentTestRuntime } from '../support/agent-test-runtime.js';
 import { runRelayCli } from '../support/cli-test-process.js';
 import { createMcpTestClient } from '../support/mcp-test-client.js';
@@ -257,11 +259,13 @@ describe('MCP and CLI semantic parity', () => {
 
 describe('built MCP and CLI contract parity', () => {
   it('captures through MCP and retrieves the identical public task through CLI', async () => {
-    const runtime = await createAgentTestRuntime();
-    const client = await createMcpTestClient(runtime, {
-      cwd: await runtime.createWorkingDirectory('mcp-capture'),
-    });
+    let runtime: AgentTestRuntime | undefined;
+    let client: McpTestClient | undefined;
     try {
+      runtime = await createAgentTestRuntime();
+      client = await createMcpTestClient(runtime, {
+        cwd: await runtime.createWorkingDirectory('mcp-capture'),
+      });
       const capture = await client.callTool('task_capture', {
         title: 'Built MCP capture',
         createdByName: 'Codex',
@@ -281,15 +285,17 @@ describe('built MCP and CLI contract parity', () => {
       expect(normalizeCliSuccess(cli.json).data).toEqual({ task: capturedTask });
       expect(cli.stderr).toBe('');
     } finally {
-      await client.close();
-      await runtime.close();
+      await client?.close();
+      await runtime?.close();
     }
   });
 
   it('captures through CLI and retrieves the identical public task through MCP', async () => {
-    const runtime = await createAgentTestRuntime();
-    const client = await createMcpTestClient(runtime);
+    let runtime: AgentTestRuntime | undefined;
+    let client: McpTestClient | undefined;
     try {
+      runtime = await createAgentTestRuntime();
+      client = await createMcpTestClient(runtime);
       const cli = await runRelayCli(runtime, [
         'task',
         'capture',
@@ -314,15 +320,17 @@ describe('built MCP and CLI contract parity', () => {
       expect(normalizeMcpSuccess(mcp).data).toEqual({ task: capturedTask });
       expect(cli.stderr).toBe('');
     } finally {
-      await client.close();
-      await runtime.close();
+      await client?.close();
+      await runtime?.close();
     }
   });
 
   it('keeps list and get DTO fields and persisted ordering identical across adapters', async () => {
-    const runtime = await createAgentTestRuntime();
-    const client = await createMcpTestClient(runtime);
+    let runtime: AgentTestRuntime | undefined;
+    let client: McpTestClient | undefined;
     try {
+      runtime = await createAgentTestRuntime();
+      client = await createMcpTestClient(runtime);
       for (const [title, sessionId] of [
         ['First built task', 'session-alpha'],
         ['Second built task', 'session-beta'],
@@ -340,15 +348,17 @@ describe('built MCP and CLI contract parity', () => {
       expect(normalizeCliSuccess(cli.json)).toEqual(mcp);
       expect((mcp.data as { tasks: readonly unknown[] }).tasks).toHaveLength(2);
     } finally {
-      await client.close();
-      await runtime.close();
+      await client?.close();
+      await runtime?.close();
     }
   });
 
   it('preserves duplicate candidates, warnings, and match reasons without rejecting capture', async () => {
-    const runtime = await createAgentTestRuntime();
-    const client = await createMcpTestClient(runtime);
+    let runtime: AgentTestRuntime | undefined;
+    let client: McpTestClient | undefined;
     try {
+      runtime = await createAgentTestRuntime();
+      client = await createMcpTestClient(runtime);
       const existing = normalizeMcpSuccess(
         await client.callTool('task_capture', {
           title: 'Duplicate candidate capture',
@@ -392,15 +402,17 @@ describe('built MCP and CLI contract parity', () => {
         candidates: [{ task: { id: candidate }, matchReason: expect.any(String) }],
       });
     } finally {
-      await client.close();
-      await runtime.close();
+      await client?.close();
+      await runtime?.close();
     }
   });
 
   it('returns identical mutation results when each adapter reads the other adapter’s persisted state', async () => {
-    const runtime = await createAgentTestRuntime();
-    const client = await createMcpTestClient(runtime);
+    let runtime: AgentTestRuntime | undefined;
+    let client: McpTestClient | undefined;
     try {
+      runtime = await createAgentTestRuntime();
+      client = await createMcpTestClient(runtime);
       const capture = normalizeMcpSuccess(
         await client.callTool('task_capture', {
           title: 'Mutation parity task',
@@ -451,15 +463,17 @@ describe('built MCP and CLI contract parity', () => {
         },
       );
     } finally {
-      await client.close();
-      await runtime.close();
+      await client?.close();
+      await runtime?.close();
     }
   });
 
   it('returns identical no-op change metadata without changing task timestamps', async () => {
-    const runtime = await createAgentTestRuntime();
-    const client = await createMcpTestClient(runtime);
+    let runtime: AgentTestRuntime | undefined;
+    let client: McpTestClient | undefined;
     try {
+      runtime = await createAgentTestRuntime();
+      client = await createMcpTestClient(runtime);
       const capture = normalizeMcpSuccess(
         await client.callTool('task_capture', {
           title: 'No-op parity task',
@@ -489,15 +503,17 @@ describe('built MCP and CLI contract parity', () => {
         change: { action: 'NO_CHANGE', fields: [] },
       });
     } finally {
-      await client.close();
-      await runtime.close();
+      await client?.close();
+      await runtime?.close();
     }
   });
 
   it('maps not-found, invalid transition, and archived mutation errors consistently', async () => {
-    const runtime = await createAgentTestRuntime();
-    const client = await createMcpTestClient(runtime);
+    let runtime: AgentTestRuntime | undefined;
+    let client: McpTestClient | undefined;
     try {
+      runtime = await createAgentTestRuntime();
+      client = await createMcpTestClient(runtime);
       const notFoundCli = await runRelayCli(runtime, [
         'task',
         'get',
@@ -570,15 +586,17 @@ describe('built MCP and CLI contract parity', () => {
         expect(JSON.stringify(value)).not.toMatch(/SQL|stack|RELAY_DB_PATH|[A-Z]:\\Users\\/i);
       }
     } finally {
-      await client.close();
-      await runtime.close();
+      await client?.close();
+      await runtime?.close();
     }
   });
 
   it('keeps malformed inputs at validation/protocol boundaries and preserves exit code 2', async () => {
-    const runtime = await createAgentTestRuntime();
-    const client = await createMcpTestClient(runtime);
+    let runtime: AgentTestRuntime | undefined;
+    let client: McpTestClient | undefined;
     try {
+      runtime = await createAgentTestRuntime();
+      client = await createMcpTestClient(runtime);
       const cli = await runRelayCli(runtime, [
         'task',
         'capture',
@@ -605,15 +623,17 @@ describe('built MCP and CLI contract parity', () => {
       });
       expect(cli.stderr).not.toMatch(/SQL|stack|RELAY_DB_PATH|[A-Z]:\\Users\\/i);
     } finally {
-      await client.close();
-      await runtime.close();
+      await client?.close();
+      await runtime?.close();
     }
   });
 
   it('matches built empty-session results and rejects malformed session IDs at each adapter boundary', async () => {
-    const runtime = await createAgentTestRuntime();
-    const client = await createMcpTestClient(runtime);
+    let runtime: AgentTestRuntime | undefined;
+    let client: McpTestClient | undefined;
     try {
+      runtime = await createAgentTestRuntime();
+      client = await createMcpTestClient(runtime);
       const mcpMissing = normalizeMcpSuccess(
         await client.callTool('session_captures_list', {
           sessionId: 'missing-session',
@@ -649,17 +669,20 @@ describe('built MCP and CLI contract parity', () => {
         content: [{ type: 'text', text: expect.stringMatching(/invalid arguments|sessionId/i) }],
       });
     } finally {
-      await client.close();
-      await runtime.close();
+      await client?.close();
+      await runtime?.close();
     }
   });
 
   it('maps a locked-database write failure to the same structured storage error', async () => {
-    const runtime = await createAgentTestRuntime();
-    const client = await createMcpTestClient(runtime);
-    const lock = new Database(runtime.databasePath);
+    let runtime: AgentTestRuntime | undefined;
+    let client: McpTestClient | undefined;
+    let lock: Database.Database | undefined;
 
     try {
+      runtime = await createAgentTestRuntime();
+      client = await createMcpTestClient(runtime);
+      lock = new Database(runtime.databasePath);
       await client.callTool('relay_health', {});
 
       lock.pragma('busy_timeout = 100');
@@ -704,13 +727,13 @@ describe('built MCP and CLI contract parity', () => {
       }
     } finally {
       try {
-        lock.exec('ROLLBACK');
+        lock?.exec('ROLLBACK');
       } catch {
         // The transaction may already be closed after a setup failure.
       }
-      lock.close();
-      await client.close();
-      await runtime.close();
+      lock?.close();
+      await client?.close();
+      await runtime?.close();
     }
   }, 15_000);
 });
