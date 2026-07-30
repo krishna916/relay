@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { verifyLinuxMcpbStage } from '../../scripts/mcpb/verify-linux-mcpb.js';
+import {
+  probeStagedStartupFailure,
+  verifyLinuxMcpbStage,
+} from '../../scripts/mcpb/verify-linux-mcpb.js';
 
-const linuxIt = process.platform === 'linux' ? it : it.skip;
+const runLinuxMcpbStageTests =
+  process.platform === 'linux' && process.env.RELAY_RUN_MCPB_STAGE_TESTS === '1';
 
-describe('Linux MCPB staged runtime', () => {
-  linuxIt('runs the staged MCPB server with native SQLite from an unrelated cwd', async () => {
+describe.skipIf(!runLinuxMcpbStageTests)('Linux MCPB staged runtime', () => {
+  it('runs the staged MCPB server with native SQLite from an unrelated cwd', async () => {
     const verification = await verifyLinuxMcpbStage();
     expect(verification.runtime).toMatchObject({
       platform: 'linux',
@@ -29,5 +33,14 @@ describe('Linux MCPB staged runtime', () => {
     );
     expect(verification.health).toMatchObject({ name: 'relay', status: 'ok' });
     expect(verification.sessionCount).toBe(1);
+    expect(verification.stderr).toBe('');
+  });
+
+  it('keeps staged startup failures off stdout and reports them on stderr', async () => {
+    const failure = await probeStagedStartupFailure();
+
+    expect(failure.exitCode).not.toBe(0);
+    expect(failure.stdout).toBe('');
+    expect(failure.stderr).toContain('[ERROR] Fatal error starting MCP stdio server');
   });
 });

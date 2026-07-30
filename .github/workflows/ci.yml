@@ -31,5 +31,19 @@ jobs:
       - name: Run verification gate
         run: pnpm verify
 
-      - name: Build and verify Linux MCPB
-        run: pnpm build:mcpb
+      - name: Stage Linux MCPB
+        run: pnpm build:mcpb:stage
+
+      - name: Run staged Linux MCPB integration tests
+        env:
+          RELAY_RUN_MCPB_STAGE_TESTS: '1'
+        run: pnpm exec vitest run tests/integration/mcpb-stage.test.ts
+
+      - name: Validate staged Linux MCPB
+        run: pnpm validate:mcpb
+
+      - name: Verify staged Linux MCPB runtime
+        run: pnpm verify:mcpb:stage
+
+      - name: Pack and inspect Linux MCPB
+        run: pnpm pack:mcpb

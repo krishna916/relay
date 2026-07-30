@@ -3,6 +3,8 @@ import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { once } from 'node:events';
+import { spawn } from 'node:child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { assertLinuxBuildTarget, resolveLinuxMcpbPaths } from './model.js';
@@ -23,7 +25,12 @@ export interface McpbStageVerification {
   readonly health: { readonly name: string; readonly status: string; readonly version: string };
   readonly capturedTask: Readonly<Record<string, unknown>>;
   readonly sessionCount: number;
-  readonly stdoutDiagnostics: string;
+  readonly stderr: string;
+}
+
+export interface StagedStartupFailureProbe {
+  readonly exitCode: number | null;
+  readonly stdout: string;
   readonly stderr: string;
 }
 
@@ -45,6 +52,11 @@ export async function verifyLinuxMcpbStage(
     args: [serverPath],
     cwd,
     env: { ...process.env, RELAY_DB_PATH: databasePath },
+    stderr: 'pipe',
+  });
+  let serverStderr = '';
+  transport.stderr?.on('data', (chunk: Buffer | string) => {
+    serverStderr += chunk.toString();
   });
   const client = new Client({ name: 'relay-mcpb-verifier', version: '1.0.0' });
   try {
@@ -80,11 +92,49 @@ export async function verifyLinuxMcpbStage(
       health,
       capturedTask: captured.structuredContent?.data?.task ?? {},
       sessionCount: session.structuredContent?.data?.count ?? 0,
-      stdoutDiagnostics: '',
-      stderr: '',
+      stderr: serverStderr,
     };
   } finally {
-    await transport.close();
+    try {
+      await client.close();
+    } finally {
+      await transport.close().catch(() => undefined);
+      await rm(temporaryRoot, { recursive: true, force: true });
+    }
+  }
+}
+
+export async function probeStagedStartupFailure(
+  options: VerifyLinuxMcpbStageOptions = {},
+): Promise<StagedStartupFailureProbe> {
+  assertLinuxBuildTarget();
+  const rootDir = resolve(options.rootDir ?? process.cwd());
+  const stageDir = options.stageDir ?? resolveLinuxMcpbPaths(rootDir).stageDir;
+  const serverPath = join(stageDir, 'server', 'main.js');
+  if (!existsSync(serverPath))
+    throw new Error(`Linux MCPB stage is missing server entry: ${serverPath}`);
+  const temporaryRoot = await mkdtemp(join(tmpdir(), 'relay-mcpb-failure-'));
+  const cwd = join(temporaryRoot, 'cwd');
+  const invalidDatabasePath = join(temporaryRoot, 'invalid-database');
+  await mkdir(cwd, { recursive: true });
+  await mkdir(invalidDatabasePath, { recursive: true });
+  try {
+    const child = spawn(process.execPath, [serverPath], {
+      cwd,
+      env: { ...process.env, RELAY_DB_PATH: invalidDatabasePath },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk: Buffer | string) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on('data', (chunk: Buffer | string) => {
+      stderr += chunk.toString();
+    });
+    const [exitCode] = (await once(child, 'close')) as [number | null];
+    return { exitCode, stdout, stderr };
+  } finally {
     await rm(temporaryRoot, { recursive: true, force: true });
   }
 }
