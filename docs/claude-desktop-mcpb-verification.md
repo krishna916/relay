@@ -10,7 +10,7 @@ On 2026-07-30, the MCPB repository, manifest specification, CLI reference, and C
 
 ## Build environment
 
-Windows implementation environment. Linux runtime testing was unavailable.
+Implementation was performed on Windows. Ubuntu CI run [30570500715](https://github.com/krishna916/relay/actions/runs/30570500715) executed the Linux packaging and runtime checks on `ubuntu-latest` with Node.js 24.
 
 ## Bundle contents
 
@@ -22,7 +22,7 @@ Platform-independent model, staging, source-asset, and command-orchestration tes
 
 ## Linux native build verification
 
-Not executed; pending a supported Linux environment. In particular, `better-sqlite3` loading, Node ABI compatibility, libc compatibility, migrations from the staged bundle, and staged stdio startup are unverified.
+The Ubuntu CI job passed the complete ordered sequence: verification gate, Linux MCPB staging, the opt-in staged integration suite, MCPB validation, staged runtime verification, and MCPB pack/info inspection. This verifies the staged native `better-sqlite3` load, disposable migrations/database path, MCP tool discovery, protocol-clean success stderr, and raw startup-failure stdout/stderr separation in the CI runtime. It does not establish maintainer Claude Desktop compatibility.
 
 ## Claude Desktop Linux verification
 
@@ -30,7 +30,7 @@ Not executed; pending a supported Linux environment and an installed Claude Desk
 
 ## Pending evidence
 
-The Linux build, MCPB validation and packing, staged native runtime verification, Claude Desktop installation, tool discovery, capture and session retrieval, explicit mutation, restart, update, disable, and removal data-retention checks remain pending.
+Claude Desktop installation, tool discovery through the desktop client, capture and session retrieval, explicit mutation, restart, update, disable, and removal data-retention checks remain pending.
 
 ## Failures and limitations
 
@@ -38,4 +38,4 @@ Windows must not be used as evidence for Linux native `better-sqlite3`, Node ABI
 
 ## Completion decision
 
-**UNVERIFIED — Linux build and Claude Desktop validation pending.**
+**UNVERIFIED — Claude Desktop Linux validation pending.**
