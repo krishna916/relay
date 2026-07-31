@@ -1,3 +1,5 @@
+import { lstat } from 'node:fs/promises';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   probeStagedStartupFailure,
@@ -8,6 +10,20 @@ const runLinuxMcpbStageTests =
   process.platform === 'linux' && process.env.RELAY_RUN_MCPB_STAGE_TESTS === '1';
 
 describe.skipIf(!runLinuxMcpbStageTests)('Linux MCPB staged runtime', () => {
+  it('materializes SDK transitive dependencies without archive-fragile symlinks', async () => {
+    const dependencyPath = join(
+      process.cwd(),
+      '.mcpb',
+      'relay',
+      'node_modules',
+      'zod-to-json-schema',
+    );
+    const dependency = await lstat(dependencyPath);
+
+    expect(dependency.isDirectory()).toBe(true);
+    expect(dependency.isSymbolicLink()).toBe(false);
+  });
+
   it('runs the staged MCPB server with native SQLite from an unrelated cwd', async () => {
     const verification = await verifyLinuxMcpbStage();
     expect(verification.runtime).toMatchObject({
