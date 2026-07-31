@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, stat } from 'node:fs/promises';
+import { mkdir, open, rm, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -36,10 +36,16 @@ export async function packLinuxMcpb(
   const runCommand = options.runCommand ?? spawnCommand;
   for (const command of createPackCommands(paths))
     await runCommand(command.command, command.args, { cwd: rootDir });
-  const bytes = await readFile(paths.artifactPath);
-  if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b)
-    throw new Error('Linux MCPB artifact is not a ZIP file.');
   const details = await stat(paths.artifactPath);
+  const handle = await open(paths.artifactPath, 'r');
+  try {
+    const header = Buffer.alloc(4);
+    const { bytesRead } = await handle.read(header, 0, header.length, 0);
+    if (bytesRead < 4 || header[0] !== 0x50 || header[1] !== 0x4b)
+      throw new Error('Linux MCPB artifact is not a ZIP file.');
+  } finally {
+    await handle.close().catch(() => undefined);
+  }
   process.stdout.write(`Linux MCPB artifact: ${paths.artifactPath} (${details.size} bytes)\n`);
   return paths;
 }

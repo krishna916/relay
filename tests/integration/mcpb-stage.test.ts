@@ -34,7 +34,7 @@ describe.skipIf(!runLinuxMcpbStageTests)('Linux MCPB staged runtime', () => {
     expect(verification.health).toMatchObject({ name: 'relay', status: 'ok' });
     expect(verification.sessionCount).toBe(1);
     expect(verification.stderr).toBe('');
-  });
+  }, 120_000);
 
   it('keeps staged startup failures off stdout and reports them on stderr', async () => {
     const failure = await probeStagedStartupFailure();
@@ -42,5 +42,5 @@ describe.skipIf(!runLinuxMcpbStageTests)('Linux MCPB staged runtime', () => {
     expect(failure.exitCode).not.toBe(0);
     expect(failure.stdout).toBe('');
     expect(failure.stderr).toContain('[ERROR] Fatal error starting MCP stdio server');
-  });
+  }, 120_000);
 });

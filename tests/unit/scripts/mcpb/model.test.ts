@@ -77,15 +77,37 @@ describe('Linux MCPB package model', () => {
     });
   });
 
-  it('uses exact pnpm-lock importer resolutions for dependency parity', () => {
-    const rootDir = mkdtempSync(join(tmpdir(), 'relay-mcpb-lock-'));
-    temporaryDirectories.push(rootDir);
-    writeFileSync(
-      join(rootDir, 'pnpm-lock.yaml'),
-      "importers:\n  .:\n    dependencies:\n      '@modelcontextprotocol/sdk':\n        specifier: ^1.29.0\n        version: 1.29.0\n      better-sqlite3:\n        specifier: ^13.0.1\n        version: 13.0.1\n      zod:\n        specifier: ^4.4.3\n        version: 4.4.3\npackages:\n",
-    );
-    expect(readLockedRuntimeDependencies(rootDir).dependencies).toEqual(rootPackage.dependencies);
-  });
+  it.each([
+    ['LF', '\n'],
+    ['CRLF', '\r\n'],
+  ] as const)(
+    'uses exact pnpm-lock importer resolutions for %s line endings',
+    (_label, newline) => {
+      const rootDir = mkdtempSync(join(tmpdir(), 'relay-mcpb-lock-'));
+      temporaryDirectories.push(rootDir);
+      writeFileSync(
+        join(rootDir, 'pnpm-lock.yaml'),
+        [
+          'importers:',
+          '',
+          '  .:',
+          '    dependencies:',
+          "      '@modelcontextprotocol/sdk':",
+          '        specifier: ^1.29.0',
+          '        version: 1.29.0',
+          '      better-sqlite3:',
+          '        specifier: ^13.0.1',
+          '        version: 13.0.1',
+          '      zod:',
+          '        specifier: ^4.4.3',
+          '        version: 4.4.3',
+          'packages:',
+          '',
+        ].join(newline),
+      );
+      expect(readLockedRuntimeDependencies(rootDir).dependencies).toEqual(rootPackage.dependencies);
+    },
+  );
 
   it('copies the root version and Node engine into staged metadata', () => {
     const relay = { name: 'relay', version: '0.1.0', nodeEngine: '>=24 <25' };

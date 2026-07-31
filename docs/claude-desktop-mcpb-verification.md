@@ -22,7 +22,19 @@ Platform-independent model, staging, source-asset, and command-orchestration tes
 
 ## Linux native build verification
 
-The Ubuntu CI job passed the complete ordered sequence: verification gate, Linux MCPB staging, the opt-in staged integration suite, MCPB validation, staged runtime verification, and MCPB pack/info inspection. This verifies the staged native `better-sqlite3` load, disposable migrations/database path, MCP tool discovery, protocol-clean success stderr, and raw startup-failure stdout/stderr separation in the CI runtime. It does not establish maintainer Claude Desktop compatibility.
+The retained CI evidence is [run 30570500715](https://github.com/krishna916/relay/actions/runs/30570500715), job 90965711797, labeled `ubuntu-latest`. The job passed the complete ordered sequence: verification gate, Linux MCPB staging, the opt-in staged integration suite, MCPB validation, staged runtime verification, and MCPB pack/info inspection.
+
+| Evidence field            | Retained CI evidence                                                                                                                                                                                    |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ubuntu image/distribution | `ubuntu-latest` runner label; exact Ubuntu image/distribution is unavailable                                                                                                                            |
+| Architecture              | Unavailable in the retained job metadata                                                                                                                                                                |
+| Node.js runtime           | Node.js 24 setup step passed; exact patch version is unavailable                                                                                                                                        |
+| Node.js modules ABI       | Unavailable in the retained job metadata                                                                                                                                                                |
+| MCPB artifact filename    | Unavailable; the CI run retained no uploaded artifacts                                                                                                                                                  |
+| MCPB SHA-256              | Unavailable because the artifact and hash output were not retained                                                                                                                                      |
+| Staged runtime result     | Passed in job 90965711797, including native `better-sqlite3` load, disposable migrations/database path, MCP tool discovery, protocol-clean success stderr, and startup-failure stdout/stderr separation |
+
+Linux evidence is incomplete for the exact distribution, architecture, Node.js patch/ABI, artifact filename, and SHA-256. The staged CI result does not establish maintainer Claude Desktop compatibility.
 
 ## Claude Desktop Linux verification
 

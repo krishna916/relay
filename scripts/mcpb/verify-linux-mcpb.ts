@@ -55,12 +55,13 @@ export async function verifyLinuxMcpbStage(
     stderr: 'pipe',
   });
   let serverStderr = '';
-  transport.stderr?.on('data', (chunk: Buffer | string) => {
-    serverStderr += chunk.toString();
-  });
   const client = new Client({ name: 'relay-mcpb-verifier', version: '1.0.0' });
   try {
     await client.connect(transport);
+    if (!transport.stderr) throw new Error('Linux MCPB verifier transport stderr is unavailable.');
+    transport.stderr.on('data', (chunk: Buffer | string) => {
+      serverStderr += chunk.toString();
+    });
     const discovered = await client.listTools();
     const healthResult = (await client.callTool({ name: 'relay_health', arguments: {} })) as {
       content: Array<{ type: string; text: string }>;
@@ -96,7 +97,7 @@ export async function verifyLinuxMcpbStage(
     };
   } finally {
     try {
-      await client.close();
+      await client.close().catch(() => undefined);
     } finally {
       await transport.close().catch(() => undefined);
       await rm(temporaryRoot, { recursive: true, force: true });
