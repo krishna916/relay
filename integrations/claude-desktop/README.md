@@ -186,14 +186,12 @@ Archiving retains task history while removing it from normal active views.
 
 ## Relay data location
 
-By default, Relay stores its Linux database at:
-
-```text
-${XDG_DATA_HOME:-~/.local/share}/relay/relay.db
-```
+Relay stores its database in the platform-default Linux user data directory. The precise
+path and the `RELAY_DB_PATH` override are documented in
+[Database and safe development data](../../README.md#database-and-safe-development-data).
 
 The database is outside Claude Desktop's unpacked extension directory. Before making a
-manual backup, fully quit Claude Desktop and copy the `relay` data directory.
+manual backup, fully quit Claude Desktop and copy the Relay data directory.
 
 Never delete `relay.db` unless you intend to permanently delete the stored tasks. SQLite
 may also create `relay.db-wal` and `relay.db-shm` while the database is open.
@@ -269,7 +267,7 @@ Do not lower Relay's Node requirement or claim compatibility without review.
 
 ### Database permission or migration failure
 
-- Confirm your account can write `${XDG_DATA_HOME:-~/.local/share}/relay/`.
+- Confirm your account can write Relay's platform-default Linux data directory.
 - Do not provide a directory where a database file path is expected.
 - Do not edit an already-applied SQL migration.
 - Preserve the database and logs before attempting recovery.
