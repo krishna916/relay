@@ -144,7 +144,13 @@ export async function stageLinuxMcpb(options: StageLinuxMcpbOptions = {}): Promi
   ]);
   await (options.runCommand ?? spawnCommand)(
     'pnpm',
-    ['install', '--prod', '--frozen-lockfile', '--ignore-workspace'],
+    [
+      'install',
+      '--prod',
+      '--frozen-lockfile',
+      '--ignore-workspace',
+      '--config.node-linker=hoisted',
+    ],
     {
       cwd: paths.stageDir,
     },
