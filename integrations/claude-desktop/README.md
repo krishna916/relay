@@ -243,7 +243,7 @@ Do not overwrite the version field only to force an update without understanding
 
 Use Claude Desktop's extension controls to disable or remove Relay. Do not manually delete files from Claude Desktop's extension storage.
 
-After removal, the Relay database should remain in the normal Linux data directory. Reinstalling a compatible Relay bundle should reconnect to the same stored tasks.
+Removing the extension does not delete the Relay database. It remains in the normal Linux data directory, and reinstalling a compatible Relay bundle should reconnect to the same stored tasks.
 
 To verify retention independently after removal, build Relay's CLI from the source checkout and query the recorded task using the same database:
 
