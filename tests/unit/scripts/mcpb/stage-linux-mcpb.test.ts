@@ -84,7 +84,7 @@ afterEach(async () => {
 });
 
 describe('stageLinuxMcpb', () => {
-  it('creates the approved staging inventory with injected dependency installation', async () => {
+  it('creates the approved staging inventory with a hoisted dependency installation', async () => {
     const rootDir = await fixtureRoot();
     const runCommand = vi.fn(async () => undefined);
     const result = await stageLinuxMcpb({ rootDir, platform: 'linux', arch: 'x64', runCommand });
@@ -107,7 +107,13 @@ describe('stageLinuxMcpb', () => {
     expect(await readFile(join(result.stageDir, 'chunk-runtime.js'), 'utf8')).toContain('runtime');
     expect(runCommand).toHaveBeenCalledWith(
       'pnpm',
-      ['install', '--prod', '--frozen-lockfile', '--ignore-workspace'],
+      [
+        'install',
+        '--prod',
+        '--frozen-lockfile',
+        '--ignore-workspace',
+        '--config.node-linker=hoisted',
+      ],
       expect.objectContaining({ cwd: result.stageDir }),
     );
   });
