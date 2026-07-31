@@ -1,0 +1,12 @@
+.env
+.env.*
+*.db
+*.db-wal
+*.db-shm
+*.log
+*.map
+tests/
+coverage/
+docs/
+.git/
+.github/

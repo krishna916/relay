@@ -3,6 +3,7 @@ import { isAbsolute, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { validateSkillAssets } from './validate-skill-assets.js';
 import { validateAgentIntegrationAssets } from './validate-agent-integration-assets.js';
+import { validateMcpbAssets } from './validate-mcpb-assets.js';
 
 function fail(msg: string): never {
   throw new Error(`[ASSET VALIDATION FAILURE] ${msg}`);
@@ -228,6 +229,7 @@ export function validateRepositoryAssets(options: ValidateRepositoryAssetsOption
 
   validateSkillAssets({ rootDir });
   validateAgentIntegrationAssets({ rootDir });
+  validateMcpbAssets({ rootDir });
 
   validateJsonFiles(allFiles);
   validatePlaceholders(allFiles);

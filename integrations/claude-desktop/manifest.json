@@ -1,0 +1,27 @@
+{
+  "manifest_version": "0.3",
+  "name": "relay",
+  "display_name": "Relay",
+  "version": "0.1.0",
+  "description": "Local task sidecar for human-AI workflows",
+  "long_description": "Relay gives Claude Desktop access to a local personal task queue through its canonical stdio server. Data stays in the user's normal Relay SQLite location unless RELAY_DB_PATH is explicitly configured.",
+  "author": { "name": "Krishnamurti" },
+  "repository": { "type": "git", "url": "https://github.com/krishna916/relay.git" },
+  "documentation": "https://github.com/krishna916/relay/blob/main/integrations/claude-desktop/README.md",
+  "support": "https://github.com/krishna916/relay/issues",
+  "server": {
+    "type": "node",
+    "entry_point": "server/main.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/main.js"],
+      "env": {}
+    }
+  },
+  "tools_generated": true,
+  "keywords": ["tasks", "productivity", "local-first", "mcp"],
+  "compatibility": {
+    "platforms": ["linux"],
+    "runtimes": { "node": ">=24 <25" }
+  }
+}
