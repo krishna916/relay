@@ -5,6 +5,7 @@ import { parse as parseToml } from '@iarna/toml';
 import { validateSkillAssets } from './validate-skill-assets.js';
 import { validateAgentIntegrationAssets } from './validate-agent-integration-assets.js';
 import { validateMcpbAssets } from './validate-mcpb-assets.js';
+import { verifyPackageMetadata } from './package/verify-package-metadata.js';
 
 function fail(msg: string): never {
   throw new Error(`[ASSET VALIDATION FAILURE] ${msg}`);
@@ -430,15 +431,12 @@ export function validateRepositoryAssets(options: ValidateRepositoryAssetsOption
     bin?: Record<string, string>;
   };
   validateDistributionContract(rootDir, pkg);
-  const binRelayMcp = pkg.bin?.['relay-mcp'];
+  if (pkg.name === '@krishna916/relay' && existsSync(join(rootDir, 'pnpm-lock.yaml'))) {
+    verifyPackageMetadata(rootDir);
+  }
   const binRelay = pkg.bin?.relay;
   if (binRelay !== './dist/cli/main.js') {
     fail(`package.json#bin.relay must point to ./dist/cli/main.js (got ${String(binRelay)})`);
-  }
-  if (binRelayMcp !== './dist/mcp/main.js') {
-    fail(
-      `package.json#bin.relay-mcp must point to ./dist/mcp/main.js (got ${String(binRelayMcp)})`,
-    );
   }
 
   // 3. Built MCP file existence after build

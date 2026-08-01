@@ -1,4 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const mockPragma = vi.fn();
 const mockClose = vi.fn();
@@ -30,7 +32,16 @@ describe('createDatabaseConnection', () => {
 
     const { createDatabaseConnection } = await import('../../../src/database/connection.js');
 
-    expect(() => createDatabaseConnection({ path: 'tmp/test.db' })).toThrow(/journal mode/i);
+    expect(() =>
+      createDatabaseConnection({ path: join(tmpdir(), 'relay-connection-test.db') }),
+    ).toThrow(/journal mode/i);
     expect(mockClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects relative injected database paths', async () => {
+    const { createDatabaseConnection } = await import('../../../src/database/connection.js');
+
+    expect(() => createDatabaseConnection({ path: 'tmp/test.db' })).toThrow(/absolute/i);
+    expect(mockDatabase).not.toHaveBeenCalled();
   });
 });

@@ -97,6 +97,16 @@ export function validateMcpbAssets(options: ValidateMcpbAssetsOptions = {}): voi
     'build:mcpb',
   ])
     if (!root.scripts?.[script]) fail(`Root package is missing ${script}.`);
+  const rootPnpm = (
+    root as { pnpm?: { overrides?: Record<string, string>; onlyBuiltDependencies?: string[] } }
+  ).pnpm;
+  if (JSON.stringify(rootPnpm?.overrides) !== JSON.stringify({ tmp: '0.2.7' }))
+    fail('Root pnpm metadata must preserve the tmp 0.2.7 override.');
+  if (
+    JSON.stringify(rootPnpm?.onlyBuiltDependencies) !==
+    JSON.stringify(['better-sqlite3', 'esbuild'])
+  )
+    fail('Root pnpm metadata must approve better-sqlite3 and esbuild builds.');
   const ignored = readFileSync(join(sourceDir, '.mcpbignore'), 'utf8');
   for (const value of ['.env', '*.db', '*.log', '*.map', 'tests/', 'coverage/'])
     if (!ignored.includes(value)) fail(`.mcpbignore must exclude ${value}.`);

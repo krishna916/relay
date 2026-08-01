@@ -19,9 +19,16 @@ async function fixtureRoot(): Promise<string> {
     writeFile(
       join(rootDir, 'package.json'),
       JSON.stringify({
-        name: 'relay',
+        name: '@krishna916/relay',
         version: '0.1.0',
+        license: 'MIT',
+        files: ['dist/'],
+        bin: { relay: './dist/cli/main.js' },
         engines: { node: '>=24 <25' },
+        pnpm: {
+          overrides: { tmp: '0.2.7' },
+          onlyBuiltDependencies: ['better-sqlite3', 'esbuild'],
+        },
         dependencies: {
           '@modelcontextprotocol/sdk': '1.29.0',
           'better-sqlite3': '13.0.1',
@@ -31,7 +38,7 @@ async function fixtureRoot(): Promise<string> {
     ),
     writeFile(
       join(rootDir, 'pnpm-lock.yaml'),
-      "importers:\n\n  .:\n    dependencies:\n      '@modelcontextprotocol/sdk':\n        specifier: ^1.29.0\n        version: 1.29.0\n      better-sqlite3:\n        specifier: ^13.0.1\n        version: 13.0.1\n      zod:\n        specifier: ^4.4.3\n        version: 4.4.3\npackages:\n",
+      "overrides:\n  tmp: 0.2.7\n\nimporters:\n\n  .:\n    dependencies:\n      '@modelcontextprotocol/sdk':\n        specifier: ^1.29.0\n        version: 1.29.0\n      better-sqlite3:\n        specifier: ^13.0.1\n        version: 13.0.1\n      zod:\n        specifier: ^4.4.3\n        version: 4.4.3\npackages:\n",
     ),
     writeFile(join(rootDir, 'dist/mcp/main.js'), 'process.exit(0);'),
     writeFile(join(rootDir, 'dist/chunk-runtime.js'), 'export const runtime = true;'),

@@ -3,10 +3,10 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { createMcpServer } from './create-mcp-server.js';
 import { mcpLogger } from './logger.js';
 import { createTaskRuntime } from '../shared/create-task-runtime.js';
-import { runMcpServer } from './run-mcp-server.js';
+import { runMcpServer as runMcpServerWithDependencies } from './run-mcp-server.js';
 
-async function main(): Promise<void> {
-  await runMcpServer({
+export async function runMcpServer(): Promise<void> {
+  await runMcpServerWithDependencies({
     createRuntime: createTaskRuntime,
     createServer: createMcpServer,
     createTransport: () => new StdioServerTransport(),
@@ -18,4 +18,5 @@ async function main(): Promise<void> {
   });
 }
 
-void main();
+if (/(?:[\\/]mcp|[\\/]server)[\\/]main\.(?:js|ts)$/.test(process.argv[1] ?? ''))
+  void runMcpServer();

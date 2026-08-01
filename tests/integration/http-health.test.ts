@@ -58,14 +58,17 @@ describe('http-health integration', () => {
     expect(res.headers.get('allow')).toBe('GET');
   });
 
-  it('returns 404 Not Found for unknown routes', async () => {
+  it('serves the web shell for unknown client routes', async () => {
     serverInstance = await createServer();
     const { url } = serverInstance;
 
     const res = await fetch(`${url}/unknown-route`);
-    expect(res.status).toBe(404);
-    const body = (await res.json()) as { error: { code: string } };
-    expect(body).toEqual({ error: { code: 'NOT_FOUND', message: 'Route was not found.' } });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/html');
+    await expect(res.text()).resolves.toContain('<div id="root"></div>');
+
+    const apiResponse = await fetch(`${url}/api/unknown-route`);
+    expect(apiResponse.status).toBe(404);
   });
 
   it('serves the built web shell from GET / when present', async () => {

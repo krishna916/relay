@@ -21,3 +21,6 @@ Desktop.ini
 .mcpb/
 artifacts/*.mcpb
 integrations/claude-desktop/node_modules/
+assets/migrations/
+.artifacts/
+.codegraph/

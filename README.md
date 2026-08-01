@@ -8,7 +8,7 @@ Agent integrations: see [setup](docs/agent-integration.md) and [troubleshooting]
 
 The approved agent-integration contract is documented in the [decision record](docs/decisions/0002-agent-integration-contracts.md), [MCP tool reference](docs/mcp-tools.md), [CLI reference](docs/cli-reference.md), and [session semantics](docs/session-semantics.md). The production MCP task tools and source-checkout CLI are shipped.
 
-Distribution planning is documented in the [Distribution decision](docs/decisions/0003-distribution-filesystem-and-lifecycle.md) and [Distribution contracts](docs/distribution/). The public npm package and operational distribution commands remain future work.
+Distribution planning is documented in the [Distribution decision](docs/decisions/0003-distribution-filesystem-and-lifecycle.md) and [Distribution contracts](docs/distribution/). Build and verify the local publishable tarball with the [npm package guide](docs/distribution/npm-package.md); registry publication remains a separate maintainer action.
 
 Relay is a local task sidecar for human–AI workflows. The current MVP is usable through its local web UI and through five safe local stdio MCP task tools.
 
@@ -70,8 +70,8 @@ It exposes five task tools—`task_capture`, `task_list`, `task_get`, `task_find
 
 Relay uses a local SQLite database containing task data. The default database file is:
 
-- Windows: `%APPDATA%\relay\relay.db`
-- macOS: `~/Library/Application Support/relay/relay.db`
+- Windows: `%LOCALAPPDATA%\Relay\relay.db`
+- macOS: `~/Library/Application Support/Relay/relay.db`
 - Linux: `${XDG_DATA_HOME:-~/.local/share}/relay/relay.db`
 
 Set `RELAY_DB_PATH` to use an explicit database file instead. Migrations run automatically when the HTTP/UI runtime starts. Connections enable foreign keys, WAL journal mode, and a 5-second SQLite busy timeout. Relay uses explicit SQL rather than an ORM.

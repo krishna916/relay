@@ -3,13 +3,14 @@ import { existsSync, statSync } from 'node:fs';
 import { extname, relative, resolve } from 'node:path';
 import type { TaskApplication } from '../../application/tasks/task-application.js';
 import { RelayError } from '../../shared/errors.js';
-import { resolveFromPackageRoot } from '../../shared/runtime-paths.js';
+import { resolvePackageAssets, type PackageAssets } from '../../distribution/package-assets.js';
 import { routeHttpRequest } from './http-router.js';
 
 export interface HttpServerOptions {
   readonly host?: string;
   readonly port?: number;
   readonly taskApplication: TaskApplication;
+  readonly assets?: PackageAssets;
 }
 
 export interface HttpServerInstance {
@@ -19,8 +20,6 @@ export interface HttpServerInstance {
   readonly url: string;
   readonly stop: () => Promise<void>;
 }
-
-const webBuildDirectory = resolveFromPackageRoot('dist', 'web');
 
 export function getContentType(filePath: string): string {
   switch (extname(filePath)) {
@@ -41,7 +40,10 @@ export function getContentType(filePath: string): string {
   }
 }
 
-export function resolveStaticAsset(pathname: string): string | null {
+export function resolveStaticAsset(
+  pathname: string,
+  webBuildDirectory = resolvePackageAssets().webRoot,
+): string | null {
   if (!existsSync(webBuildDirectory)) {
     return null;
   }
@@ -107,7 +109,8 @@ export function createHttpServer(options: HttpServerOptions): Promise<HttpServer
   const requestHandler = (req: IncomingMessage, res: ServerResponse) => {
     void routeHttpRequest(req, res, {
       taskApplication: options.taskApplication,
-      getStaticAsset: resolveStaticAsset,
+      getStaticAsset: (pathname) =>
+        resolveStaticAsset(pathname, options.assets?.webRoot ?? resolvePackageAssets().webRoot),
       getContentType,
     });
   };

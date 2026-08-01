@@ -10,7 +10,7 @@ export default defineConfig({
   target: 'node24',
   outDir: 'dist',
   clean: false,
-  sourcemap: true,
+  sourcemap: false,
   bundle: true,
   shims: true,
 });
