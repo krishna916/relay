@@ -285,8 +285,9 @@ describe('distribution ownership and lifecycle', () => {
     });
     expect(claudeAfter.projectSetting).toBe(claudeBefore.projectSetting);
     expect(claudeAfter.mcpServers.unrelated).toEqual(claudeBefore.mcpServers.unrelated);
-    expect(claudeAfter).toMatchObject({
-      mcpServers: { relay: { command: 'relay', args: ['mcp'] } },
+    expect(claudeAfter.mcpServers.relay).toEqual({
+      command: 'relay',
+      args: ['mcp'],
     });
     expect(claudeConflict.mcpServers.relay).toEqual({
       command: 'other-relay-wrapper',
@@ -299,6 +300,7 @@ describe('distribution ownership and lifecycle', () => {
     const ownership = readDocumentation('setup-and-config-ownership.md');
     const operational = readDocumentation('operational-cli-contract.md');
     const lifecycle = readDocumentation('upgrade-removal-and-retention.md');
+    const normalizedDocumentation = `${adr}\n${ownership}\n${operational}`.replace(/\s+/g, ' ');
     for (const required of [
       'explicit absolute client configuration path',
       'does not auto-discover client configuration files',
@@ -310,7 +312,7 @@ describe('distribution ownership and lifecycle', () => {
       '`"args": ["mcp"]`',
       'existing `env` values are preserved but are not Relay-owned',
     ]) {
-      expect(`${adr}\n${ownership}\n${operational}`).toContain(required);
+      expect(normalizedDocumentation).toContain(required);
     }
     expect(ownership).not.toContain('maps this ' + 'abstract subtree');
     expect(ownership).not.toContain('then-current ' + 'official');

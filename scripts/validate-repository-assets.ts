@@ -308,6 +308,10 @@ function validateDistributionContract(
     asRecord(claudeAfter.mcpServers, 'claude-code-after.mcpServers').relay,
     'claude-code-after.mcpServers.relay',
   );
+  const claudeRelayKeys = Object.keys(claudeAfterRelay).sort();
+  if (JSON.stringify(claudeRelayKeys) !== '["args","command"]') {
+    fail('Claude Code installed entry must contain only command and args.');
+  }
   if (claudeAfterRelay.command !== 'relay' || JSON.stringify(claudeAfterRelay.args) !== '["mcp"]') {
     fail('Claude Code installed entry must use command relay and args ["mcp"].');
   }

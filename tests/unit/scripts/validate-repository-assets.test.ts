@@ -439,10 +439,10 @@ describe('validateRepositoryAssets', () => {
               const mcpServers = fixture.mcpServers as Record<string, Record<string, unknown>>;
               const relay = mcpServers.relay;
               if (!relay) throw new Error('Missing Claude Code relay fixture entry');
-              relay.args = ['serve'];
+              relay.env = { RELAY_DB_PATH: '/unexpected/relay.db' };
             },
           ),
-        error: /Claude Code.*installed entry/i,
+        error: /Claude Code installed entry must contain only command and args/i,
       },
       {
         relativePath: 'tests/fixtures/distribution/client-config-ownership.json',
