@@ -148,7 +148,9 @@ export function validatePackageInventory(entries: readonly string[]): void {
   const missing = REQUIRED_PACKAGE_PATHS.filter((path) => !entries.includes(path));
   const unexpected = entries.filter((path) => !isApprovedPackagePath(path));
   const generatedWebAssets = entries.filter((path) =>
-    /^package\/dist\/web\/assets\/[A-Za-z0-9_-]+\.(?:js|css|svg|png|jpg|jpeg|webp|ico|woff2?)$/.test(path),
+    /^package\/dist\/web\/assets\/[A-Za-z0-9_-]+\.(?:js|css|svg|png|jpg|jpeg|webp|ico|woff2?)$/.test(
+      path,
+    ),
   );
 
   if (generatedWebAssets.length === 0) {
@@ -318,25 +320,25 @@ async function verifyMcp(
 Replace:
 
 ```ts
-parsed.version !== '0.1.0'
+parsed.version !== '0.1.0';
 ```
 
 with:
 
 ```ts
-parsed.version !== expectedVersion
+parsed.version !== expectedVersion;
 ```
 
 Pass `expectedVersion` from `verifyInstalledPackage`, and replace the UI assertion:
 
 ```ts
-health.version !== '0.1.0'
+health.version !== '0.1.0';
 ```
 
 with:
 
 ```ts
-health.version !== expectedVersion
+health.version !== expectedVersion;
 ```
 
 Improve errors so mismatches show both values:

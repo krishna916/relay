@@ -283,7 +283,14 @@ export async function verifyInstalledPackage(rootDir = process.cwd()): Promise<v
       'json',
     ]);
     if (invalid.status !== 0) throw new Error('Installed SQLite database could not be reopened.');
-    await verifyMcp(commandPath, installedMain, unrelatedCwd, databasePath, taskId, expectedVersion);
+    await verifyMcp(
+      commandPath,
+      installedMain,
+      unrelatedCwd,
+      databasePath,
+      taskId,
+      expectedVersion,
+    );
 
     const port = await findFreePort();
     const ui =
