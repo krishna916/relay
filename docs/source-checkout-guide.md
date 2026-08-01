@@ -1,6 +1,6 @@
 # Test Relay from a Source Checkout
 
-This guide is for early testers who are comfortable cloning a repository and running Node.js commands. Relay is not packaged yet: there is no installer, automatic updater, background daemon, or marketplace integration.
+This guide is for early testers who are comfortable cloning a repository and running Node.js commands. Relay is not packaged yet: there is no installer, automatic updater, background daemon, or marketplace integration. Source-checkout commands remain the current supported workflow; npm installation is not available until the later packaging and publication issues are completed.
 
 The recommended source-checkout workflow creates two globally available commands that remain linked to your checkout:
 

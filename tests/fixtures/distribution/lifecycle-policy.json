@@ -1,0 +1,11 @@
+{
+  "normalUninstallRetainsData": true,
+  "integrationRemovalRetainsData": true,
+  "downgradeSupported": false,
+  "destructiveDeleteSeparateAction": true,
+  "automaticPublish": false,
+  "releaseTrigger": "manual-maintainer-action",
+  "disableRetains": ["package", "database", "metadata", "cache", "backups"],
+  "integrationRemovalRetains": ["package", "metadata", "database", "cache", "backups", "user-data"],
+  "uninstallRetains": ["database", "config", "cache", "backups", "user-data"]
+}

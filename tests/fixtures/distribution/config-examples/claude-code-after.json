@@ -1,0 +1,14 @@
+{
+  "projectSetting": "preserve-me",
+  "mcpServers": {
+    "unrelated": {
+      "command": "unrelated-command",
+      "args": ["serve"],
+      "description": "preserve this nested value"
+    },
+    "relay": {
+      "command": "relay",
+      "args": ["mcp"]
+    }
+  }
+}

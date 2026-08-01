@@ -1,0 +1,25 @@
+{
+  "nodeMajor": 24,
+  "supported": [
+    { "platform": "win32", "arch": "x64", "libc": "n/a" },
+    { "platform": "darwin", "arch": "arm64", "libc": "n/a" },
+    { "platform": "linux", "arch": "x64", "libc": "glibc" }
+  ],
+  "unsupported": [
+    { "platform": "win32", "arch": "arm64", "reason": "No release claim." },
+    { "platform": "darwin", "arch": "x64", "reason": "No release claim." },
+    { "platform": "linux", "arch": "arm64", "reason": "No release claim." },
+    {
+      "platform": "linux-musl",
+      "arch": "any",
+      "reason": "better-sqlite3 compatibility is not claimed."
+    }
+  ],
+  "evidenceRequired": [
+    "clean global install",
+    "native dependency load",
+    "setup dry-run or fixture validation",
+    "MCP stdio smoke test",
+    "UI loopback smoke test"
+  ]
+}

@@ -1,0 +1,6 @@
+model = "example-model"
+
+[mcp_servers.unrelated]
+command = "unrelated-command"
+args = ["serve"]
+description = "preserve this nested value"

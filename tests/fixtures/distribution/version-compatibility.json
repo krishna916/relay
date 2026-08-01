@@ -1,0 +1,7 @@
+{
+  "applicationVersionSource": "package.json",
+  "versionedAssets": ["cli", "mcp", "ui", "migrations", "skills", "integrations"],
+  "payloadSchemaVersionIndependent": true,
+  "downgradeSupported": false,
+  "releaseTrigger": "manual-maintainer-action"
+}

@@ -1,0 +1,9 @@
+{
+  "projectSetting": "preserve-me",
+  "mcpServers": {
+    "relay": {
+      "command": "other-relay-wrapper",
+      "args": ["serve"]
+    }
+  }
+}

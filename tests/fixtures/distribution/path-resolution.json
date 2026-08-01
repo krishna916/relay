@@ -1,0 +1,35 @@
+{
+  "databasePrecedence": ["explicit-in-process", "RELAY_DB_PATH", "platform-default"],
+  "databaseEnvironmentOverrides": ["RELAY_DB_PATH"],
+  "rejectRelativeDatabaseOverride": true,
+  "rejectEmptyOrWhitespaceDatabaseOverride": true,
+  "platforms": {
+    "win32": {
+      "dataRoot": "%LOCALAPPDATA%\\Relay",
+      "database": "%LOCALAPPDATA%\\Relay\\relay.db",
+      "configRoot": "%APPDATA%\\Relay",
+      "metadata": "%APPDATA%\\Relay\\config.json",
+      "cacheRoot": "%LOCALAPPDATA%\\Relay\\Cache",
+      "logs": "disabled by default; when enabled, <cache-root>\\logs"
+    },
+    "darwin": {
+      "dataRoot": "~/Library/Application Support/Relay",
+      "database": "~/Library/Application Support/Relay/relay.db",
+      "configRoot": "~/Library/Application Support/Relay/config",
+      "metadata": "~/Library/Application Support/Relay/config/config.json",
+      "cacheRoot": "~/Library/Caches/Relay",
+      "logs": "disabled by default; when enabled, <cache-root>/logs"
+    },
+    "linux": {
+      "dataRoot": "${XDG_DATA_HOME:-~/.local/share}/relay",
+      "database": "${XDG_DATA_HOME:-~/.local/share}/relay/relay.db",
+      "configRoot": "${XDG_CONFIG_HOME:-~/.config}/relay",
+      "metadata": "${XDG_CONFIG_HOME:-~/.config}/relay/config.json",
+      "cacheRoot": "${XDG_CACHE_HOME:-~/.cache}/relay",
+      "logs": "disabled by default; when enabled, <cache-root>/logs"
+    }
+  },
+  "logsEnabledByDefault": false,
+  "assetBase": "installed-module-url",
+  "cwdAffectsResolution": false
+}
