@@ -2,30 +2,10 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } f
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { validateRepositoryAssets } from '../../../scripts/validate-repository-assets.js';
-
-const requiredDistributionAssets = [
-  'docs/decisions/0003-distribution-filesystem-and-lifecycle.md',
-  'docs/distribution/operational-cli-contract.md',
-  'docs/distribution/filesystem-contract.md',
-  'docs/distribution/supported-platforms.md',
-  'docs/distribution/setup-and-config-ownership.md',
-  'docs/distribution/upgrade-removal-and-retention.md',
-  'docs/distribution/version-compatibility.md',
-  'docs/distribution/release-policy.md',
-  'tests/fixtures/distribution/supported-platforms.json',
-  'tests/fixtures/distribution/path-resolution.json',
-  'tests/fixtures/distribution/operational-commands.json',
-  'tests/fixtures/distribution/client-config-ownership.json',
-  'tests/fixtures/distribution/config-examples/codex-before.toml',
-  'tests/fixtures/distribution/config-examples/codex-after.toml',
-  'tests/fixtures/distribution/config-examples/codex-conflict.toml',
-  'tests/fixtures/distribution/config-examples/claude-code-before.json',
-  'tests/fixtures/distribution/config-examples/claude-code-after.json',
-  'tests/fixtures/distribution/config-examples/claude-code-conflict.json',
-  'tests/fixtures/distribution/lifecycle-policy.json',
-  'tests/fixtures/distribution/version-compatibility.json',
-] as const;
+import {
+  requiredDistributionAssets,
+  validateRepositoryAssets,
+} from '../../../scripts/validate-repository-assets.js';
 
 function createFixtureRoot(): string {
   const rootDir = mkdtempSync(join(tmpdir(), 'relay-asset-validator-'));
@@ -380,6 +360,13 @@ describe('validateRepositoryAssets', () => {
           fixture.databaseEnvironmentOverrides = ['RELAY_HOME'];
         },
         error: /database environment override/i,
+      },
+      {
+        relativePath: 'tests/fixtures/distribution/path-resolution.json',
+        update: (fixture) => {
+          fixture.rejectEmptyOrWhitespaceDatabaseOverride = false;
+        },
+        error: /empty or whitespace/i,
       },
       {
         relativePath: 'tests/fixtures/distribution/operational-commands.json',

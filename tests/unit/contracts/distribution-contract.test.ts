@@ -87,6 +87,7 @@ describe('distribution fixtures', () => {
       databasePrecedence: z.array(z.string()),
       databaseEnvironmentOverrides: z.array(z.string()),
       rejectRelativeDatabaseOverride: z.literal(true),
+      rejectEmptyOrWhitespaceDatabaseOverride: z.literal(true),
       platforms: z.object({
         win32: z.object({
           dataRoot: z.string(),
@@ -177,6 +178,7 @@ describe('distribution fixtures', () => {
     expect(commandFixture.commands).toEqual(['setup', 'mcp', 'ui', 'doctor', 'config']);
     expect(commandFixture.exitCodes).toEqual([0, 1, 2, 3, 4, 5]);
     expect(pathFixture.databaseEnvironmentOverrides).toEqual(['RELAY_DB_PATH']);
+    expect(pathFixture.rejectEmptyOrWhitespaceDatabaseOverride).toBe(true);
     expect(ownershipFixture.ownedEntryName).toBe('relay');
     expect(ownershipFixture.codexOwnedIdentifier).toBe('mcp_servers.relay');
     expect(ownershipFixture.claudeCodeOwnedIdentifier).toBe('mcpServers.relay');

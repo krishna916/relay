@@ -14,7 +14,7 @@ export interface ValidateRepositoryAssetsOptions {
   readonly rootDir?: string;
 }
 
-const requiredDistributionAssets = [
+export const requiredDistributionAssets = [
   'docs/decisions/0003-distribution-filesystem-and-lifecycle.md',
   'docs/distribution/operational-cli-contract.md',
   'docs/distribution/filesystem-contract.md',
@@ -232,6 +232,9 @@ function validateDistributionContract(
     fail(
       'Distribution path fixture must use only RELAY_DB_PATH as a database environment override.',
     );
+  }
+  if (pathResolution.rejectEmptyOrWhitespaceDatabaseOverride !== true) {
+    fail('Distribution path fixture must reject empty or whitespace-only RELAY_DB_PATH values.');
   }
 
   const commands = readJsonObject(

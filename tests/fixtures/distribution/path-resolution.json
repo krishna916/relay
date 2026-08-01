@@ -2,6 +2,7 @@
   "databasePrecedence": ["explicit-in-process", "RELAY_DB_PATH", "platform-default"],
   "databaseEnvironmentOverrides": ["RELAY_DB_PATH"],
   "rejectRelativeDatabaseOverride": true,
+  "rejectEmptyOrWhitespaceDatabaseOverride": true,
   "platforms": {
     "win32": {
       "dataRoot": "%LOCALAPPDATA%\\Relay",
