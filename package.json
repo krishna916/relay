@@ -11,7 +11,11 @@
   "pnpm": {
     "overrides": {
       "tmp": "0.2.7"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
   },
   "bin": {
     "relay": "./dist/cli/main.js",
