@@ -89,8 +89,7 @@ are never echoed in change reports.
 
 ## Filesystem and Path Resolution
 
-All paths are per-user and resolved by one future shared resolver. Directory
-names are lowercase `relay`, except for macOS application-support conventions.
+All paths are per-user and resolved by one future shared resolver. Directory casing is platform-specific. Windows and macOS use `Relay`; Linux uses lowercase `relay`. Windows cache uses the canonical child name `Cache`. Path comparison follows native platform semantics, but generated paths always use these spellings.
 
 | Purpose             | Windows                                                            | macOS                                                             | Linux                                                             |
 | ------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------- | ----------------------------------------------------------------- |

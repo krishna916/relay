@@ -204,7 +204,8 @@ describe('distribution fixtures', () => {
 });
 
 describe('distribution documentation', () => {
-  it('derives operational, filesystem, and platform guidance from ADR 0002', () => {
+  it('derives operational, filesystem, and platform guidance from ADR 0003', () => {
+    const adr = readFileSync(distributionAdrPath, 'utf8');
     const operational = readDocumentation('operational-cli-contract.md');
     const filesystem = readDocumentation('filesystem-contract.md');
     const platforms = readDocumentation('supported-platforms.md');
@@ -220,6 +221,9 @@ describe('distribution documentation', () => {
     expect(filesystem).toContain('RELAY_DB_PATH');
     expect(filesystem).toContain('explicit in-process');
     expect(filesystem).toContain('import.meta.url');
+    expect(adr).toContain('Directory casing is platform-specific');
+    expect(adr).toContain('Windows and macOS use `Relay`; Linux uses lowercase `relay`');
+    expect(adr).not.toContain('Directory names are lowercase `relay`, except');
     for (const pathValue of [
       '%LOCALAPPDATA%\\Relay\\relay.db',
       '~/Library/Application Support/Relay/relay.db',

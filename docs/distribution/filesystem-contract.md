@@ -11,6 +11,11 @@ directory, repository root, executable directory, and package installation
 directory. The default path variables are intentionally shown without a real
 username:
 
+Directory casing is platform-specific. Relay emits `Relay` for Windows and
+macOS application directories and lowercase `relay` for Linux XDG directories.
+Windows cache uses the canonical child name `Cache`. Path comparison follows
+native platform semantics, but generated paths always use these spellings.
+
 | Purpose     | Windows                         | macOS                                                    | Linux                                             |
 | ----------- | ------------------------------- | -------------------------------------------------------- | ------------------------------------------------- |
 | data root   | `%LOCALAPPDATA%\Relay`          | `~/Library/Application Support/Relay`                    | `${XDG_DATA_HOME:-~/.local/share}/relay`          |
