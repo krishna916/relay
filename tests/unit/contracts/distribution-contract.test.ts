@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
+import { parse as parseToml } from '@iarna/toml';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
@@ -22,6 +23,13 @@ function readDocumentation(name: string): string {
 
 function readConfigExample(name: string): unknown {
   return JSON.parse(readFileSync(resolve(configExampleRoot, name), 'utf8')) as unknown;
+}
+
+function readTomlConfigExample(name: string): Record<string, unknown> {
+  return parseToml(readFileSync(resolve(configExampleRoot, name), 'utf8')) as Record<
+    string,
+    unknown
+  >;
 }
 
 describe('distribution ADR', () => {
@@ -122,8 +130,14 @@ describe('distribution fixtures', () => {
     });
     const ownershipSchema = z.object({
       ownedEntryName: z.literal('relay'),
-      backupFilenamePattern: z.string(),
+      codexOwnedIdentifier: z.literal('mcp_servers.relay'),
+      claudeCodeOwnedIdentifier: z.literal('mcpServers.relay'),
+      installedCommand: z.literal('relay'),
+      installedArgs: z.tuple([z.literal('mcp')]),
+      configPathSelection: z.literal('explicit-absolute-path-only'),
+      missingOrRelativePathExitCode: z.literal(2),
       conflictExitCode: z.literal(4),
+      backupFilenamePattern: z.string(),
       mutateGenericByDefault: z.literal(false),
       ownershipMetadataFields: z.array(z.string()),
       preserveUnrelatedConfiguration: z.literal(true),
@@ -166,6 +180,13 @@ describe('distribution fixtures', () => {
     expect(commandFixture.exitCodes).toEqual([0, 1, 2, 3, 4, 5]);
     expect(pathFixture.databaseEnvironmentOverrides).toEqual(['RELAY_DB_PATH']);
     expect(ownershipFixture.ownedEntryName).toBe('relay');
+    expect(ownershipFixture.codexOwnedIdentifier).toBe('mcp_servers.relay');
+    expect(ownershipFixture.claudeCodeOwnedIdentifier).toBe('mcpServers.relay');
+    expect(ownershipFixture.installedCommand).toBe('relay');
+    expect(ownershipFixture.installedArgs).toEqual(['mcp']);
+    expect(ownershipFixture.configPathSelection).toBe('explicit-absolute-path-only');
+    expect(ownershipFixture.missingOrRelativePathExitCode).toBe(2);
+    expect(ownershipFixture.conflictExitCode).toBe(4);
     expect(lifecycleFixture.normalUninstallRetainsData).toBe(true);
     expect(lifecycleFixture.downgradeSupported).toBe(false);
     expect(lifecycleFixture.disableRetains).toEqual([
@@ -239,31 +260,40 @@ describe('distribution documentation', () => {
 
 describe('distribution ownership and lifecycle', () => {
   it('preserves unrelated configuration and refuses unowned conflicts', () => {
-    const configSchema = z.object({
-      _fixtureNote: z.string(),
-      unrelatedServer: z.unknown(),
-      unrelatedKey: z.string(),
-      relay: z.union([z.null(), z.object({ command: z.string(), args: z.array(z.string()) })]),
-    });
-    const conflictSchema = z.object({
-      _fixtureNote: z.string(),
-      relay: z.object({ command: z.string(), args: z.array(z.string()) }),
-      expectedExitCode: z.literal(4),
-      mutationAllowed: z.literal(false),
-    });
-    const codexBefore = configSchema.parse(readConfigExample('codex-before.json'));
-    const codexAfter = configSchema.parse(readConfigExample('codex-after.json'));
-    const claudeBefore = configSchema.parse(readConfigExample('claude-code-before.json'));
-    const claudeAfter = configSchema.parse(readConfigExample('claude-code-after.json'));
-    const conflict = conflictSchema.parse(readConfigExample('conflicting-relay-entry.json'));
+    const codexBefore = readTomlConfigExample('codex-before.toml');
+    const codexAfter = readTomlConfigExample('codex-after.toml');
+    const codexConflict = readTomlConfigExample('codex-conflict.toml');
+    const claudeBefore = readConfigExample('claude-code-before.json') as {
+      projectSetting: string;
+      mcpServers: Record<string, unknown>;
+    };
+    const claudeAfter = readConfigExample('claude-code-after.json') as {
+      projectSetting: string;
+      mcpServers: Record<string, unknown>;
+    };
+    const claudeConflict = readConfigExample('claude-code-conflict.json') as {
+      mcpServers: Record<string, { command: string; args: string[] }>;
+    };
 
-    expect(codexAfter.unrelatedServer).toEqual(codexBefore.unrelatedServer);
-    expect(codexAfter.unrelatedKey).toBe(codexBefore.unrelatedKey);
-    expect(codexAfter.relay).toEqual({ command: 'relay', args: ['mcp'] });
-    expect(claudeAfter.unrelatedServer).toEqual(claudeBefore.unrelatedServer);
-    expect(claudeAfter.relay).toEqual({ command: 'relay', args: ['mcp'] });
-    expect(conflict.expectedExitCode).toBe(4);
-    expect(conflict.mutationAllowed).toBe(false);
+    expect(codexAfter).toMatchObject({
+      mcp_servers: { relay: { command: 'relay', args: ['mcp'] } },
+    });
+    expect(codexAfter.model).toBe(codexBefore.model);
+    expect(codexAfter.mcp_servers).toMatchObject({
+      unrelated: (codexBefore.mcp_servers as Record<string, unknown>).unrelated,
+    });
+    expect(codexConflict).toMatchObject({
+      mcp_servers: { relay: { command: 'other-relay-wrapper', args: ['serve'] } },
+    });
+    expect(claudeAfter.projectSetting).toBe(claudeBefore.projectSetting);
+    expect(claudeAfter.mcpServers.unrelated).toEqual(claudeBefore.mcpServers.unrelated);
+    expect(claudeAfter).toMatchObject({
+      mcpServers: { relay: { command: 'relay', args: ['mcp'] } },
+    });
+    expect(claudeConflict.mcpServers.relay).toEqual({
+      command: 'other-relay-wrapper',
+      args: ['serve'],
+    });
   });
 
   it('documents ownership, backup, lifecycle, and retention rules', () => {

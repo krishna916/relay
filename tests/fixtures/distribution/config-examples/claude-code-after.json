@@ -1,13 +1,17 @@
 {
-  "_fixtureNote": "Abstract subtree only; a later adapter maps it to the then-current official Claude Code config format.",
-  "unrelatedServer": {
-    "command": "other-tool",
-    "args": ["--stdio"],
-    "env": { "OTHER_SETTING": "preserve" }
-  },
-  "unrelatedKey": "preserve",
-  "relay": {
-    "command": "relay",
-    "args": ["mcp"]
+  "projectSetting": "preserve-me",
+  "mcpServers": {
+    "unrelated": {
+      "command": "unrelated-command",
+      "args": ["serve"],
+      "description": "preserve this nested value"
+    },
+    "relay": {
+      "command": "relay",
+      "args": ["mcp"],
+      "env": {
+        "RELAY_DB_PATH": "/user/selected/relay.db"
+      }
+    }
   }
 }

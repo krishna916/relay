@@ -1,0 +1,5 @@
+model = "example-model"
+
+[mcp_servers.relay]
+command = "other-relay-wrapper"
+args = ["serve"]

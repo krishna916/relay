@@ -1,5 +1,11 @@
 {
   "ownedEntryName": "relay",
+  "codexOwnedIdentifier": "mcp_servers.relay",
+  "claudeCodeOwnedIdentifier": "mcpServers.relay",
+  "installedCommand": "relay",
+  "installedArgs": ["mcp"],
+  "configPathSelection": "explicit-absolute-path-only",
+  "missingOrRelativePathExitCode": 2,
   "backupFilenamePattern": "<filename>.relay-backup-YYYYMMDDTHHMMSSZ",
   "conflictExitCode": 4,
   "mutateGenericByDefault": false,
