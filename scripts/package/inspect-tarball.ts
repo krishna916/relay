@@ -14,6 +14,10 @@ function readTarEntries(tarballPath: string): string[] {
   for (let offset = 0; offset + 512 <= archive.length;) {
     const header = archive.subarray(offset, offset + 512);
     if (header.every((byte) => byte === 0)) break;
+    const typeflag = String.fromCharCode(header[156] ?? 0);
+    if (typeflag === 'L' || typeflag === 'x' || typeflag === 'g') {
+      throw new Error(`Unsupported tar extended header type "${typeflag}" at offset ${offset}.`);
+    }
     const name = header.subarray(0, 100).toString('utf8').replace(/\0.*$/, '');
     const prefix = header.subarray(345, 500).toString('utf8').replace(/\0.*$/, '');
     const sizeText = header.subarray(124, 136).toString('ascii').replace(/\0.*$/, '').trim();

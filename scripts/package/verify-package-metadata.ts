@@ -18,7 +18,7 @@ interface PackageJson {
   readonly license?: string;
 }
 
-function countTopLevelKey(source: string, key: string): number {
+export function countTopLevelKey(source: string, key: string): number {
   let depth = 0;
   let inString = false;
   let escaped = false;

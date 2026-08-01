@@ -1,5 +1,9 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import {
+  REQUIRED_ONLY_BUILT_DEPENDENCIES,
+  REQUIRED_PNPM_OVERRIDES,
+} from './package/verify-package-metadata.js';
 
 export interface ValidateMcpbAssetsOptions {
   readonly rootDir?: string;
@@ -100,11 +104,11 @@ export function validateMcpbAssets(options: ValidateMcpbAssetsOptions = {}): voi
   const rootPnpm = (
     root as { pnpm?: { overrides?: Record<string, string>; onlyBuiltDependencies?: string[] } }
   ).pnpm;
-  if (JSON.stringify(rootPnpm?.overrides) !== JSON.stringify({ tmp: '0.2.7' }))
+  if (JSON.stringify(rootPnpm?.overrides) !== JSON.stringify(REQUIRED_PNPM_OVERRIDES))
     fail('Root pnpm metadata must preserve the tmp 0.2.7 override.');
   if (
     JSON.stringify(rootPnpm?.onlyBuiltDependencies) !==
-    JSON.stringify(['better-sqlite3', 'esbuild'])
+    JSON.stringify(REQUIRED_ONLY_BUILT_DEPENDENCIES)
   )
     fail('Root pnpm metadata must approve better-sqlite3 and esbuild builds.');
   const ignored = readFileSync(join(sourceDir, '.mcpbignore'), 'utf8');

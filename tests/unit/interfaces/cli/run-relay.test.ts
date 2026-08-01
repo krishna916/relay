@@ -29,6 +29,10 @@ describe('runRelay', () => {
     expect(calls).toEqual(['mcp']);
   });
 
+  it('propagates a non-zero MCP exit code', async () => {
+    await expect(runRelay(['mcp'], dependencies({ runMcp: async () => 1 }))).resolves.toBe(1);
+  });
+
   it('routes ui without creating a task runtime', async () => {
     const calls: string[] = [];
     const code = await runRelay(

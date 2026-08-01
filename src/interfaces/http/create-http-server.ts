@@ -40,10 +40,7 @@ export function getContentType(filePath: string): string {
   }
 }
 
-export function resolveStaticAsset(
-  pathname: string,
-  webBuildDirectory = resolvePackageAssets().webRoot,
-): string | null {
+export function resolveStaticAsset(pathname: string, webBuildDirectory: string): string | null {
   if (!existsSync(webBuildDirectory)) {
     return null;
   }
@@ -94,6 +91,7 @@ export function resolveHttpPort(explicitPort?: number): number {
 export function createHttpServer(options: HttpServerOptions): Promise<HttpServerInstance> {
   const host = options.host || '127.0.0.1';
   let port: number;
+  let webRoot: string;
 
   try {
     port = resolveHttpPort(options.port);
@@ -102,6 +100,7 @@ export function createHttpServer(options: HttpServerOptions): Promise<HttpServer
         `Loopback security restriction: HTTP server host must be 127.0.0.1 or localhost (got ${host}).`,
       );
     }
+    webRoot = options.assets?.webRoot ?? resolvePackageAssets().webRoot;
   } catch (err) {
     return Promise.reject(err);
   }
@@ -109,8 +108,7 @@ export function createHttpServer(options: HttpServerOptions): Promise<HttpServer
   const requestHandler = (req: IncomingMessage, res: ServerResponse) => {
     void routeHttpRequest(req, res, {
       taskApplication: options.taskApplication,
-      getStaticAsset: (pathname) =>
-        resolveStaticAsset(pathname, options.assets?.webRoot ?? resolvePackageAssets().webRoot),
+      getStaticAsset: (pathname) => resolveStaticAsset(pathname, webRoot),
       getContentType,
     });
   };

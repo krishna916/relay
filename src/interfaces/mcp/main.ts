@@ -5,8 +5,8 @@ import { mcpLogger } from './logger.js';
 import { createTaskRuntime } from '../shared/create-task-runtime.js';
 import { runMcpServer as runMcpServerWithDependencies } from './run-mcp-server.js';
 
-export async function runMcpServer(): Promise<void> {
-  await runMcpServerWithDependencies({
+export async function runMcpServer(): Promise<number> {
+  const started = await runMcpServerWithDependencies({
     createRuntime: createTaskRuntime,
     createServer: createMcpServer,
     createTransport: () => new StdioServerTransport(),
@@ -16,6 +16,7 @@ export async function runMcpServer(): Promise<void> {
       process.exitCode = 1;
     },
   });
+  return started ? 0 : 1;
 }
 
 if (/(?:[\\/]mcp|[\\/]server)[\\/]main\.(?:js|ts)$/.test(process.argv[1] ?? ''))

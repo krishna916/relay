@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -11,6 +12,22 @@ import {
 } from '../../scripts/package/inspect-tarball.js';
 
 describe('Relay npm tarball', () => {
+  it.each(['L', 'x', 'g'] as const)('rejects unsupported tar header type %s', (typeflag) => {
+    const artifactRoot = mkdtempSync(join(tmpdir(), 'relay-tar-header-'));
+    try {
+      const header = Buffer.alloc(512);
+      header[156] = typeflag.charCodeAt(0);
+      const tarballPath = join(artifactRoot, 'unsupported.tgz');
+      writeFileSync(tarballPath, gzipSync(Buffer.concat([header, Buffer.alloc(512)])));
+
+      expect(() => normalizedTarballInventory(tarballPath)).toThrowError(
+        `Unsupported tar extended header type "${typeflag}" at offset 0.`,
+      );
+    } finally {
+      rmSync(artifactRoot, { recursive: true, force: true });
+    }
+  });
+
   it('rejects an unexpected file inside an otherwise published directory', () => {
     const inventory = [
       ...REQUIRED_PACKAGE_PATHS,

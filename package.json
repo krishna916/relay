@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Local task sidecar for human–AI workflows",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/krishna916/relay.git"

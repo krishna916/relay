@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process';
+import { join } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
   resolveHttpPort,
@@ -88,18 +89,20 @@ describe('getContentType', () => {
 });
 
 describe('resolveStaticAsset', () => {
+  const webRoot = join(process.cwd(), 'dist', 'web');
+
   it('resolves the built index.html asset from the web output directory', () => {
-    const assetPath = resolveStaticAsset('/');
+    const assetPath = resolveStaticAsset('/', webRoot);
 
     expect(assetPath).toBeTruthy();
     expect(assetPath).toMatch(/dist[\\/]web[\\/]index\.html$/);
   });
 
   it('rejects path traversal outside the built web directory', () => {
-    expect(resolveStaticAsset('/../package.json')).toBeNull();
+    expect(resolveStaticAsset('/../package.json', webRoot)).toBeNull();
   });
 
   it('returns null for unknown static files', () => {
-    expect(resolveStaticAsset('/assets/does-not-exist.js')).toBeNull();
+    expect(resolveStaticAsset('/assets/does-not-exist.js', webRoot)).toBeNull();
   });
 });
