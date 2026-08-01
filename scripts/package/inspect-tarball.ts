@@ -2,7 +2,11 @@ import { gunzipSync } from 'node:zlib';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { FORBIDDEN_PACKAGE_PATTERNS, REQUIRED_PACKAGE_PATHS } from './package-files.js';
+import {
+  APPROVED_GENERATED_PACKAGE_PATTERNS,
+  isApprovedPackagePath,
+  REQUIRED_PACKAGE_PATHS,
+} from './package-files.js';
 
 function readTarEntries(tarballPath: string): string[] {
   const archive = gunzipSync(readFileSync(tarballPath));
@@ -24,21 +28,26 @@ export function normalizedTarballInventory(tarballPath: string): readonly string
   return readTarEntries(tarballPath);
 }
 
-export async function inspectTarball(tarballPath: string): Promise<void> {
-  const entries = normalizedTarballInventory(tarballPath);
+export function validatePackageInventory(entries: readonly string[]): void {
   const missing = REQUIRED_PACKAGE_PATHS.filter((path) => !entries.includes(path));
-  const forbidden = entries.filter((path) =>
-    FORBIDDEN_PACKAGE_PATTERNS.some((pattern) => pattern.test(path)),
+  const unexpected = entries.filter((path) => !isApprovedPackagePath(path));
+  const generatedWebAssets = entries.filter((path) =>
+    APPROVED_GENERATED_PACKAGE_PATTERNS.some((pattern) => pattern.test(path)),
   );
-  const webAssets = entries.filter((path) =>
-    /^package\/dist\/web\/(?!index\.html$)[^/]+/.test(path),
-  );
-  if (webAssets.length === 0) missing.push('package/dist/web/<hashed-asset>');
-  if (missing.length > 0 || forbidden.length > 0) {
+
+  if (generatedWebAssets.length === 0) {
+    missing.push('package/dist/web/assets/<generated-runtime-asset>');
+  }
+
+  if (missing.length > 0 || unexpected.length > 0) {
     throw new Error(
-      `Relay npm tarball inventory mismatch.\nMissing:\n${missing.join('\n') || '(none)'}\nForbidden:\n${forbidden.join('\n') || '(none)'}`,
+      `Relay npm tarball inventory mismatch.\nMissing:\n${missing.join('\n') || '(none)'}\nUnexpected:\n${unexpected.join('\n') || '(none)'}`,
     );
   }
+}
+
+export async function inspectTarball(tarballPath: string): Promise<void> {
+  validatePackageInventory(normalizedTarballInventory(tarballPath));
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

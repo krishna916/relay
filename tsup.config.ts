@@ -11,6 +11,7 @@ export default defineConfig({
   outDir: 'dist',
   clean: false,
   sourcemap: false,
+  splitting: false,
   bundle: true,
   shims: true,
 });
