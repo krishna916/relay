@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -77,6 +77,26 @@ describe('Linux MCPB package model', () => {
     });
   });
 
+  it('keeps the root vulnerability override and approved build-script policy in package metadata', () => {
+    const packageJson = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as {
+      pnpm?: {
+        overrides?: Record<string, string>;
+        onlyBuiltDependencies?: string[];
+      };
+    };
+    const runtimePackageJson = JSON.parse(
+      readFileSync(resolve('integrations/claude-desktop/package.json'), 'utf8'),
+    ) as { pnpm?: { onlyBuiltDependencies?: string[] } };
+
+    expect(packageJson.pnpm).toEqual({
+      overrides: { tmp: '0.2.7' },
+      onlyBuiltDependencies: ['better-sqlite3', 'esbuild'],
+    });
+    expect(runtimePackageJson.pnpm).toEqual({
+      onlyBuiltDependencies: ['better-sqlite3', 'esbuild'],
+    });
+  });
+
   it.each([
     ['LF', '\n'],
     ['CRLF', '\r\n'],
@@ -111,16 +131,21 @@ describe('Linux MCPB package model', () => {
 
   it('copies the root version and Node engine into staged metadata', () => {
     const relay = { name: 'relay', version: '0.1.0', nodeEngine: '>=24 <25' };
+    const sourceWithBuildPolicy = {
+      ...sourceRuntimePackage,
+      pnpm: { onlyBuiltDependencies: ['better-sqlite3', 'esbuild'] },
+    };
 
     expect(createStagedManifest(sourceManifest, relay)).toMatchObject({
       name: 'relay',
       version: '0.1.0',
       compatibility: { platforms: ['linux'], runtimes: { node: '>=24 <25' } },
     });
-    expect(createStagedRuntimePackage(sourceRuntimePackage, relay)).toMatchObject({
+    expect(createStagedRuntimePackage(sourceWithBuildPolicy, relay)).toMatchObject({
       name: 'relay',
       version: '0.1.0',
       engines: { node: '>=24 <25' },
+      pnpm: { onlyBuiltDependencies: ['better-sqlite3', 'esbuild'] },
     });
   });
 

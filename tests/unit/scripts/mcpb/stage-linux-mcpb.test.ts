@@ -56,6 +56,7 @@ async function fixtureRoot(): Promise<string> {
         version: '0.1.0',
         type: 'module',
         engines: { node: '>=24 <25' },
+        pnpm: { onlyBuiltDependencies: ['better-sqlite3', 'esbuild'] },
         dependencies: {
           '@modelcontextprotocol/sdk': '1.29.0',
           'better-sqlite3': '13.0.1',
@@ -105,6 +106,11 @@ describe('stageLinuxMcpb', () => {
       'process.exit',
     );
     expect(await readFile(join(result.stageDir, 'chunk-runtime.js'), 'utf8')).toContain('runtime');
+    expect(JSON.parse(await readFile(join(result.stageDir, 'package.json'), 'utf8'))).toMatchObject(
+      {
+        pnpm: { onlyBuiltDependencies: ['better-sqlite3', 'esbuild'] },
+      },
+    );
     expect(runCommand).toHaveBeenCalledWith(
       'pnpm',
       [
