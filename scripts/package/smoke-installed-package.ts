@@ -1,5 +1,5 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -51,6 +51,23 @@ function runNpm(
     }) as string;
   }
   return execFileSync(npmCommand(), args, { cwd, encoding: encoding ?? 'buffer', env }) as string;
+}
+
+export function readExpectedPackageVersion(rootDir: string): string {
+  const packagePath = join(rootDir, 'package.json');
+  const parsed = JSON.parse(readFileSync(packagePath, 'utf8')) as {
+    readonly name?: string;
+    readonly version?: string;
+  };
+
+  if (parsed.name !== '@krishna916/relay') {
+    throw new Error(`Package smoke expected @krishna916/relay metadata at ${packagePath}.`);
+  }
+  if (!/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/.test(parsed.version ?? '')) {
+    throw new Error(`Package smoke found an invalid version in ${packagePath}.`);
+  }
+
+  return parsed.version!;
 }
 
 function pack(rootDir: string, artifactDir: string): string {
@@ -144,6 +161,7 @@ async function verifyMcp(
   cwd: string,
   databasePath: string,
   taskId: string,
+  expectedVersion: string,
 ): Promise<void> {
   const command = process.platform === 'win32' ? process.execPath : commandPath;
   const args = process.platform === 'win32' ? [installedMain, 'mcp'] : ['mcp'];
@@ -169,8 +187,10 @@ async function verifyMcp(
       version?: string;
       status?: string;
     };
-    if (parsed.status !== 'ok' || parsed.version !== '0.1.0')
-      throw new Error('Installed MCP health did not report the package version.');
+    if (parsed.status !== 'ok' || parsed.version !== expectedVersion)
+      throw new Error(
+        `Installed MCP health reported version ${String(parsed.version)}; expected ${expectedVersion}.`,
+      );
     const task = (await client.callTool({ name: 'task_get', arguments: { taskId } })) as {
       structuredContent?: { data?: { task?: { id?: string } } };
     };
@@ -182,6 +202,7 @@ async function verifyMcp(
 }
 
 export async function verifyInstalledPackage(rootDir = process.cwd()): Promise<void> {
+  const expectedVersion = readExpectedPackageVersion(rootDir);
   const temporaryRoot = mkdtempSync(join(tmpdir(), 'relay-installed-package-'));
   const prefix = join(temporaryRoot, 'prefix');
   const unrelatedCwd = join(temporaryRoot, 'unrelated-cwd');
@@ -262,7 +283,7 @@ export async function verifyInstalledPackage(rootDir = process.cwd()): Promise<v
       'json',
     ]);
     if (invalid.status !== 0) throw new Error('Installed SQLite database could not be reopened.');
-    await verifyMcp(commandPath, installedMain, unrelatedCwd, databasePath, taskId);
+    await verifyMcp(commandPath, installedMain, unrelatedCwd, databasePath, taskId, expectedVersion);
 
     const port = await findFreePort();
     const ui =
@@ -290,11 +311,13 @@ export async function verifyInstalledPackage(rootDir = process.cwd()): Promise<v
       };
       const index = await (await fetch(`${url}/`)).text();
       if (
-        health.version !== '0.1.0' ||
+        health.version !== expectedVersion ||
         !tasks.tasks?.some((task) => task.id === taskId) ||
         !index.includes('<!doctype html>')
       )
-        throw new Error('Installed UI did not serve the shared task database and packaged assets.');
+        throw new Error(
+          `Installed UI health reported version ${String(health.version)}; expected ${expectedVersion}, or it did not serve the shared task database and packaged assets.`,
+        );
     } finally {
       ui.kill();
       if (ui.exitCode === null)
