@@ -297,8 +297,25 @@ describe('distribution ownership and lifecycle', () => {
   });
 
   it('documents ownership, backup, lifecycle, and retention rules', () => {
+    const adr = readFileSync(distributionAdrPath, 'utf8');
     const ownership = readDocumentation('setup-and-config-ownership.md');
+    const operational = readDocumentation('operational-cli-contract.md');
     const lifecycle = readDocumentation('upgrade-removal-and-retention.md');
+    for (const required of [
+      'explicit absolute client configuration path',
+      'does not auto-discover client configuration files',
+      '`mcp_servers.relay`',
+      '`mcpServers.relay`',
+      '`command = "relay"`',
+      '`"command": "relay"`',
+      '`args = ["mcp"]`',
+      '`"args": ["mcp"]`',
+      'existing `env` values are preserved but are not Relay-owned',
+    ]) {
+      expect(`${adr}\n${ownership}\n${operational}`).toContain(required);
+    }
+    expect(ownership).not.toContain('maps this abstract subtree');
+    expect(ownership).not.toContain('then-current official');
     for (const section of [
       'Ownership Boundary',
       'Relay Metadata',

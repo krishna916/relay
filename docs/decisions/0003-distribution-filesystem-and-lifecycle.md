@@ -121,6 +121,12 @@ the MVP.
 Relay owns only identifiable exact entries or fragments and never rewrites an
 entire client configuration.
 
+Future mutating Codex or Claude Code setup requires an explicit absolute client
+configuration path. Omitted or relative paths are usage errors with exit code
+`2`. Relay does not auto-discover client configuration files, traverse parent
+directories, or infer scope. The normalized absolute path is recorded in Relay
+ownership metadata. Fragment generation remains available without mutation.
+
 - Codex and Claude Code each have one exact MCP server entry named `relay`.
   Unrelated keys and server entries are preserved.
 - Generic clients receive a documented fragment by default. A file is mutated

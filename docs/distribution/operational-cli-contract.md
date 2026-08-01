@@ -34,6 +34,12 @@ are deferred to later issues. No command in this contract performs background
 daemonization, startup registration, telemetry, or speculative distribution
 behavior.
 
+Mutating setup requires an explicit absolute client configuration path and does not auto-discover client configuration files.
+Future mutating Codex or Claude Code setup accepts an explicit absolute client
+configuration path. It returns exit code `2` for an omitted or relative path and
+does not auto-discover client configuration files. Read-only fragment generation
+does not require a path. Generic MCP clients remain fragment-only by default.
+
 ## Exit-Code Categories
 
 The stable operational exit categories are:

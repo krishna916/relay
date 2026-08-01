@@ -17,6 +17,13 @@ metadata or an exact previously recorded Relay entry. Ownership is never
 inferred from the command name alone. An unowned or conflicting entry is a
 conflict with exit code `4` and no mutation.
 
+Future mutating Codex or Claude Code setup requires an explicit absolute client
+configuration path. Omitted or relative paths are usage errors with exit code
+`2`. Relay does not auto-discover client configuration files, search home
+directories, traverse repository ancestors, or infer vendor scope. Relay
+records the normalized absolute path supplied by the caller in ownership
+metadata. Read-only fragment generation remains available without a path.
+
 ## Relay Metadata
 
 Relay metadata records client kind, configuration path, owned entry identifier,
@@ -58,25 +65,59 @@ and ownership metadata is unchanged.
 
 ## Codex Entry Contract
 
-The abstract Codex fixture adds the exact entry:
+The native Codex target is TOML at the exact table `mcp_servers.relay`. The
+installed values are `command = "relay"` and `args = ["mcp"]`:
+
+```toml
+[mcp_servers.relay]
+command = "relay"
+args = ["mcp"]
+```
+
+The before, after, and conflict examples are
+[codex-before.toml](../../tests/fixtures/distribution/config-examples/codex-before.toml),
+[codex-after.toml](../../tests/fixtures/distribution/config-examples/codex-after.toml), and
+[codex-conflict.toml](../../tests/fixtures/distribution/config-examples/codex-conflict.toml). The adapter
+preserves unrelated TOML keys and tables. An existing exact table is
+`owned-match` only when metadata records the same absolute file path and owned
+identifier `mcp_servers.relay`; otherwise it is an unowned conflict. A
+metadata-owned table with changed command or arguments is `owned-drift` and may
+be restored after backup. An absent table is `absent` and may be created after
+backup. No `env` table is added by default.
+
+## Claude Code Entry Contract
+
+The native Claude Code target is JSON at the exact property `mcpServers.relay`.
+The installed values are `"command": "relay"` and `"args": ["mcp"]`:
 
 ```json
 {
-  "relay": {
-    "command": "relay",
-    "args": ["mcp"]
+  "mcpServers": {
+    "relay": {
+      "command": "relay",
+      "args": ["mcp"]
+    }
   }
 }
 ```
 
-The later adapter maps this abstract subtree to the then-current official
-Codex configuration format and preserves unrelated content.
+The before, after, and conflict examples are
+[claude-code-before.json](../../tests/fixtures/distribution/config-examples/claude-code-before.json),
+[claude-code-after.json](../../tests/fixtures/distribution/config-examples/claude-code-after.json), and
+[claude-code-conflict.json](../../tests/fixtures/distribution/config-examples/claude-code-conflict.json). The
+adapter preserves every unrelated root property, MCP server, and nested
+property. An existing exact object is `owned-match` only when metadata records
+the same absolute file path and owned identifier `mcpServers.relay`; otherwise
+it is an unowned conflict. A metadata-owned object with changed command or
+arguments is `owned-drift` and may be restored after backup. An absent property
+is `absent` and may be created after backup.
 
-## Claude Code Entry Contract
+For both formats, existing `env` values are preserved but are not Relay-owned.
+Relay never infers ownership from the command string alone.
 
-Claude Code receives the same owned entry name, command, and arguments. The
-later adapter maps the abstract fixture to the then-current official Claude
-Code configuration format and preserves unrelated content.
+Installed-package entries use `command = "relay"` / `"command": "relay"` with
+arguments `mcp`. Existing source-checkout templates remain
+`node <checkout>/dist/mcp/main.js` and are not mutated by this contract.
 
 ## Generic MCP Fragment Contract
 
