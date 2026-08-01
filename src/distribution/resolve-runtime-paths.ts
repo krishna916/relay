@@ -24,12 +24,14 @@ function selectDatabasePath(
   platform: NodeJS.Platform,
   env: Readonly<Record<string, string | undefined>>,
 ): string {
-  const candidate = input.explicitDatabasePath ?? env.RELAY_DB_PATH;
+  const fromExplicitInput = input.explicitDatabasePath !== undefined;
+  const candidate = fromExplicitInput ? input.explicitDatabasePath : env.RELAY_DB_PATH;
   if (candidate !== undefined) {
     const normalized = candidate.trim();
     if (!normalized)
       throw new RelayError('RELAY_DB_PATH/database path cannot be empty or whitespace only.');
-    if (normalized !== ':memory:' && !isAbsoluteForPlatform(normalized, platform)) {
+    const isExplicitInMemory = fromExplicitInput && normalized === ':memory:';
+    if (!isExplicitInMemory && !isAbsoluteForPlatform(normalized, platform)) {
       throw new RelayError(`Database path must be absolute: ${normalized}`);
     }
     return normalized;

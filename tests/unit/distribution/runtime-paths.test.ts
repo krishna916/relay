@@ -73,6 +73,38 @@ describe('Relay runtime paths', () => {
     ).toBe('/home/relay/.local/share/relay/relay.db');
   });
 
+  it('allows an in-memory database only through explicit internal injection', () => {
+    expect(
+      resolveRuntimePaths({
+        platform: 'linux',
+        homeDir: '/home/relay',
+        env: {},
+        explicitDatabasePath: ':memory:',
+      }).databasePath,
+    ).toBe(':memory:');
+  });
+
+  it('rejects an in-memory database supplied through RELAY_DB_PATH', () => {
+    expect(() =>
+      resolveRuntimePaths({
+        platform: 'linux',
+        homeDir: '/home/relay',
+        env: { RELAY_DB_PATH: ':memory:' },
+      }),
+    ).toThrowError('Database path must be absolute: :memory:');
+  });
+
+  it('does not let an invalid environment value override explicit in-memory injection', () => {
+    expect(
+      resolveRuntimePaths({
+        platform: 'linux',
+        homeDir: '/home/relay',
+        env: { RELAY_DB_PATH: 'relative.db' },
+        explicitDatabasePath: ':memory:',
+      }).databasePath,
+    ).toBe(':memory:');
+  });
+
   it.each(['', '   '])('rejects whitespace RELAY_DB_PATH values (%j)', (value) => {
     expect(() =>
       resolveRuntimePaths({
