@@ -42,15 +42,15 @@ Luna must copy these decisions into the ADR and derived documentation exactly. D
 
 ### Supported platform matrix
 
-| Operating system | Architecture | Status | Evidence required before release |
-| --- | --- | --- | --- |
-| Windows 10/11 | x64 | Supported | clean global install, native dependency load, setup dry-run/fixture validation, MCP stdio smoke test, UI loopback smoke test |
-| macOS 13+ | arm64 | Supported | same evidence on Apple Silicon |
-| Linux | x64, glibc | Supported | same evidence on at least Ubuntu LTS; claims remain limited to glibc-compatible x64 Linux |
-| Windows | arm64 | Unsupported | no release claim |
-| macOS | x64 | Unsupported | no release claim |
-| Linux | arm64 | Unsupported | no release claim |
-| Alpine/musl | any | Unsupported | `better-sqlite3` compatibility is not claimed |
+| Operating system | Architecture | Status      | Evidence required before release                                                                                             |
+| ---------------- | ------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Windows 10/11    | x64          | Supported   | clean global install, native dependency load, setup dry-run/fixture validation, MCP stdio smoke test, UI loopback smoke test |
+| macOS 13+        | arm64        | Supported   | same evidence on Apple Silicon                                                                                               |
+| Linux            | x64, glibc   | Supported   | same evidence on at least Ubuntu LTS; claims remain limited to glibc-compatible x64 Linux                                    |
+| Windows          | arm64        | Unsupported | no release claim                                                                                                             |
+| macOS            | x64          | Unsupported | no release claim                                                                                                             |
+| Linux            | arm64        | Unsupported | no release claim                                                                                                             |
+| Alpine/musl      | any          | Unsupported | `better-sqlite3` compatibility is not claimed                                                                                |
 
 ### Operational command responsibilities
 
@@ -65,14 +65,14 @@ Luna must copy these decisions into the ADR and derived documentation exactly. D
 
 Reuse the existing CLI categories:
 
-| Code | Category | Operational meaning |
-| --- | --- | --- |
-| `0` | success | command completed, including idempotent no-change outcomes |
-| `1` | internal | unexpected Relay defect or uncategorized failure |
-| `2` | usage/validation | invalid arguments, unsupported platform, invalid configuration, incompatible requested operation |
-| `3` | not found | requested Relay-owned integration entry or resource is absent where absence is an error |
-| `4` | conflict | unsafe overwrite, ownership mismatch, incompatible existing entry, unsupported downgrade, or migration/version conflict |
-| `5` | storage | filesystem, permission, SQLite, backup, or persistence failure |
+| Code | Category         | Operational meaning                                                                                                     |
+| ---- | ---------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `0`  | success          | command completed, including idempotent no-change outcomes                                                              |
+| `1`  | internal         | unexpected Relay defect or uncategorized failure                                                                        |
+| `2`  | usage/validation | invalid arguments, unsupported platform, invalid configuration, incompatible requested operation                        |
+| `3`  | not found        | requested Relay-owned integration entry or resource is absent where absence is an error                                 |
+| `4`  | conflict         | unsafe overwrite, ownership mismatch, incompatible existing entry, unsupported downgrade, or migration/version conflict |
+| `5`  | storage          | filesystem, permission, SQLite, backup, or persistence failure                                                          |
 
 Stdout/stderr rules:
 
@@ -85,14 +85,14 @@ Stdout/stderr rules:
 
 All paths are per-user and resolved by one future shared resolver. Directory names are lowercase `relay` except macOS application-support conventions.
 
-| Purpose | Windows | macOS | Linux |
-| --- | --- | --- | --- |
-| data root | `%LOCALAPPDATA%\Relay` | `~/Library/Application Support/Relay` | `${XDG_DATA_HOME:-~/.local/share}/relay` |
-| database | `<data-root>\relay.db` | `<data-root>/relay.db` | `<data-root>/relay.db` |
-| Relay config root | `%APPDATA%\Relay` | `~/Library/Application Support/Relay/config` | `${XDG_CONFIG_HOME:-~/.config}/relay` |
-| Relay metadata file | `<config-root>\config.json` | `<config-root>/config.json` | `<config-root>/config.json` |
-| cache root | `%LOCALAPPDATA%\Relay\Cache` | `~/Library/Caches/Relay` | `${XDG_CACHE_HOME:-~/.cache}/relay` |
-| diagnostic logs | disabled by default; when explicitly enabled, `<cache-root>\logs` | disabled by default; when explicitly enabled, `<cache-root>/logs` | disabled by default; when explicitly enabled, `<cache-root>/logs` |
+| Purpose             | Windows                                                           | macOS                                                             | Linux                                                             |
+| ------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------- |
+| data root           | `%LOCALAPPDATA%\Relay`                                            | `~/Library/Application Support/Relay`                             | `${XDG_DATA_HOME:-~/.local/share}/relay`                          |
+| database            | `<data-root>\relay.db`                                            | `<data-root>/relay.db`                                            | `<data-root>/relay.db`                                            |
+| Relay config root   | `%APPDATA%\Relay`                                                 | `~/Library/Application Support/Relay/config`                      | `${XDG_CONFIG_HOME:-~/.config}/relay`                             |
+| Relay metadata file | `<config-root>\config.json`                                       | `<config-root>/config.json`                                       | `<config-root>/config.json`                                       |
+| cache root          | `%LOCALAPPDATA%\Relay\Cache`                                      | `~/Library/Caches/Relay`                                          | `${XDG_CACHE_HOME:-~/.cache}/relay`                               |
+| diagnostic logs     | disabled by default; when explicitly enabled, `<cache-root>\logs` | disabled by default; when explicitly enabled, `<cache-root>/logs` | disabled by default; when explicitly enabled, `<cache-root>/logs` |
 
 Database precedence, highest first:
 
@@ -225,19 +225,33 @@ Use these exact top-level sections:
 **Date:** 2026-08-01
 
 ## Context
+
 ## Decision Summary
+
 ## Package and Executable
+
 ## Supported Runtime Matrix
+
 ## Operational Command Surface
+
 ## Exit Codes and Output Channels
+
 ## Filesystem and Path Resolution
+
 ## Client Configuration Ownership
+
 ## Setup Idempotency and Backups
+
 ## Upgrade, Downgrade, Disable, Removal, and Retention
+
 ## Package Asset Resolution
+
 ## Version Compatibility
+
 ## Publication Approval
+
 ## Consequences
+
 ## Explicitly Deferred
 ```
 
@@ -386,14 +400,23 @@ Use sections:
 
 ```md
 # Operational CLI Contract
+
 ## Scope and Relationship to Task Commands
+
 ## Installation Identity
+
 ## Command Responsibilities
+
 ## Exit-Code Categories
+
 ## Stdout and Stderr Rules
+
 ## Human Output
+
 ## JSON Output
+
 ## MCP Protocol Cleanliness
+
 ## Explicitly Deferred Flags and Commands
 ```
 
@@ -474,15 +497,25 @@ Use sections:
 
 ```md
 # Setup and Configuration Ownership
+
 ## Ownership Boundary
+
 ## Relay Metadata
+
 ## Idempotent Setup Algorithm
+
 ## Backup and Atomic Write Contract
+
 ## Codex Entry Contract
+
 ## Claude Code Entry Contract
+
 ## Generic MCP Fragment Contract
+
 ## Conflict Handling
+
 ## Exact Change Reporting
+
 ## Secret Redaction
 ```
 
@@ -508,14 +541,23 @@ Use sections:
 
 ```md
 # Upgrade, Removal, and Data Retention
+
 ## Upgrade
+
 ## Database Migration Failure
+
 ## Downgrade
+
 ## Disable
+
 ## Integration Removal
+
 ## Package Uninstall
+
 ## Explicit Data Deletion
+
 ## Backup Retention
+
 ## Recovery Guidance
 ```
 
@@ -551,9 +593,7 @@ Validate this fixture shape:
 ```ts
 const compatibilitySchema = z.object({
   applicationVersionSource: z.literal('package.json'),
-  versionedAssets: z.array(
-    z.enum(['cli', 'mcp', 'ui', 'migrations', 'skills', 'integrations']),
-  ),
+  versionedAssets: z.array(z.enum(['cli', 'mcp', 'ui', 'migrations', 'skills', 'integrations'])),
   payloadSchemaVersionIndependent: z.literal(true),
   downgradeSupported: z.literal(false),
   releaseTrigger: z.literal('manual-maintainer-action'),
@@ -584,13 +624,21 @@ Use sections:
 
 ```md
 # Release Policy
+
 ## Maintainer Approval
+
 ## Required Automated Gates
+
 ## Required Platform Evidence
+
 ## Version and Tag Consistency
+
 ## Package-Contents Review
+
 ## npm Publication Security
+
 ## Failure and Rollback Rules
+
 ## Out of Scope for Issue #39
 ```
 

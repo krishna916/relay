@@ -1,0 +1,18 @@
+{
+  "ownedEntryName": "relay",
+  "backupFilenamePattern": "<filename>.relay-backup-YYYYMMDDTHHMMSSZ",
+  "conflictExitCode": 4,
+  "mutateGenericByDefault": false,
+  "ownershipMetadataFields": [
+    "clientKind",
+    "configPath",
+    "ownedEntryIdentifier",
+    "applicationVersion",
+    "command",
+    "args",
+    "backupReference",
+    "lastSuccessfulSetupAt"
+  ],
+  "preserveUnrelatedConfiguration": true,
+  "inferOwnershipFromCommandName": false
+}

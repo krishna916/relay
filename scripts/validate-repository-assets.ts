@@ -13,6 +13,23 @@ export interface ValidateRepositoryAssetsOptions {
   readonly rootDir?: string;
 }
 
+const requiredDistributionAssets = [
+  'docs/decisions/0002-distribution-filesystem-and-lifecycle.md',
+  'docs/distribution/operational-cli-contract.md',
+  'docs/distribution/filesystem-contract.md',
+  'docs/distribution/supported-platforms.md',
+  'docs/distribution/setup-and-config-ownership.md',
+  'docs/distribution/upgrade-removal-and-retention.md',
+  'docs/distribution/version-compatibility.md',
+  'docs/distribution/release-policy.md',
+  'tests/fixtures/distribution/supported-platforms.json',
+  'tests/fixtures/distribution/path-resolution.json',
+  'tests/fixtures/distribution/operational-commands.json',
+  'tests/fixtures/distribution/client-config-ownership.json',
+  'tests/fixtures/distribution/lifecycle-policy.json',
+  'tests/fixtures/distribution/version-compatibility.json',
+] as const;
+
 function walkFiles(rootDir: string, startDir = rootDir): string[] {
   const entries = readdirSync(startDir, { withFileTypes: true });
   const files: string[] = [];
@@ -121,6 +138,143 @@ function validatePlaceholders(files: readonly string[]): void {
   }
 }
 
+function asRecord(value: unknown, label: string): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    fail(`${label} must contain a JSON object.`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function readJsonObject(filePath: string, label: string): Record<string, unknown> {
+  return asRecord(JSON.parse(readFileSync(filePath, 'utf-8')) as unknown, label);
+}
+
+function validateDistributionContract(
+  rootDir: string,
+  pkg: {
+    readonly name?: string;
+    readonly engines?: { readonly node?: string };
+  },
+): void {
+  const adr = readFileSync(
+    join(rootDir, 'docs/decisions/0002-distribution-filesystem-and-lifecycle.md'),
+    'utf-8',
+  );
+  const operational = readFileSync(
+    join(rootDir, 'docs/distribution/operational-cli-contract.md'),
+    'utf-8',
+  );
+  if (!adr.includes('@krishna916/relay')) {
+    fail('Distribution ADR must name the public package @krishna916/relay.');
+  }
+  if (!operational.includes('The final executable is `relay`')) {
+    fail('Distribution contract must name relay as the public executable.');
+  }
+  if (pkg.name !== 'relay' && pkg.name !== '@krishna916/relay') {
+    fail(
+      `package.json#name must be relay for source checkout or @krishna916/relay for publication (got ${String(pkg.name)}).`,
+    );
+  }
+  if (pkg.engines?.node !== '>=24 <25') {
+    fail(`package.json#engines.node must be >=24 <25 (got ${String(pkg.engines?.node)}).`);
+  }
+
+  const supportedPlatforms = readJsonObject(
+    join(rootDir, 'tests/fixtures/distribution/supported-platforms.json'),
+    'supported-platforms.json',
+  );
+  if (supportedPlatforms.nodeMajor !== 24) {
+    fail('Distribution supported-platforms fixture must require Node major 24.');
+  }
+  const supported = supportedPlatforms.supported;
+  const expectedSupported = [
+    { platform: 'win32', arch: 'x64', libc: 'n/a' },
+    { platform: 'darwin', arch: 'arm64', libc: 'n/a' },
+    { platform: 'linux', arch: 'x64', libc: 'glibc' },
+  ];
+  if (JSON.stringify(supported) !== JSON.stringify(expectedSupported)) {
+    fail(
+      'Distribution supported-platforms fixture must contain exactly the three supported tuples.',
+    );
+  }
+  const expectedUnsupported = [
+    { platform: 'win32', arch: 'arm64', reason: 'No release claim.' },
+    { platform: 'darwin', arch: 'x64', reason: 'No release claim.' },
+    { platform: 'linux', arch: 'arm64', reason: 'No release claim.' },
+    {
+      platform: 'linux-musl',
+      arch: 'any',
+      reason: 'better-sqlite3 compatibility is not claimed.',
+    },
+  ];
+  if (JSON.stringify(supportedPlatforms.unsupported) !== JSON.stringify(expectedUnsupported)) {
+    fail(
+      'Distribution supported-platforms fixture must contain exactly the unsupported boundary set.',
+    );
+  }
+
+  const pathResolution = readJsonObject(
+    join(rootDir, 'tests/fixtures/distribution/path-resolution.json'),
+    'path-resolution.json',
+  );
+  if (JSON.stringify(pathResolution.databaseEnvironmentOverrides) !== '["RELAY_DB_PATH"]') {
+    fail(
+      'Distribution path fixture must use only RELAY_DB_PATH as a database environment override.',
+    );
+  }
+
+  const commands = readJsonObject(
+    join(rootDir, 'tests/fixtures/distribution/operational-commands.json'),
+    'operational-commands.json',
+  );
+  if (JSON.stringify(commands.commands) !== '["setup","mcp","ui","doctor","config"]') {
+    fail('Distribution operational commands must be exactly setup, mcp, ui, doctor, config.');
+  }
+
+  const lifecycle = readJsonObject(
+    join(rootDir, 'tests/fixtures/distribution/lifecycle-policy.json'),
+    'lifecycle-policy.json',
+  );
+  if (lifecycle.downgradeSupported !== false) {
+    fail('Distribution lifecycle fixture must mark downgrade support as false.');
+  }
+  if (lifecycle.normalUninstallRetainsData !== true) {
+    fail('Distribution lifecycle fixture must retain data on normal uninstall.');
+  }
+  if (
+    JSON.stringify(lifecycle.disableRetains) !==
+    '["package","database","metadata","cache","backups"]'
+  ) {
+    fail(
+      'Distribution lifecycle fixture must retain package, database, metadata, cache, and backups on disable.',
+    );
+  }
+  if (
+    JSON.stringify(lifecycle.integrationRemovalRetains) !==
+    '["package","metadata","database","cache","backups","user-data"]'
+  ) {
+    fail(
+      'Distribution lifecycle fixture must retain user data and backups on integration removal.',
+    );
+  }
+  if (
+    JSON.stringify(lifecycle.uninstallRetains) !==
+    '["database","config","cache","backups","user-data"]'
+  ) {
+    fail(
+      'Distribution lifecycle fixture must retain database, config, cache, backups, and user data on uninstall.',
+    );
+  }
+
+  const compatibility = readJsonObject(
+    join(rootDir, 'tests/fixtures/distribution/version-compatibility.json'),
+    'version-compatibility.json',
+  );
+  if (compatibility.releaseTrigger !== 'manual-maintainer-action') {
+    fail('Distribution version fixture must require a manual maintainer release action.');
+  }
+}
+
 export function validateRepositoryAssets(options: ValidateRepositoryAssetsOptions = {}): void {
   const rootDir = options.rootDir ? resolve(options.rootDir) : process.cwd();
 
@@ -166,6 +320,7 @@ export function validateRepositoryAssets(options: ValidateRepositoryAssetsOption
     'src/interfaces/contracts/task-contract.ts',
     'src/interfaces/contracts/warning-contract.ts',
     'web/src/App.tsx',
+    ...requiredDistributionAssets,
   ];
 
   for (const p of requiredPaths) {
@@ -176,8 +331,11 @@ export function validateRepositoryAssets(options: ValidateRepositoryAssetsOption
 
   // 2. package.json bin validation
   const pkg = JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf-8')) as {
+    name?: string;
+    engines?: { node?: string };
     bin?: Record<string, string>;
   };
+  validateDistributionContract(rootDir, pkg);
   const binRelayMcp = pkg.bin?.['relay-mcp'];
   const binRelay = pkg.bin?.relay;
   if (binRelay !== './dist/cli/main.js') {

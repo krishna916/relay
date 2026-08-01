@@ -1,8 +1,25 @@
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { validateRepositoryAssets } from '../../../scripts/validate-repository-assets.js';
+
+const requiredDistributionAssets = [
+  'docs/decisions/0002-distribution-filesystem-and-lifecycle.md',
+  'docs/distribution/operational-cli-contract.md',
+  'docs/distribution/filesystem-contract.md',
+  'docs/distribution/supported-platforms.md',
+  'docs/distribution/setup-and-config-ownership.md',
+  'docs/distribution/upgrade-removal-and-retention.md',
+  'docs/distribution/version-compatibility.md',
+  'docs/distribution/release-policy.md',
+  'tests/fixtures/distribution/supported-platforms.json',
+  'tests/fixtures/distribution/path-resolution.json',
+  'tests/fixtures/distribution/operational-commands.json',
+  'tests/fixtures/distribution/client-config-ownership.json',
+  'tests/fixtures/distribution/lifecycle-policy.json',
+  'tests/fixtures/distribution/version-compatibility.json',
+] as const;
 
 function createFixtureRoot(): string {
   const rootDir = mkdtempSync(join(tmpdir(), 'relay-asset-validator-'));
@@ -159,8 +176,24 @@ function createFixtureRoot(): string {
     join(rootDir, 'integrations/claude-desktop'),
     { recursive: true },
   );
+  for (const assetPath of requiredDistributionAssets) {
+    const destination = join(rootDir, assetPath);
+    mkdirSync(dirname(destination), { recursive: true });
+    cpSync(join(process.cwd(), assetPath), destination);
+  }
 
   return rootDir;
+}
+
+function updateJsonFixture(
+  rootDir: string,
+  relativePath: string,
+  update: (fixture: Record<string, unknown>) => void,
+): void {
+  const filePath = join(rootDir, relativePath);
+  const fixture = JSON.parse(readFileSync(filePath, 'utf8')) as Record<string, unknown>;
+  update(fixture);
+  writeFileSync(filePath, JSON.stringify(fixture));
 }
 
 describe('validateRepositoryAssets', () => {
@@ -263,5 +296,95 @@ describe('validateRepositoryAssets', () => {
     rmSync(join(rootDir, 'integrations/codex/config.toml.example'));
 
     expect(() => validateRepositoryAssets({ rootDir })).toThrow(/agent integration.*config\.toml/i);
+  });
+
+  it('rejects a missing distribution contract asset', () => {
+    const rootDir = createFixtureRoot();
+    createdRoots.push(rootDir);
+    rmSync(join(rootDir, 'docs/distribution/release-policy.md'));
+
+    expect(() => validateRepositoryAssets({ rootDir })).toThrow(/distribution.*release-policy/i);
+  });
+
+  it('accepts the complete distribution contract asset set', () => {
+    const rootDir = createFixtureRoot();
+    createdRoots.push(rootDir);
+
+    expect(() => validateRepositoryAssets({ rootDir })).not.toThrow();
+  });
+
+  it('rejects drift in core distribution identifiers', () => {
+    const mutations: readonly {
+      readonly relativePath: string;
+      readonly update: (fixture: Record<string, unknown>) => void;
+      readonly error: RegExp;
+    }[] = [
+      {
+        relativePath: 'package.json',
+        update: (fixture) => {
+          fixture.name = 'wrong-package';
+        },
+        error: /package\.json#name/i,
+      },
+      {
+        relativePath: 'package.json',
+        update: (fixture) => {
+          fixture.engines = { node: '24' };
+        },
+        error: /engines\.node/i,
+      },
+      {
+        relativePath: 'tests/fixtures/distribution/supported-platforms.json',
+        update: (fixture) => {
+          const supported = fixture.supported as Array<Record<string, unknown>>;
+          supported[0]!.arch = 'arm64';
+        },
+        error: /supported tuples/i,
+      },
+      {
+        relativePath: 'tests/fixtures/distribution/supported-platforms.json',
+        update: (fixture) => {
+          const unsupported = fixture.unsupported as Array<Record<string, unknown>>;
+          unsupported[0]!.arch = 'x64';
+        },
+        error: /unsupported boundary/i,
+      },
+      {
+        relativePath: 'tests/fixtures/distribution/path-resolution.json',
+        update: (fixture) => {
+          fixture.databaseEnvironmentOverrides = ['RELAY_HOME'];
+        },
+        error: /database environment override/i,
+      },
+      {
+        relativePath: 'tests/fixtures/distribution/operational-commands.json',
+        update: (fixture) => {
+          fixture.commands = ['setup', 'mcp', 'ui', 'doctor', 'wrong'];
+        },
+        error: /operational commands/i,
+      },
+      {
+        relativePath: 'tests/fixtures/distribution/lifecycle-policy.json',
+        update: (fixture) => {
+          fixture.downgradeSupported = true;
+        },
+        error: /downgrade support/i,
+      },
+      {
+        relativePath: 'tests/fixtures/distribution/version-compatibility.json',
+        update: (fixture) => {
+          fixture.releaseTrigger = 'push';
+        },
+        error: /manual maintainer/i,
+      },
+    ];
+
+    for (const mutation of mutations) {
+      const rootDir = createFixtureRoot();
+      createdRoots.push(rootDir);
+      updateJsonFixture(rootDir, mutation.relativePath, mutation.update);
+
+      expect(() => validateRepositoryAssets({ rootDir })).toThrow(mutation.error);
+    }
   });
 });

@@ -1,0 +1,9 @@
+{
+  "_fixtureNote": "Abstract subtree only; a later adapter maps it to the then-current official client config format.",
+  "relay": {
+    "command": "unowned-client",
+    "args": ["--mcp"]
+  },
+  "expectedExitCode": 4,
+  "mutationAllowed": false
+}

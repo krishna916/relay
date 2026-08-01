@@ -1,0 +1,9 @@
+{
+  "commands": ["setup", "mcp", "ui", "doctor", "config"],
+  "taskCommandsUnchanged": true,
+  "exitCodes": [0, 1, 2, 3, 4, 5],
+  "jsonEnvelopeSchemaVersion": 1,
+  "mcpUsesJsonEnvelope": false,
+  "mcpStdout": "protocol-only",
+  "diagnosticsStream": "stderr"
+}
