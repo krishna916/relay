@@ -461,11 +461,12 @@ git commit -m "docs: define operational and filesystem contracts"
 
 - Create: `docs/distribution/setup-and-config-ownership.md`
 - Create: `docs/distribution/upgrade-removal-and-retention.md`
-- Create: `tests/fixtures/distribution/config-examples/codex-before.json`
-- Create: `tests/fixtures/distribution/config-examples/codex-after.json`
+- Create: `tests/fixtures/distribution/config-examples/codex-before.toml`
+- Create: `tests/fixtures/distribution/config-examples/codex-after.toml`
+- Create: `tests/fixtures/distribution/config-examples/codex-conflict.toml`
 - Create: `tests/fixtures/distribution/config-examples/claude-code-before.json`
 - Create: `tests/fixtures/distribution/config-examples/claude-code-after.json`
-- Create: `tests/fixtures/distribution/config-examples/conflicting-relay-entry.json`
+- Create: `tests/fixtures/distribution/config-examples/claude-code-conflict.json`
 - Modify: `tests/unit/contracts/distribution-contract.test.ts`
 
 **Interfaces:**
@@ -485,7 +486,7 @@ expect(conflict.expectedExitCode).toBe(4);
 expect(conflict.mutationAllowed).toBe(false);
 ```
 
-The fixture shape may model only the relevant configuration subtree. Include a `_fixtureNote` explaining that later client adapters must map the abstract entry to the client’s then-current official config format.
+Fixtures must use the native Codex TOML and Claude Code JSON configuration shapes, include unrelated content for preservation checks, and keep conflict examples separate from the installed-entry examples.
 
 - [ ] **Step 2: Run focused tests and confirm failures for missing docs/fixtures.**
 

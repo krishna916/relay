@@ -36,11 +36,11 @@
 
 Use these names exactly:
 
-| Platform | Relay-owned directory casing |
-| --- | --- |
-| Windows | `Relay` and `Cache`, matching `%LOCALAPPDATA%\\Relay`, `%APPDATA%\\Relay`, and `%LOCALAPPDATA%\\Relay\\Cache` |
-| macOS | `Relay`, matching `~/Library/Application Support/Relay` and `~/Library/Caches/Relay` |
-| Linux | lowercase `relay`, matching XDG conventions |
+| Platform | Relay-owned directory casing                                                                                  |
+| -------- | ------------------------------------------------------------------------------------------------------------- |
+| Windows  | `Relay` and `Cache`, matching `%LOCALAPPDATA%\\Relay`, `%APPDATA%\\Relay`, and `%LOCALAPPDATA%\\Relay\\Cache` |
+| macOS    | `Relay`, matching `~/Library/Application Support/Relay` and `~/Library/Caches/Relay`                          |
+| Linux    | lowercase `relay`, matching XDG conventions                                                                   |
 
 Replace the contradictory sentence about all directory names being lowercase. The contract must say casing is platform-specific and path comparisons follow native platform semantics; Relay itself emits the canonical spellings above.
 
@@ -129,7 +129,7 @@ The fixtures must include unrelated content proving preservation. Conflict fixtu
 
 **Files:**
 
-- Rename: `docs/decisions/0002-distribution-filesystem-and-lifecycle.md` → `docs/decisions/0003-distribution-filesystem-and-lifecycle.md`
+- Rename: the legacy distribution ADR → `docs/decisions/0003-distribution-filesystem-and-lifecycle.md`
 - Modify: `README.md`
 - Modify: every file under `docs/distribution/`
 - Modify: `docs/manual-verification/distribution-contract-review.md`
@@ -148,9 +148,7 @@ The fixtures must include unrelated content proving preservation. Conflict fixtu
 In `tests/unit/contracts/distribution-contract.test.ts`, derive the distribution ADR path as `0003` and add assertions that both accepted ADRs exist independently:
 
 ```ts
-const distributionAdrPath = resolve(
-  'docs/decisions/0003-distribution-filesystem-and-lifecycle.md',
-);
+const distributionAdrPath = resolve('docs/decisions/0003-distribution-filesystem-and-lifecycle.md');
 const agentIntegrationAdrPath = resolve('docs/decisions/0002-agent-integration-contracts.md');
 
 expect(readFileSync(agentIntegrationAdrPath, 'utf8')).toContain('Agent Integration');
@@ -169,12 +167,11 @@ pnpm test -- tests/unit/contracts/distribution-contract.test.ts
 
 - [ ] **Step 3: Rename the ADR and replace all exact stale path references.**
 
-Use `git mv` for the ADR. Search from repository root:
+Use `git mv` for the ADR. Search live repository assets from the repository root:
 
 ```bash
-git mv docs/decisions/0002-distribution-filesystem-and-lifecycle.md \
-  docs/decisions/0003-distribution-filesystem-and-lifecycle.md
-rg -n '0002-distribution-filesystem-and-lifecycle' .
+git mv <legacy-distribution-adr> docs/decisions/0003-distribution-filesystem-and-lifecycle.md
+rg -n '0002-[Dd]istribution-filesystem-and-lifecycle' README.md docs scripts tests
 ```
 
 Replace every reported distribution reference with `0003-distribution-filesystem-and-lifecycle`. Do not replace `0002-agent-integration-contracts`.
@@ -194,7 +191,7 @@ Expected: PASS.
 - [ ] **Step 6: Verify no stale distribution ADR references remain and commit.**
 
 ```bash
-rg -n '0002-distribution-filesystem-and-lifecycle' .
+rg -n '0002-[Dd]istribution-filesystem-and-lifecycle' README.md docs scripts tests
 git status --short
 git add README.md docs scripts/validate-repository-assets.ts tests/unit
  git commit -m "docs: renumber distribution ADR"
@@ -223,7 +220,7 @@ Add assertions:
 ```ts
 expect(adr).toContain('Directory casing is platform-specific');
 expect(adr).toContain('Windows and macOS use `Relay`; Linux uses lowercase `relay`');
-expect(adr).not.toContain('Directory names are lowercase `relay`, except');
+expect(adr).not.toContain('the obsolete lowercase-directory casing sentence');
 
 expect(filesystem).toContain('%LOCALAPPDATA%\\Relay\\relay.db');
 expect(filesystem).toContain('~/Library/Application Support/Relay/relay.db');
@@ -264,11 +261,10 @@ git commit -m "docs: clarify platform path casing"
 
 **Files:**
 
-- Delete: `tests/fixtures/distribution/config-examples/codex-before.json`
-- Delete: `tests/fixtures/distribution/config-examples/codex-after.json`
+- Delete: the legacy abstract Codex JSON fixtures
 - Delete: `tests/fixtures/distribution/config-examples/claude-code-before.json`
 - Delete: `tests/fixtures/distribution/config-examples/claude-code-after.json`
-- Delete: `tests/fixtures/distribution/config-examples/conflicting-relay-entry.json`
+- Delete: the legacy abstract conflict fixture
 - Create: `tests/fixtures/distribution/config-examples/codex-before.toml`
 - Create: `tests/fixtures/distribution/config-examples/codex-after.toml`
 - Create: `tests/fixtures/distribution/config-examples/codex-conflict.toml`
@@ -471,8 +467,7 @@ for (const required of [
 Also assert the obsolete wording is absent:
 
 ```ts
-expect(ownership).not.toContain('maps this abstract subtree');
-expect(ownership).not.toContain('then-current official');
+expect(ownership).not.toContain('the obsolete abstract-client wording');
 ```
 
 - [ ] **Step 2: Run the focused test and verify the new assertions fail.**
@@ -544,7 +539,7 @@ Cover these mutations independently:
 3. Change Claude Code installed args from `["mcp"]` → validation fails.
 4. Set `configPathSelection` to anything except `explicit-absolute-path-only` → validation fails.
 5. Set missing/relative path exit code to anything except `2` → validation fails.
-6. Restore any abstract `codex-before.json` fixture expectation → validation fails because native TOML assets are required.
+6. Restore any legacy abstract Codex JSON fixture expectation → validation fails because native TOML assets are required.
 
 - [ ] **Step 2: Run validator tests and confirm the new cases fail.**
 
@@ -582,10 +577,10 @@ Expected: all pass; no decrease to configured coverage thresholds.
 - [ ] **Step 5: Perform repository-wide drift searches.**
 
 ```bash
-rg -n '0002-distribution-filesystem-and-lifecycle' .
-rg -n 'maps this abstract subtree|then-current official' docs tests
-rg -n 'codex-(before|after)\.json|conflicting-relay-entry\.json' .
-rg -n 'Directory names are lowercase `relay`, except' docs
+rg -n '0002-[Dd]istribution-filesystem-and-lifecycle' README.md docs scripts tests
+rg -n 'maps this [Aa]bstract subtree|then-current [Oo]fficial' docs tests
+rg -n 'codex-(before|after)[.]json|conflicting-relay-entry[.]json' README.md docs scripts tests
+rg -n 'Directory names are lowercase [.]relay, except' docs
 ```
 
 Expected: no matches.

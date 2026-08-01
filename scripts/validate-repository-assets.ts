@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { parse as parseToml } from '@iarna/toml';
 import { validateSkillAssets } from './validate-skill-assets.js';
 import { validateAgentIntegrationAssets } from './validate-agent-integration-assets.js';
 import { validateMcpbAssets } from './validate-mcpb-assets.js';
@@ -26,6 +27,12 @@ const requiredDistributionAssets = [
   'tests/fixtures/distribution/path-resolution.json',
   'tests/fixtures/distribution/operational-commands.json',
   'tests/fixtures/distribution/client-config-ownership.json',
+  'tests/fixtures/distribution/config-examples/codex-before.toml',
+  'tests/fixtures/distribution/config-examples/codex-after.toml',
+  'tests/fixtures/distribution/config-examples/codex-conflict.toml',
+  'tests/fixtures/distribution/config-examples/claude-code-before.json',
+  'tests/fixtures/distribution/config-examples/claude-code-after.json',
+  'tests/fixtures/distribution/config-examples/claude-code-conflict.json',
   'tests/fixtures/distribution/lifecycle-policy.json',
   'tests/fixtures/distribution/version-compatibility.json',
 ] as const;
@@ -149,6 +156,10 @@ function readJsonObject(filePath: string, label: string): Record<string, unknown
   return asRecord(JSON.parse(readFileSync(filePath, 'utf-8')) as unknown, label);
 }
 
+function readTomlObject(filePath: string, label: string): Record<string, unknown> {
+  return asRecord(parseToml(readFileSync(filePath, 'utf-8')) as unknown, label);
+}
+
 function validateDistributionContract(
   rootDir: string,
   pkg: {
@@ -229,6 +240,82 @@ function validateDistributionContract(
   );
   if (JSON.stringify(commands.commands) !== '["setup","mcp","ui","doctor","config"]') {
     fail('Distribution operational commands must be exactly setup, mcp, ui, doctor, config.');
+  }
+
+  const ownership = readJsonObject(
+    join(rootDir, 'tests/fixtures/distribution/client-config-ownership.json'),
+    'client-config-ownership.json',
+  );
+  const ownershipLiterals: readonly [string, unknown, string][] = [
+    ['ownedEntryName', 'relay', 'owned entry name'],
+    ['codexOwnedIdentifier', 'mcp_servers.relay', 'Codex owned identifier'],
+    ['claudeCodeOwnedIdentifier', 'mcpServers.relay', 'Claude Code owned identifier'],
+    ['installedCommand', 'relay', 'installed command'],
+    ['configPathSelection', 'explicit-absolute-path-only', 'configPathSelection'],
+    ['missingOrRelativePathExitCode', 2, 'missingOrRelativePathExitCode'],
+    ['conflictExitCode', 4, 'conflict exit code'],
+  ];
+  for (const [field, expected, label] of ownershipLiterals) {
+    if (ownership[field] !== expected) {
+      fail(`Distribution ownership ${label} must be ${JSON.stringify(expected)}.`);
+    }
+  }
+  if (JSON.stringify(ownership.installedArgs) !== '["mcp"]') {
+    fail('Distribution ownership installedArgs must be exactly ["mcp"].');
+  }
+  for (const [field, expected, label] of [
+    ['mutateGenericByDefault', false, 'generic mutation policy'],
+    ['preserveUnrelatedConfiguration', true, 'unrelated configuration preservation'],
+    ['inferOwnershipFromCommandName', false, 'command-name ownership inference'],
+  ] as const) {
+    if (ownership[field] !== expected) {
+      fail(`Distribution ownership must enforce ${label}=${String(expected)}.`);
+    }
+  }
+
+  const codexBefore = readTomlObject(
+    join(rootDir, 'tests/fixtures/distribution/config-examples/codex-before.toml'),
+    'codex-before.toml',
+  );
+  const codexAfter = readTomlObject(
+    join(rootDir, 'tests/fixtures/distribution/config-examples/codex-after.toml'),
+    'codex-after.toml',
+  );
+  const codexConflict = readTomlObject(
+    join(rootDir, 'tests/fixtures/distribution/config-examples/codex-conflict.toml'),
+    'codex-conflict.toml',
+  );
+  const claudeBefore = readJsonObject(
+    join(rootDir, 'tests/fixtures/distribution/config-examples/claude-code-before.json'),
+    'claude-code-before.json',
+  );
+  const claudeAfter = readJsonObject(
+    join(rootDir, 'tests/fixtures/distribution/config-examples/claude-code-after.json'),
+    'claude-code-after.json',
+  );
+  const claudeConflict = readJsonObject(
+    join(rootDir, 'tests/fixtures/distribution/config-examples/claude-code-conflict.json'),
+    'claude-code-conflict.json',
+  );
+  const codexAfterRelay = asRecord(
+    asRecord(codexAfter.mcp_servers, 'codex-after.mcp_servers').relay,
+    'codex-after.mcp_servers.relay',
+  );
+  if (codexAfterRelay.command !== 'relay' || JSON.stringify(codexAfterRelay.args) !== '["mcp"]') {
+    fail('Codex installed entry must use command relay and args ["mcp"].');
+  }
+  const claudeAfterRelay = asRecord(
+    asRecord(claudeAfter.mcpServers, 'claude-code-after.mcpServers').relay,
+    'claude-code-after.mcpServers.relay',
+  );
+  if (claudeAfterRelay.command !== 'relay' || JSON.stringify(claudeAfterRelay.args) !== '["mcp"]') {
+    fail('Claude Code installed entry must use command relay and args ["mcp"].');
+  }
+  if (!codexBefore.mcp_servers || !codexConflict.mcp_servers) {
+    fail('Codex native fixtures must contain mcp_servers tables.');
+  }
+  if (!claudeBefore.mcpServers || !claudeConflict.mcpServers) {
+    fail('Claude Code native fixtures must contain mcpServers objects.');
   }
 
   const lifecycle = readJsonObject(

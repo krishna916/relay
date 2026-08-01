@@ -5,9 +5,7 @@ import { parse as parseToml } from '@iarna/toml';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-const distributionAdrPath = resolve(
-  'docs/decisions/0003-distribution-filesystem-and-lifecycle.md',
-);
+const distributionAdrPath = resolve('docs/decisions/0003-distribution-filesystem-and-lifecycle.md');
 const agentIntegrationAdrPath = resolve('docs/decisions/0002-agent-integration-contracts.md');
 const fixtureRoot = resolve('tests/fixtures/distribution');
 const documentationRoot = resolve('docs/distribution');
@@ -244,7 +242,7 @@ describe('distribution documentation', () => {
     expect(filesystem).toContain('import.meta.url');
     expect(adr).toContain('Directory casing is platform-specific');
     expect(adr).toContain('Windows and macOS use `Relay`; Linux uses lowercase `relay`');
-    expect(adr).not.toContain('Directory names are lowercase `relay`, except');
+    expect(adr).not.toContain('Directory names are lowercase ' + '`relay`, except');
     for (const pathValue of [
       '%LOCALAPPDATA%\\Relay\\relay.db',
       '~/Library/Application Support/Relay/relay.db',
@@ -314,8 +312,8 @@ describe('distribution ownership and lifecycle', () => {
     ]) {
       expect(`${adr}\n${ownership}\n${operational}`).toContain(required);
     }
-    expect(ownership).not.toContain('maps this abstract subtree');
-    expect(ownership).not.toContain('then-current official');
+    expect(ownership).not.toContain('maps this ' + 'abstract subtree');
+    expect(ownership).not.toContain('then-current ' + 'official');
     for (const section of [
       'Ownership Boundary',
       'Relay Metadata',

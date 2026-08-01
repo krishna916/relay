@@ -17,6 +17,12 @@ const requiredDistributionAssets = [
   'tests/fixtures/distribution/path-resolution.json',
   'tests/fixtures/distribution/operational-commands.json',
   'tests/fixtures/distribution/client-config-ownership.json',
+  'tests/fixtures/distribution/config-examples/codex-before.toml',
+  'tests/fixtures/distribution/config-examples/codex-after.toml',
+  'tests/fixtures/distribution/config-examples/codex-conflict.toml',
+  'tests/fixtures/distribution/config-examples/claude-code-before.json',
+  'tests/fixtures/distribution/config-examples/claude-code-after.json',
+  'tests/fixtures/distribution/config-examples/claude-code-conflict.json',
   'tests/fixtures/distribution/lifecycle-policy.json',
   'tests/fixtures/distribution/version-compatibility.json',
 ] as const;
@@ -194,6 +200,15 @@ function updateJsonFixture(
   const fixture = JSON.parse(readFileSync(filePath, 'utf8')) as Record<string, unknown>;
   update(fixture);
   writeFileSync(filePath, JSON.stringify(fixture));
+}
+
+function updateTextFixture(
+  rootDir: string,
+  relativePath: string,
+  update: (content: string) => string,
+): void {
+  const filePath = join(rootDir, relativePath);
+  writeFileSync(filePath, update(readFileSync(filePath, 'utf8')));
 }
 
 describe('validateRepositoryAssets', () => {
@@ -393,6 +408,79 @@ describe('validateRepositoryAssets', () => {
       const rootDir = createFixtureRoot();
       createdRoots.push(rootDir);
       updateJsonFixture(rootDir, mutation.relativePath, mutation.update);
+
+      expect(() => validateRepositoryAssets({ rootDir })).toThrow(mutation.error);
+    }
+  });
+
+  it('rejects drift in native client ownership contracts', () => {
+    const mutations: readonly {
+      readonly relativePath: string;
+      readonly update: (rootDir: string) => void;
+      readonly error: RegExp;
+    }[] = [
+      {
+        relativePath: 'tests/fixtures/distribution/config-examples/codex-after.toml',
+        update: (rootDir) =>
+          updateTextFixture(
+            rootDir,
+            'tests/fixtures/distribution/config-examples/codex-after.toml',
+            (content) => content.replace('command = "relay"', 'command = "node"'),
+          ),
+        error: /Codex.*installed entry/i,
+      },
+      {
+        relativePath: 'tests/fixtures/distribution/config-examples/claude-code-after.json',
+        update: (rootDir) =>
+          updateJsonFixture(
+            rootDir,
+            'tests/fixtures/distribution/config-examples/claude-code-after.json',
+            (fixture) => {
+              const mcpServers = fixture.mcpServers as Record<string, Record<string, unknown>>;
+              const relay = mcpServers.relay;
+              if (!relay) throw new Error('Missing Claude Code relay fixture entry');
+              relay.args = ['serve'];
+            },
+          ),
+        error: /Claude Code.*installed entry/i,
+      },
+      {
+        relativePath: 'tests/fixtures/distribution/client-config-ownership.json',
+        update: (rootDir) =>
+          updateJsonFixture(
+            rootDir,
+            'tests/fixtures/distribution/client-config-ownership.json',
+            (fixture) => {
+              fixture.configPathSelection = 'home-discovery';
+            },
+          ),
+        error: /configPathSelection/i,
+      },
+      {
+        relativePath: 'tests/fixtures/distribution/client-config-ownership.json',
+        update: (rootDir) =>
+          updateJsonFixture(
+            rootDir,
+            'tests/fixtures/distribution/client-config-ownership.json',
+            (fixture) => {
+              fixture.missingOrRelativePathExitCode = 3;
+            },
+          ),
+        error: /missingOrRelativePathExitCode/i,
+      },
+      {
+        relativePath: 'tests/fixtures/distribution/config-examples/codex-before.toml',
+        update: (rootDir) => {
+          rmSync(join(rootDir, 'tests/fixtures/distribution/config-examples/codex-before.toml'));
+        },
+        error: /codex-before\.toml/i,
+      },
+    ];
+
+    for (const mutation of mutations) {
+      const rootDir = createFixtureRoot();
+      createdRoots.push(rootDir);
+      mutation.update(rootDir);
 
       expect(() => validateRepositoryAssets({ rootDir })).toThrow(mutation.error);
     }
