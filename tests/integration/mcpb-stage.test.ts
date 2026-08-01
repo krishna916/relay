@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module';
 import { lstat, readdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   probeStagedStartupFailure,
@@ -14,6 +14,8 @@ describe.skipIf(!runLinuxMcpbStageTests)('Linux MCPB staged runtime', () => {
   it('includes the native SQLite addon and emitted esbuild runtime chunks', async () => {
     const stageDir = join(process.cwd(), '.mcpb', 'relay');
     const requireFromStage = createRequire(join(stageDir, 'package.json'));
+    const resolvedDatabase = requireFromStage.resolve('better-sqlite3');
+    expect(relative(stageDir, resolvedDatabase)).not.toMatch(/^\.\.(?:[/\\]|$)/);
     const Database = requireFromStage('better-sqlite3') as {
       new (filename: string): { close: () => void };
     };
