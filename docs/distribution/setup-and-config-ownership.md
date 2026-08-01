@@ -1,6 +1,6 @@
 # Setup and Configuration Ownership
 
-This document derives from the [distribution decision](../decisions/0002-distribution-filesystem-and-lifecycle.md)
+This document derives from the [distribution decision](../decisions/0003-distribution-filesystem-and-lifecycle.md)
 and the ownership fixtures. It is a contract for a later setup implementation,
 not permission to mutate real user configuration in issue #39.
 

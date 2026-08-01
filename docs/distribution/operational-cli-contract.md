@@ -1,6 +1,6 @@
 # Operational CLI Contract
 
-This document derives from the [distribution decision](../decisions/0002-distribution-filesystem-and-lifecycle.md)
+This document derives from the [distribution decision](../decisions/0003-distribution-filesystem-and-lifecycle.md)
 and the machine-readable operational-command fixture. It describes the later
 public distribution surface; it does not implement these commands.
 

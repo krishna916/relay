@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { validateRepositoryAssets } from '../../../scripts/validate-repository-assets.js';
 
 const requiredDistributionAssets = [
-  'docs/decisions/0002-distribution-filesystem-and-lifecycle.md',
+  'docs/decisions/0003-distribution-filesystem-and-lifecycle.md',
   'docs/distribution/operational-cli-contract.md',
   'docs/distribution/filesystem-contract.md',
   'docs/distribution/supported-platforms.md',
@@ -304,6 +304,16 @@ describe('validateRepositoryAssets', () => {
     rmSync(join(rootDir, 'docs/distribution/release-policy.md'));
 
     expect(() => validateRepositoryAssets({ rootDir })).toThrow(/distribution.*release-policy/i);
+  });
+
+  it('requires the uniquely numbered distribution ADR', () => {
+    const rootDir = createFixtureRoot();
+    createdRoots.push(rootDir);
+    rmSync(join(rootDir, 'docs/decisions/0003-distribution-filesystem-and-lifecycle.md'));
+
+    expect(() => validateRepositoryAssets({ rootDir })).toThrow(
+      /Required path missing: docs\/decisions\/0003-distribution-filesystem-and-lifecycle\.md/,
+    );
   });
 
   it('accepts the complete distribution contract asset set', () => {

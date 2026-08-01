@@ -166,7 +166,7 @@ Relay owns only identifiable exact entries/fragments and never rewrites an entir
 
 **Files:**
 
-- Create: `docs/decisions/0002-distribution-filesystem-and-lifecycle.md`
+- Create: `docs/decisions/0003-distribution-filesystem-and-lifecycle.md`
 - Test: `tests/unit/contracts/distribution-contract.test.ts`
 
 **Interfaces:**
@@ -183,7 +183,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const adrPath = resolve('docs/decisions/0002-distribution-filesystem-and-lifecycle.md');
+const adrPath = resolve('docs/decisions/0003-distribution-filesystem-and-lifecycle.md');
 
 describe('distribution ADR', () => {
   it('locks package, runtime, platform, path, lifecycle, and release decisions', () => {
@@ -212,7 +212,7 @@ describe('distribution ADR', () => {
 
 Run: `pnpm test -- tests/unit/contracts/distribution-contract.test.ts`
 
-Expected: FAIL with `ENOENT` for `docs/decisions/0002-distribution-filesystem-and-lifecycle.md`.
+Expected: FAIL with `ENOENT` for `docs/decisions/0003-distribution-filesystem-and-lifecycle.md`.
 
 - [ ] **Step 3: Create the ADR using the locked decisions.**
 
@@ -266,7 +266,7 @@ Expected: PASS. Confirm no production TypeScript file or `package.json` was chan
 - [ ] **Step 5: Commit the ADR and its contract test.**
 
 ```bash
-git add docs/decisions/0002-distribution-filesystem-and-lifecycle.md tests/unit/contracts/distribution-contract.test.ts
+git add docs/decisions/0003-distribution-filesystem-and-lifecycle.md tests/unit/contracts/distribution-contract.test.ts
 git commit -m "docs: define Relay distribution contract"
 ```
 
@@ -674,7 +674,7 @@ Required paths:
 
 ```ts
 const requiredDistributionAssets = [
-  'docs/decisions/0002-distribution-filesystem-and-lifecycle.md',
+  'docs/decisions/0003-distribution-filesystem-and-lifecycle.md',
   'docs/distribution/operational-cli-contract.md',
   'docs/distribution/filesystem-contract.md',
   'docs/distribution/supported-platforms.md',
@@ -745,7 +745,7 @@ git commit -m "test: validate distribution contract assets"
 In README documentation links, add:
 
 ```md
-- [Distribution decision](docs/decisions/0002-distribution-filesystem-and-lifecycle.md)
+- [Distribution decision](docs/decisions/0003-distribution-filesystem-and-lifecycle.md)
 - [Distribution contracts](docs/distribution/)
 ```
 

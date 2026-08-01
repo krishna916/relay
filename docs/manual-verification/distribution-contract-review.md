@@ -1,7 +1,7 @@
 # Distribution Contract Review
 
 Use this checklist before approving a later packaging, setup, or publication
-issue. Compare the [distribution decision](../decisions/0002-distribution-filesystem-and-lifecycle.md),
+issue. Compare the [distribution decision](../decisions/0003-distribution-filesystem-and-lifecycle.md),
 derived documents, and fixtures together.
 
 - [ ] Package identity is `@krishna916/relay`; the final executable is `relay`.

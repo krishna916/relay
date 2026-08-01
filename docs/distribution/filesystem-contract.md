@@ -1,6 +1,6 @@
 # Filesystem Contract
 
-This document derives from the [distribution decision](../decisions/0002-distribution-filesystem-and-lifecycle.md)
+This document derives from the [distribution decision](../decisions/0003-distribution-filesystem-and-lifecycle.md)
 and the path-resolution fixture. It defines the future resolver’s contract;
 issue #39 does not change the current production resolver.
 

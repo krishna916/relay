@@ -14,7 +14,7 @@ export interface ValidateRepositoryAssetsOptions {
 }
 
 const requiredDistributionAssets = [
-  'docs/decisions/0002-distribution-filesystem-and-lifecycle.md',
+  'docs/decisions/0003-distribution-filesystem-and-lifecycle.md',
   'docs/distribution/operational-cli-contract.md',
   'docs/distribution/filesystem-contract.md',
   'docs/distribution/supported-platforms.md',
@@ -157,7 +157,7 @@ function validateDistributionContract(
   },
 ): void {
   const adr = readFileSync(
-    join(rootDir, 'docs/decisions/0002-distribution-filesystem-and-lifecycle.md'),
+    join(rootDir, 'docs/decisions/0003-distribution-filesystem-and-lifecycle.md'),
     'utf-8',
   );
   const operational = readFileSync(

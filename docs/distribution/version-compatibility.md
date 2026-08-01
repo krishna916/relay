@@ -1,6 +1,6 @@
 # Version Compatibility
 
-This document derives from the [distribution decision](../decisions/0002-distribution-filesystem-and-lifecycle.md)
+This document derives from the [distribution decision](../decisions/0003-distribution-filesystem-and-lifecycle.md)
 and the version-compatibility fixture.
 
 ## Application Version Source

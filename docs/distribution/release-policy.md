@@ -1,6 +1,6 @@
 # Release Policy
 
-This document derives from the [distribution decision](../decisions/0002-distribution-filesystem-and-lifecycle.md)
+This document derives from the [distribution decision](../decisions/0003-distribution-filesystem-and-lifecycle.md)
 and records a future maintainer-controlled release workflow. Issue #39 adds no
 GitHub Actions release workflow and publishes nothing.
 

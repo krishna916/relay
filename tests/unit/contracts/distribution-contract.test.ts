@@ -4,7 +4,10 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-const adrPath = resolve('docs/decisions/0002-distribution-filesystem-and-lifecycle.md');
+const distributionAdrPath = resolve(
+  'docs/decisions/0003-distribution-filesystem-and-lifecycle.md',
+);
+const agentIntegrationAdrPath = resolve('docs/decisions/0002-agent-integration-contracts.md');
 const fixtureRoot = resolve('tests/fixtures/distribution');
 const documentationRoot = resolve('docs/distribution');
 const configExampleRoot = resolve('tests/fixtures/distribution/config-examples');
@@ -23,7 +26,7 @@ function readConfigExample(name: string): unknown {
 
 describe('distribution ADR', () => {
   it('locks package, runtime, platform, path, lifecycle, and release decisions', () => {
-    const adr = readFileSync(adrPath, 'utf8');
+    const adr = readFileSync(distributionAdrPath, 'utf8');
     for (const required of [
       '@krishna916/relay',
       '`relay`',
@@ -48,6 +51,13 @@ describe('distribution ADR', () => {
       expect(adr).toMatch(unsupportedClaim);
     }
     expect(adr).not.toMatch(/\|[^\n]*\bSupported\b[^\n]*(Windows|macOS|Linux)\s+(arm64|x64)/i);
+  });
+
+  it('keeps the distribution and agent-integration ADR identities unique', () => {
+    expect(readFileSync(agentIntegrationAdrPath, 'utf8')).toContain('Agent Integration');
+    expect(readFileSync(distributionAdrPath, 'utf8')).toContain(
+      'Relay Distribution, Filesystem, and Lifecycle Contract',
+    );
   });
 });
 
@@ -198,7 +208,7 @@ describe('distribution documentation', () => {
     const operational = readDocumentation('operational-cli-contract.md');
     const filesystem = readDocumentation('filesystem-contract.md');
     const platforms = readDocumentation('supported-platforms.md');
-    const adrLink = '../decisions/0002-distribution-filesystem-and-lifecycle.md';
+    const adrLink = '../decisions/0003-distribution-filesystem-and-lifecycle.md';
 
     for (const document of [operational, filesystem, platforms]) {
       expect(document).toContain(adrLink);
@@ -345,7 +355,7 @@ describe('distribution discoverability', () => {
       'utf8',
     );
 
-    expect(readme).toContain('docs/decisions/0002-distribution-filesystem-and-lifecycle.md');
+    expect(readme).toContain('docs/decisions/0003-distribution-filesystem-and-lifecycle.md');
     expect(readme).toContain('docs/distribution/');
     expect(sourceGuide).toContain(
       'npm installation is not available until the later packaging and publication issues are completed',
