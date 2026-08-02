@@ -1,4 +1,11 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -7,6 +14,8 @@ import { createClaudeJsonAdapter } from '../../../../src/distribution/setup/clie
 import { applyIntegrationChange } from '../../../../src/distribution/setup/apply-integration-change.js';
 import { planIntegrationChange } from '../../../../src/distribution/setup/plan-integration-change.js';
 import { createOwnershipStore } from '../../../../src/distribution/setup/ownership-store.js';
+import type { OwnershipStore } from '../../../../src/distribution/setup/ownership-store.js';
+import { SetupStorageError } from '../../../../src/distribution/setup/setup-errors.js';
 
 describe('applyIntegrationChange', () => {
   it('updates the client before writing enabled ownership metadata', async () => {
@@ -131,5 +140,70 @@ describe('applyIntegrationChange', () => {
         expect.objectContaining({ client: 'codex' }),
       ],
     });
+  });
+
+  it('restores an absent config after metadata persistence fails and retains the backup', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'relay-apply-'));
+    const path = join(root, 'codex.toml');
+    const adapter = createCodexTomlAdapter();
+    const plan = await planIntegrationChange({
+      action: 'setup',
+      client: 'codex',
+      configPath: path,
+      adapter,
+      ownership: { schemaVersion: 1, integrations: [] },
+    });
+    const ownershipStore: OwnershipStore = {
+      read: async () => ({ schemaVersion: 1, integrations: [] }),
+      update: async () => {
+        throw new SetupStorageError('forced metadata failure');
+      },
+    };
+
+    await expect(
+      applyIntegrationChange({
+        plan,
+        adapter,
+        ownershipStore,
+        applicationVersion: '0.1.0',
+        now: new Date('2026-08-02T01:02:03.004Z'),
+      }),
+    ).rejects.toThrow(/restored after metadata persistence failed/i);
+    expect(existsSync(path)).toBe(false);
+    expect(readdirSync(root).some((name) => name.includes('.relay-backup-'))).toBe(true);
+  });
+
+  it('restores existing config bytes and mode after metadata persistence fails', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'relay-apply-'));
+    const path = join(root, 'codex.toml');
+    const original = '[profile]\nname = "existing"\n';
+    writeFileSync(path, original);
+    const originalMode = statSync(path).mode & 0o777;
+    const adapter = createCodexTomlAdapter();
+    const plan = await planIntegrationChange({
+      action: 'setup',
+      client: 'codex',
+      configPath: path,
+      adapter,
+      ownership: { schemaVersion: 1, integrations: [] },
+    });
+    const ownershipStore: OwnershipStore = {
+      read: async () => ({ schemaVersion: 1, integrations: [] }),
+      update: async () => {
+        throw new SetupStorageError('forced metadata failure');
+      },
+    };
+
+    await expect(
+      applyIntegrationChange({
+        plan,
+        adapter,
+        ownershipStore,
+        applicationVersion: '0.1.0',
+        now: new Date('2026-08-02T01:02:03.004Z'),
+      }),
+    ).rejects.toThrow(/restored after metadata persistence failed/i);
+    expect(readFileSync(path, 'utf8')).toBe(original);
+    expect(statSync(path).mode & 0o777).toBe(originalMode);
   });
 });

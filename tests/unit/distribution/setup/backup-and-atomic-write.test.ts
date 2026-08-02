@@ -1,8 +1,11 @@
-import { readFileSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { backupAndAtomicWrite } from '../../../../src/distribution/setup/backup-and-atomic-write.js';
+import {
+  backupAndAtomicWrite,
+  restoreOriginalFile,
+} from '../../../../src/distribution/setup/backup-and-atomic-write.js';
 import { fingerprint } from '../../../../src/distribution/setup/plan-integration-change.js';
 
 describe('backupAndAtomicWrite', () => {
@@ -54,5 +57,24 @@ describe('backupAndAtomicWrite', () => {
     });
     expect(result.backupPath).toContain('.relay-backup-20260802T010203.004Z-1');
     expect(readFileSync(result.backupPath, 'utf8')).toBe(original);
+  });
+
+  it('restores a missing original file to absence while retaining an empty backup', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'relay-write-'));
+    const path = join(root, 'new-config.toml');
+    const result = await backupAndAtomicWrite({
+      targetPath: path,
+      expectedFingerprint: fingerprint(''),
+      nextContent: 'created',
+      validate: () => undefined,
+      now: new Date('2026-08-02T01:02:03.004Z'),
+    });
+
+    expect(result.originalExisted).toBe(false);
+    expect(existsSync(path)).toBe(true);
+    await restoreOriginalFile({ ...result, targetPath: path });
+    expect(existsSync(path)).toBe(false);
+    expect(existsSync(result.backupPath)).toBe(true);
+    expect(readFileSync(result.backupPath)).toHaveLength(0);
   });
 });

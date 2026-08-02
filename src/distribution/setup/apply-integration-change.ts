@@ -1,6 +1,6 @@
 import type { ClientConfigAdapter } from './clients/client-adapter.js';
-import { backupAndAtomicWrite, restoreFile } from './backup-and-atomic-write.js';
-import { readFile } from 'node:fs/promises';
+import { backupAndAtomicWrite, restoreOriginalFile } from './backup-and-atomic-write.js';
+import { readFile, stat } from 'node:fs/promises';
 import { normalize, resolve } from 'node:path';
 import { fingerprint } from './plan-integration-change.js';
 import { SetupStorageError } from './setup-errors.js';
@@ -61,8 +61,17 @@ export async function applyIntegrationChange(input: {
   } catch (error) {
     try {
       if (backup !== undefined) {
-        await restoreFile(backup.backupPath, input.plan.configPath);
-        input.adapter.parse(await readFile(input.plan.configPath, 'utf8'));
+        await restoreOriginalFile({
+          backupPath: backup.backupPath,
+          targetPath: input.plan.configPath,
+          originalExisted: backup.originalExisted,
+          originalMode: backup.originalMode,
+        });
+        if (backup.originalExisted) {
+          input.adapter.parse(await readFile(input.plan.configPath, 'utf8'));
+        } else {
+          await assertAbsent(input.plan.configPath);
+        }
       }
     } catch (restoreError) {
       throw new SetupStorageError(
@@ -91,4 +100,18 @@ function sameOwnedPath(left: string, right: string): boolean {
   return process.platform === 'win32'
     ? normalizedLeft.toLowerCase() === normalizedRight.toLowerCase()
     : normalizedLeft === normalizedRight;
+}
+
+async function assertAbsent(path: string): Promise<void> {
+  try {
+    await stat(path);
+  } catch (error) {
+    if (isMissing(error)) return;
+    throw error;
+  }
+  throw new SetupStorageError(`Previously absent configuration was not removed: ${path}.`);
+}
+
+function isMissing(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT';
 }
