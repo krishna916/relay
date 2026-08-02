@@ -258,6 +258,7 @@ describe('applyIntegrationChange', () => {
         now: new Date('2026-08-02T01:02:03.004Z'),
       }),
     ).rejects.toBeInstanceOf(SetupConflictError);
+    expect(existsSync(`${path}.relay-transaction.json`)).toBe(false);
   });
 
   it('preserves metadata and restore failures together', async () => {

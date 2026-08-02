@@ -85,7 +85,6 @@ describe('integration transaction journal recovery', () => {
         configPath,
         adapter: createCodexTomlAdapter(),
         ownershipStore: createStore({ schemaVersion: 1, integrations: [] }),
-        applicationVersion: '0.1.0',
       }),
     ).resolves.toBe('none');
   });
@@ -99,7 +98,6 @@ describe('integration transaction journal recovery', () => {
         configPath,
         adapter: createCodexTomlAdapter(),
         ownershipStore: createStore({ schemaVersion: 1, integrations: [] }),
-        applicationVersion: '0.1.0',
       }),
     ).rejects.toMatchObject({
       message: expect.stringContaining(journalPath),
@@ -110,7 +108,6 @@ describe('integration transaction journal recovery', () => {
         configPath,
         adapter: createCodexTomlAdapter(),
         ownershipStore: createStore({ schemaVersion: 1, integrations: [] }),
-        applicationVersion: '0.1.0',
       }),
     ).rejects.toThrow(/do not edit/i);
     expect(existsSync(journalPath)).toBe(true);
@@ -134,7 +131,6 @@ describe('integration transaction journal recovery', () => {
         configPath,
         adapter: createCodexTomlAdapter(),
         ownershipStore: createStore({ schemaVersion: 1, integrations: [] }),
-        applicationVersion: '0.1.0',
       }),
     ).resolves.toBe('rolled-back');
     expect(readFileSync(configPath, 'utf8')).toBe(before);
@@ -164,7 +160,6 @@ describe('integration transaction journal recovery', () => {
         configPath,
         adapter: createCodexTomlAdapter(),
         ownershipStore: createStore({ schemaVersion: 1, integrations: [] }),
-        applicationVersion: '0.1.0',
       }),
     ).resolves.toBe('rolled-back');
     expect(readFileSync(configPath, 'utf8')).toBe(before);
@@ -184,7 +179,6 @@ describe('integration transaction journal recovery', () => {
         configPath,
         adapter: createCodexTomlAdapter(),
         ownershipStore: createStore({ schemaVersion: 1, integrations: [] }),
-        applicationVersion: '0.1.0',
       }),
     ).rejects.toBeInstanceOf(SetupConflictError);
     expect(existsSync(journalPath)).toBe(true);
@@ -224,7 +218,6 @@ describe('integration transaction journal recovery', () => {
           configPath,
           adapter: createCodexTomlAdapter(),
           ownershipStore: store,
-          applicationVersion: '0.1.0',
         }),
       ).resolves.toBe('completed');
       expect(existsSync(journalPath)).toBe(false);
@@ -244,7 +237,6 @@ describe('integration transaction journal recovery', () => {
         configPath,
         adapter: createCodexTomlAdapter(),
         ownershipStore: createStore({ schemaVersion: 1, integrations: [] }),
-        applicationVersion: '0.1.0',
       }),
     ).resolves.toBe('completed');
     expect(existsSync(journalPath)).toBe(false);
@@ -283,7 +275,6 @@ describe('integration transaction journal recovery', () => {
         configPath,
         adapter: createCodexTomlAdapter(),
         ownershipStore: store,
-        applicationVersion: '0.1.0',
       }),
     ).rejects.toBeInstanceOf(SetupConflictError);
     expect(readFileSync(configPath, 'utf8')).toBe(external);
@@ -311,7 +302,6 @@ describe('integration transaction journal recovery', () => {
         configPath,
         adapter: createCodexTomlAdapter(),
         ownershipStore: store,
-        applicationVersion: '0.1.0',
       }),
     ).rejects.toMatchObject({
       constructor: SetupConflictError,
@@ -342,7 +332,6 @@ describe('integration transaction journal recovery', () => {
         configPath,
         adapter: createCodexTomlAdapter(),
         ownershipStore: createStore({ schemaVersion: 1, integrations: [] }),
-        applicationVersion: '0.1.0',
       }),
     ).rejects.toMatchObject({
       constructor: SetupConflictError,
@@ -353,10 +342,10 @@ describe('integration transaction journal recovery', () => {
   });
 
   it('restores an existing client file byte-for-byte and preserves its mode', async () => {
-    const { configPath, journalPath } = createCase();
+    const { root, configPath, journalPath } = createCase();
     const before = '[profile]\r\nname = "before"\r\n';
     const next = `${before}\r\n[mcp_servers.relay]\r\ncommand = "relay"\r\nargs = ["mcp"]\r\n`;
-    const backupPath = join(journalPath, '..', 'codex.toml.relay-backup');
+    const backupPath = join(root, 'codex.toml.relay-backup');
     writeFileSync(configPath, next);
     writeFileSync(backupPath, before);
     chmodSync(backupPath, 0o640);
@@ -377,7 +366,6 @@ describe('integration transaction journal recovery', () => {
         configPath,
         adapter: createCodexTomlAdapter(),
         ownershipStore: createStore({ schemaVersion: 1, integrations: [] }),
-        applicationVersion: '0.1.0',
       }),
     ).resolves.toBe('rolled-back');
     expect(readFileSync(configPath)).toEqual(Buffer.from(before));
@@ -405,15 +393,14 @@ describe('integration transaction journal recovery', () => {
         configPath,
         adapter: createCodexTomlAdapter(),
         ownershipStore: createStore({ schemaVersion: 1, integrations: [] }),
-        applicationVersion: '0.1.0',
       }),
     ).resolves.toBe('rolled-back');
     expect(existsSync(configPath)).toBe(false);
   });
 
   it('retains the journal and backup when restoration fails', async () => {
-    const { configPath, journalPath } = createCase();
-    const backupPath = join(journalPath, '..', 'codex.toml.relay-backup');
+    const { root, configPath, journalPath } = createCase();
+    const backupPath = join(root, 'codex.toml.relay-backup');
     mkdirSync(configPath);
     writeFileSync(backupPath, 'before');
     await writeIntegrationTransactionJournal(
@@ -426,7 +413,6 @@ describe('integration transaction journal recovery', () => {
         configPath,
         adapter: createCodexTomlAdapter(),
         ownershipStore: createStore({ schemaVersion: 1, integrations: [] }),
-        applicationVersion: '0.1.0',
       }),
     ).rejects.toMatchObject({ constructor: SetupStorageError });
     expect(existsSync(journalPath)).toBe(true);

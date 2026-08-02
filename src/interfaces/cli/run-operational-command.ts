@@ -132,12 +132,11 @@ export async function runOperationalCommand(
     return withExclusiveFileLock(
       `${normalizedConfigPath}.relay-lock`,
       async () => {
-        await recoverIntegrationTransaction({
+        const recovery = await recoverIntegrationTransaction({
           journalPath,
           configPath: normalizedConfigPath,
           adapter,
           ownershipStore: store,
-          applicationVersion: dependencies.applicationVersion,
         });
         const plan = await planIntegrationChange({
           action,
@@ -160,6 +159,7 @@ export async function runOperationalCommand(
           operation: result.operation,
           path: result.configPath,
           entryId: result.entryId,
+          recovery,
           ...(result.backupPath === undefined ? {} : { backupPath: result.backupPath }),
         });
         return 0;

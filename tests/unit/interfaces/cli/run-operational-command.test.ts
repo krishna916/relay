@@ -115,5 +115,6 @@ describe('runOperationalCommand', () => {
     expect(readFileSync(configPath, 'utf8')).toContain('command = "relay"');
     expect(existsSync(`${configPath}.relay-transaction.json`)).toBe(false);
     expect(JSON.parse(output.at(-1) ?? '{}').data.operation).toBe('created');
+    expect(JSON.parse(output.at(-1) ?? '{}').data.recovery).toBe('rolled-back');
   });
 });

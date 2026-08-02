@@ -107,7 +107,18 @@ export async function applyIntegrationChange(input: {
       await deleteIntegrationTransactionJournal(journalPath);
     } catch (error) {
       if (ownershipPersisted) throw error;
-      if (journal === undefined || backup === undefined) throw error;
+      if (journal === undefined) throw error;
+      if (backup === undefined) {
+        try {
+          await deleteIntegrationTransactionJournal(journalPath);
+        } catch (journalError) {
+          throw new SetupStorageError(
+            `No-content-change transaction journal could not be removed at ${journalPath}.`,
+            new AggregateError([error, journalError]),
+          );
+        }
+        throw error;
+      }
       try {
         await restoreOriginalFile({
           ...(backup.backupPath === undefined ? {} : { backupPath: backup.backupPath }),

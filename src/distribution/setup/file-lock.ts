@@ -90,7 +90,7 @@ function formatConflictMessage(lockPath: string, recoveryJournalPath?: string): 
   const journal =
     recoveryJournalPath === undefined
       ? 'Preserve any associated transaction journal and backup.'
-      : `Transaction journal: ${recoveryJournalPath}. Preserve the journal and backup`;
+      : `Transaction journal: ${recoveryJournalPath}. Preserve the journal and backup.`;
   return `Another Relay configuration operation is in progress. Lock: ${lockPath}. ${journal} If no Relay process is active, remove only the stale lock and rerun the same command so Relay can execute journal recovery.`;
 }
 

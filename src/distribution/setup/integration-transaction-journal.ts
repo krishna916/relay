@@ -54,7 +54,6 @@ export async function recoverIntegrationTransaction(input: {
   readonly configPath: string;
   readonly adapter: ClientConfigAdapter;
   readonly ownershipStore: OwnershipStore;
-  readonly applicationVersion: string;
 }): Promise<'none' | 'rolled-back' | 'completed'> {
   const journal = await readIntegrationTransactionJournal(input.journalPath);
   if (journal === undefined) return 'none';
