@@ -15,6 +15,7 @@ import {
   type McpbManifest,
   type RuntimePackage,
 } from './model.js';
+import { verifyPackageMetadata } from '../package/verify-package-metadata.js';
 
 export interface CommandOptions {
   readonly cwd: string;
@@ -107,6 +108,7 @@ async function assertSafeStageInventory(stageDir: string): Promise<void> {
 export async function stageLinuxMcpb(options: StageLinuxMcpbOptions = {}): Promise<LinuxMcpbPaths> {
   const rootDir = resolve(options.rootDir ?? process.cwd());
   assertLinuxBuildTarget(options.platform);
+  verifyPackageMetadata(rootDir);
   const relay = readRelayPackageMetadata(rootDir);
   const paths = resolveLinuxMcpbPaths(rootDir, options.arch, relay.version);
   const rootPackage = readLockedRuntimeDependencies(rootDir);

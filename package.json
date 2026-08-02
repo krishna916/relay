@@ -1,8 +1,28 @@
 {
-  "name": "relay",
+  "name": "@krishna916/relay",
   "version": "0.1.0",
   "description": "Local task sidecar for human–AI workflows",
-  "private": true,
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/krishna916/relay.git"
+  },
+  "bugs": {
+    "url": "https://github.com/krishna916/relay/issues"
+  },
+  "homepage": "https://github.com/krishna916/relay#readme",
+  "files": [
+    "dist/",
+    "assets/migrations/",
+    "skills/",
+    "integrations/",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
   "type": "module",
   "engines": {
     "node": ">=24 <25"
@@ -18,8 +38,7 @@
     ]
   },
   "bin": {
-    "relay": "./dist/cli/main.js",
-    "relay-mcp": "./dist/mcp/main.js"
+    "relay": "./dist/cli/main.js"
   },
   "scripts": {
     "test": "pnpm build:node && vitest run",
@@ -31,21 +50,26 @@
     "format:check": "prettier --check .",
     "build:node": "tsup",
     "build:web": "vite build",
+    "stage:package:assets": "node --import tsx/esm scripts/package/stage-package-assets.ts",
     "build:mcpb:stage": "node --import tsx/esm scripts/mcpb/assert-linux-build-target.ts && corepack pnpm build:node && node --import tsx/esm scripts/mcpb/stage-linux-mcpb.ts",
     "validate:mcpb": "mcpb validate .mcpb/relay",
     "verify:mcpb:stage": "node --import tsx/esm scripts/mcpb/verify-linux-mcpb.ts",
     "pack:mcpb": "node --import tsx/esm scripts/mcpb/pack-linux-mcpb.ts",
     "build:mcpb": "node --import tsx/esm scripts/mcpb/assert-linux-build-target.ts && corepack pnpm build:mcpb:stage && corepack pnpm validate:mcpb && corepack pnpm verify:mcpb:stage && corepack pnpm pack:mcpb",
     "build:clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
-    "build": "pnpm build:clean && pnpm build:node && pnpm build:web",
+    "build": "pnpm build:clean && pnpm build:node && pnpm build:web && pnpm stage:package:assets",
     "dev:mcp": "node --import tsx/esm src/interfaces/mcp/main.ts",
     "dev:cli": "node --import tsx/esm src/interfaces/cli/main.ts",
     "dev:http": "node --import tsx/esm src/interfaces/http/main.ts",
     "dev:web": "vite",
     "dev:ui": "concurrently -k -p name -c \"blue,green\" \"pnpm dev:http\" \"pnpm dev:web\"",
     "validate:assets": "node --import tsx/esm scripts/validate-repository-assets.ts",
+    "verify:package:metadata": "node --import tsx/esm scripts/package/verify-package-metadata.ts",
+    "pack:tarball": "pnpm build && node -e \"require('node:fs').mkdirSync('.artifacts/npm', { recursive: true }); require('node:fs').mkdirSync('.artifacts/npm-cache', { recursive: true })\" && npm --cache .artifacts/npm-cache pack --json --pack-destination .artifacts/npm",
+    "verify:package:contents": "node --import tsx/esm scripts/package/inspect-tarball.ts",
+    "verify:package": "node --import tsx/esm scripts/package/smoke-installed-package.ts",
     "audit": "pnpm audit --audit-level high",
-    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm build && pnpm validate:assets && pnpm audit --audit-level high"
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm build && pnpm verify:package:metadata && pnpm validate:assets && pnpm audit --audit-level high"
   },
   "devDependencies": {
     "@anthropic-ai/mcpb": "2.1.2",

@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { REQUIRED_ONLY_BUILT_DEPENDENCIES } from '../package/verify-package-metadata.js';
 
 const runtimeDependencies = ['@modelcontextprotocol/sdk', 'better-sqlite3', 'zod'] as const;
 const supportedArchitectures = ['x64', 'arm64'] as const;
@@ -43,6 +44,7 @@ export interface RuntimePackage {
   readonly type: string;
   readonly engines: { readonly node: string };
   readonly dependencies: Readonly<Record<string, string>>;
+  readonly pnpm?: { readonly onlyBuiltDependencies?: readonly string[] };
   readonly [key: string]: unknown;
 }
 
@@ -60,16 +62,16 @@ export function readRelayPackageMetadata(rootDir: string): RelayPackageMetadata 
     version?: string;
     engines?: { node?: string };
   }>(join(resolve(rootDir), 'package.json'));
-  if (packageJson.name !== 'relay') {
+  if (packageJson.name !== '@krishna916/relay' && packageJson.name !== 'relay') {
     throw new Error(
-      `MCPB packaging requires root package name relay; received ${String(packageJson.name)}.`,
+      `MCPB packaging requires root package name @krishna916/relay or relay; received ${String(packageJson.name)}.`,
     );
   }
   if (!packageJson.version || !packageJson.engines?.node) {
     throw new Error('MCPB packaging requires a root version and Node engine.');
   }
   return {
-    name: packageJson.name,
+    name: 'relay',
     version: packageJson.version,
     nodeEngine: packageJson.engines.node,
   };
@@ -148,6 +150,7 @@ export function createStagedRuntimePackage(
     version: relay.version,
     engines: { node: relay.nodeEngine },
     dependencies: { ...source.dependencies },
+    pnpm: { onlyBuiltDependencies: [...REQUIRED_ONLY_BUILT_DEPENDENCIES] },
   };
 }
 

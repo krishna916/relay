@@ -1,7 +1,9 @@
 import type Database from 'better-sqlite3';
+import { existsSync } from 'node:fs';
 import { loadMigrationFiles } from './migration.js';
 import { RelayError } from '../shared/errors.js';
 import { resolveFromPackageRoot } from '../shared/runtime-paths.js';
+import { resolvePackageAssets } from '../distribution/package-assets.js';
 import { normalizeTaskTitleV1 } from './migrations/functions/normalize-task-title-v1.js';
 
 export interface MigrationOptions {
@@ -10,8 +12,12 @@ export interface MigrationOptions {
 
 export function runMigrations(db: Database.Database, options: MigrationOptions = {}): void {
   db.function('relay_normalize_task_title_v1', normalizeTaskTitleV1);
+  const packageAssets = resolvePackageAssets();
   const migrationsDir =
-    options.migrationsDir || resolveFromPackageRoot('src', 'database', 'migrations');
+    options.migrationsDir ||
+    (existsSync(packageAssets.migrationsDir)
+      ? packageAssets.migrationsDir
+      : resolveFromPackageRoot('src', 'database', 'migrations'));
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS _relay_migrations (

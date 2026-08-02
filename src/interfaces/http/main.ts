@@ -1,12 +1,18 @@
 import { createHttpServer } from './create-http-server.js';
 import { createTaskRuntime } from '../shared/create-task-runtime.js';
+import type { PackageAssets } from '../../distribution/package-assets.js';
 
-async function main(): Promise<void> {
+export async function runUiServer(
+  options: { readonly assets?: PackageAssets } = {},
+): Promise<void> {
   try {
     const runtime = createTaskRuntime();
     let instance;
     try {
-      instance = await createHttpServer({ taskApplication: runtime.taskApplication });
+      instance = await createHttpServer({
+        taskApplication: runtime.taskApplication,
+        ...(options.assets === undefined ? {} : { assets: options.assets }),
+      });
     } catch (error) {
       runtime.close();
       throw error;
@@ -35,4 +41,4 @@ async function main(): Promise<void> {
   }
 }
 
-void main();
+if (/[\\/]http[\\/]main\.(?:js|ts)$/.test(process.argv[1] ?? '')) void runUiServer();

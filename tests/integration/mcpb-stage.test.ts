@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
-import { lstat, readdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { lstat } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -11,8 +12,11 @@ const runLinuxMcpbStageTests =
   process.platform === 'linux' && process.env.RELAY_RUN_MCPB_STAGE_TESTS === '1';
 
 describe.skipIf(!runLinuxMcpbStageTests)('Linux MCPB staged runtime', () => {
-  it('includes the native SQLite addon and emitted esbuild runtime chunks', async () => {
+  it('includes the staged MCP entry point and native SQLite addon', async () => {
     const stageDir = join(process.cwd(), '.mcpb', 'relay');
+    const serverPath = join(stageDir, 'server', 'main.js');
+    expect(existsSync(serverPath)).toBe(true);
+
     const requireFromStage = createRequire(join(stageDir, 'package.json'));
     const resolvedDatabase = requireFromStage.resolve('better-sqlite3');
     expect(relative(stageDir, resolvedDatabase)).not.toMatch(/^\.\.(?:[/\\]|$)/);
@@ -21,9 +25,6 @@ describe.skipIf(!runLinuxMcpbStageTests)('Linux MCPB staged runtime', () => {
     };
     const database = new Database(':memory:');
     database.close();
-
-    const stagedFiles = await readdir(stageDir);
-    expect(stagedFiles.some((file) => /^chunk-.+\.js$/.test(file))).toBe(true);
   });
 
   it('materializes SDK transitive dependencies without archive-fragile symlinks', async () => {

@@ -3,4 +3,4 @@ dist/
 coverage/
 pnpm-lock.yaml
 .superpowers/
-
+.codegraph/

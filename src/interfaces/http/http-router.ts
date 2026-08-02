@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { readFileSync } from 'node:fs';
+import { extname } from 'node:path';
 import type { TaskApplication } from '../../application/tasks/task-application.js';
 import { TaskApplicationError } from '../../application/tasks/task-application-errors.js';
 import { getHealth } from '../../application/health/get-health.js';
@@ -37,7 +38,9 @@ export async function routeHttpRequest(
     if (url.pathname.startsWith('/api/'))
       throw new HttpError(404, 'NOT_FOUND', 'API route was not found.');
     if (request.method === 'GET' || request.method === 'HEAD') {
-      const asset = options.getStaticAsset(url.pathname);
+      const asset =
+        options.getStaticAsset(url.pathname) ??
+        (extname(url.pathname) === '' ? options.getStaticAsset('/') : null);
       if (asset) {
         response.writeHead(200, { 'Content-Type': options.getContentType(asset) });
         response.end(request.method === 'HEAD' ? undefined : readFileSync(asset));
