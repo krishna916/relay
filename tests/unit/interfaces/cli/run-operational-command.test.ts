@@ -1,9 +1,11 @@
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { runOperationalCommand } from '../../../../src/interfaces/cli/run-operational-command.js';
 import type { OperationalDependencies } from '../../../../src/interfaces/cli/run-operational-command.js';
+import { writeIntegrationTransactionJournal } from '../../../../src/distribution/setup/integration-transaction-journal.js';
+import { fingerprint } from '../../../../src/distribution/setup/plan-integration-change.js';
 
 function createDependencies(root: string, output: string[]): OperationalDependencies {
   return {
@@ -80,5 +82,38 @@ describe('runOperationalCommand', () => {
 
     expect(code).toBe(0);
     expect(JSON.parse(output[0] ?? '{}').data.createdDirectories).toEqual([dataRoot, configRoot]);
+  });
+
+  it('recovers an interrupted transaction before replanning setup', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'relay-operational-'));
+    roots.push(root);
+    const output: string[] = [];
+    const configPath = join(root, 'codex.toml');
+    const nextContent = '[mcp_servers.relay]\ncommand = "relay"\nargs = ["mcp"]\n';
+    writeFileSync(configPath, nextContent);
+    await writeIntegrationTransactionJournal(`${configPath}.relay-transaction.json`, {
+      schemaVersion: 1,
+      client: 'codex',
+      configPath,
+      entryId: 'relay',
+      action: 'setup',
+      phase: 'client-written',
+      beforeFingerprint: fingerprint(''),
+      nextFingerprint: fingerprint(nextContent),
+      originalExisted: false,
+      originalMode: 0o600,
+      applicationVersion: '0.1.0',
+      startedAt: '2026-08-02T01:02:03.004Z',
+    });
+
+    const code = await runOperationalCommand(
+      ['setup', '--client', 'codex', '--config-file', configPath, '--apply'],
+      createDependencies(root, output),
+    );
+
+    expect(code).toBe(0);
+    expect(readFileSync(configPath, 'utf8')).toContain('command = "relay"');
+    expect(existsSync(`${configPath}.relay-transaction.json`)).toBe(false);
+    expect(JSON.parse(output.at(-1) ?? '{}').data.operation).toBe('created');
   });
 });

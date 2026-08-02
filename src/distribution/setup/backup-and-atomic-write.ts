@@ -22,6 +22,7 @@ export async function backupAndAtomicWrite(input: {
   readonly nextContent: string;
   readonly validate: (content: string) => void;
   readonly now: Date;
+  readonly beforeReplace?: (result: BackupAndAtomicWriteResult) => Promise<void>;
 }): Promise<BackupAndAtomicWriteResult> {
   const original = await readOriginalFile(input.targetPath);
   if (fingerprint(original.contents) !== input.expectedFingerprint)
@@ -50,14 +51,16 @@ export async function backupAndAtomicWrite(input: {
     });
     if (fingerprint(current) !== input.expectedFingerprint)
       throw new SetupConflictError(`Configuration changed before replacement: ${input.targetPath}`);
-    await replaceFile(tempPath, input.targetPath);
-    replaced = true;
-    input.validate(await readFile(input.targetPath, 'utf8'));
-    return {
+    const result = {
       ...(backupPath === undefined ? {} : { backupPath }),
       originalExisted: original.existed,
       originalMode: original.mode,
-    };
+    } satisfies BackupAndAtomicWriteResult;
+    await input.beforeReplace?.(result);
+    await replaceFile(tempPath, input.targetPath);
+    replaced = true;
+    input.validate(await readFile(input.targetPath, 'utf8'));
+    return result;
   } catch (error) {
     if (replaced) {
       try {

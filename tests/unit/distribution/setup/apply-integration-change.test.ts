@@ -321,16 +321,18 @@ describe('applyIntegrationChange', () => {
           ownershipStore: createOwnershipStore({
             metadataPath: join(root, 'config.json'),
             applicationVersion: '0.1.0',
-            lockRetryDelayMs: 0,
-            lockMaxAttempts: 2,
-            sleep: async () => undefined,
           }),
           applicationVersion: '0.1.0',
           now: new Date('2026-08-02T01:02:03.004Z'),
+          lockRetryDelayMs: 0,
+          lockMaxAttempts: 2,
+          sleep: async () => undefined,
         }),
       ).rejects.toMatchObject({
         constructor: SetupConflictError,
-        message: expect.stringMatching(/relay-lock/i),
+        message: expect.stringMatching(
+          /relay-lock.*relay-transaction\.json.*remove only the stale lock/i,
+        ),
       });
     } finally {
       unlinkSync(lockPath);

@@ -129,7 +129,7 @@ describe('ownership store', () => {
     try {
       await expect(store.update((current) => current)).rejects.toMatchObject({
         constructor: SetupConflictError,
-        message: expect.stringMatching(/in progress.*retry.*relay-lock/i),
+        message: expect.stringMatching(/in progress.*relay-lock.*remove only the stale lock/i),
       });
     } finally {
       unlinkSync(lockPath);

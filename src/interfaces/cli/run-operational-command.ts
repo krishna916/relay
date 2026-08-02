@@ -8,9 +8,12 @@ import {
 import { applyIntegrationChange } from '../../distribution/setup/apply-integration-change.js';
 import { createClaudeJsonAdapter } from '../../distribution/setup/clients/claude-json-adapter.js';
 import { createCodexTomlAdapter } from '../../distribution/setup/clients/codex-toml-adapter.js';
+import { withExclusiveFileLock } from '../../distribution/setup/file-lock.js';
+import { recoverIntegrationTransaction } from '../../distribution/setup/integration-transaction-journal.js';
 import { planIntegrationChange } from '../../distribution/setup/plan-integration-change.js';
 import { renderIntegrationSnippet } from '../../distribution/setup/snippets.js';
 import type { MutableIntegrationClient } from '../../distribution/setup/setup-types.js';
+import { normalize, resolve } from 'node:path';
 import { CliUsageError } from './output/cli-errors.js';
 import { parseOperationalCommand, type OperationalCommand } from './parse-operational-command.js';
 import { writeOperationalError, writeOperationalSuccess } from './operational-output.js';
@@ -100,15 +103,20 @@ export async function runOperationalCommand(
     const client: MutableIntegrationClient = command.client;
     const configPath = command.configFile;
     const adapter = client === 'codex' ? createCodexTomlAdapter() : createClaudeJsonAdapter();
-    const ownership = await store.read();
     const action =
       command.kind === 'config-disable'
         ? 'disable'
         : command.kind === 'config-remove'
           ? 'remove'
           : 'setup';
-    const plan = await planIntegrationChange({ action, client, configPath, adapter, ownership });
     if (command.kind === 'setup' && !command.apply) {
+      const plan = await planIntegrationChange({
+        action,
+        client,
+        configPath,
+        adapter,
+        ownership: await store.read(),
+      });
       writeOperationalSuccess(dependencies.stdout, 'setup', {
         client,
         changed: plan.changed,
@@ -119,22 +127,45 @@ export async function runOperationalCommand(
       });
       return 0;
     }
-    const result = await applyIntegrationChange({
-      plan,
-      adapter,
-      ownershipStore: store,
-      applicationVersion: dependencies.applicationVersion,
-      now: dependencies.now?.() ?? new Date(),
-    });
-    writeOperationalSuccess(dependencies.stdout, action, {
-      client: result.client,
-      changed: result.changed,
-      operation: result.operation,
-      path: result.configPath,
-      entryId: result.entryId,
-      ...(result.backupPath === undefined ? {} : { backupPath: result.backupPath }),
-    });
-    return 0;
+    const normalizedConfigPath = normalize(resolve(configPath));
+    const journalPath = `${normalizedConfigPath}.relay-transaction.json`;
+    return withExclusiveFileLock(
+      `${normalizedConfigPath}.relay-lock`,
+      async () => {
+        await recoverIntegrationTransaction({
+          journalPath,
+          configPath: normalizedConfigPath,
+          adapter,
+          ownershipStore: store,
+          applicationVersion: dependencies.applicationVersion,
+        });
+        const plan = await planIntegrationChange({
+          action,
+          client,
+          configPath: normalizedConfigPath,
+          adapter,
+          ownership: await store.read(),
+        });
+        const result = await applyIntegrationChange({
+          plan,
+          adapter,
+          ownershipStore: store,
+          applicationVersion: dependencies.applicationVersion,
+          now: dependencies.now?.() ?? new Date(),
+          clientLockHeld: true,
+        });
+        writeOperationalSuccess(dependencies.stdout, action, {
+          client: result.client,
+          changed: result.changed,
+          operation: result.operation,
+          path: result.configPath,
+          entryId: result.entryId,
+          ...(result.backupPath === undefined ? {} : { backupPath: result.backupPath }),
+        });
+        return 0;
+      },
+      { recoveryJournalPath: journalPath },
+    );
   } catch (error) {
     return writeOperationalError(dependencies.stdout, dependencies.stderr, error);
   }

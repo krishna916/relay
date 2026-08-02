@@ -9,6 +9,7 @@ export interface ExclusiveFileLockOptions {
   readonly retryDelayMs?: number;
   readonly maxAttempts?: number;
   readonly sleep?: (milliseconds: number) => Promise<void>;
+  readonly recoveryJournalPath?: string;
 }
 
 export async function withExclusiveFileLock<T>(
@@ -38,9 +39,7 @@ export async function withExclusiveFileLock<T>(
         throw new SetupStorageError(`Setup lock could not be opened at ${lockPath}.`, error);
       attempts += 1;
       if (attempts >= maxAttempts)
-        throw new SetupConflictError(
-          `Another Relay configuration operation is in progress. Retry after it completes. Lock: ${lockPath}`,
-        );
+        throw new SetupConflictError(formatConflictMessage(lockPath, options.recoveryJournalPath));
       await sleep(retryDelayMs);
     }
   }
@@ -75,10 +74,24 @@ export async function withExclusiveFileLock<T>(
   } catch (error) {
     if (!isMissing(error)) cleanupError ??= error;
   }
-  if (cleanupError !== undefined)
-    throw new SetupStorageError(`Setup lock could not be released at ${lockPath}.`, cleanupError);
+  if (cleanupError !== undefined) {
+    const releaseError = new SetupStorageError(
+      `Setup lock could not be released at ${lockPath}.`,
+      cleanupError,
+    );
+    if (actionFailed) throw new AggregateError([actionError, releaseError]);
+    throw releaseError;
+  }
   if (actionFailed) throw actionError;
   return result as T;
+}
+
+function formatConflictMessage(lockPath: string, recoveryJournalPath?: string): string {
+  const journal =
+    recoveryJournalPath === undefined
+      ? 'Preserve any associated transaction journal and backup.'
+      : `Transaction journal: ${recoveryJournalPath}. Preserve the journal and backup`;
+  return `Another Relay configuration operation is in progress. Lock: ${lockPath}. ${journal} If no Relay process is active, remove only the stale lock and rerun the same command so Relay can execute journal recovery.`;
 }
 
 async function delay(milliseconds: number): Promise<void> {
