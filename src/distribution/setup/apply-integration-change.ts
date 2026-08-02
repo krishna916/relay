@@ -1,6 +1,7 @@
 import type { ClientConfigAdapter } from './clients/client-adapter.js';
 import { backupAndAtomicWrite, restoreFile } from './backup-and-atomic-write.js';
 import { readFile } from 'node:fs/promises';
+import { normalize, resolve } from 'node:path';
 import { fingerprint } from './plan-integration-change.js';
 import { SetupStorageError } from './setup-errors.js';
 import type { IntegrationChangePlan, IntegrationChangeResult } from './setup-types.js';
@@ -33,11 +34,6 @@ export async function applyIntegrationChange(input: {
       })
     : undefined;
   try {
-    const ownership = await input.ownershipStore.read();
-    const existing = ownership.integrations.filter(
-      (record) =>
-        !(record.client === input.plan.client && record.configPath === input.plan.configPath),
-    );
     const nextRecord = {
       client: input.plan.client,
       configPath: input.plan.configPath,
@@ -49,9 +45,18 @@ export async function applyIntegrationChange(input: {
       lastSuccessfulSetupAt: input.now.toISOString(),
       ...(backup === undefined ? {} : { lastBackupPath: backup.backupPath }),
     };
-    await input.ownershipStore.write({
-      schemaVersion: 1,
-      integrations: input.plan.operation === 'removed' ? existing : [...existing, nextRecord],
+    await input.ownershipStore.update((ownership) => {
+      const existing = ownership.integrations.filter(
+        (record) =>
+          !(
+            record.client === input.plan.client &&
+            sameOwnedPath(record.configPath, input.plan.configPath)
+          ),
+      );
+      return {
+        schemaVersion: 1,
+        integrations: input.plan.operation === 'removed' ? existing : [...existing, nextRecord],
+      };
     });
   } catch (error) {
     try {
@@ -78,4 +83,12 @@ export async function applyIntegrationChange(input: {
     changed: true,
     ...(backup === undefined ? {} : { backupPath: backup.backupPath }),
   };
+}
+
+function sameOwnedPath(left: string, right: string): boolean {
+  const normalizedLeft = normalize(resolve(left));
+  const normalizedRight = normalize(resolve(right));
+  return process.platform === 'win32'
+    ? normalizedLeft.toLowerCase() === normalizedRight.toLowerCase()
+    : normalizedLeft === normalizedRight;
 }

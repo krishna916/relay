@@ -1,8 +1,9 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createOwnershipStore } from '../../../../src/distribution/setup/ownership-store.js';
+import { SetupConflictError } from '../../../../src/distribution/setup/setup-errors.js';
 
 describe('ownership store', () => {
   const roots: string[] = [];
@@ -36,7 +37,7 @@ describe('ownership store', () => {
     roots.push(root);
     const metadataPath = join(root, 'config.json');
     const store = createOwnershipStore({ metadataPath, applicationVersion: '0.1.0' });
-    await store.write({
+    await store.update(() => ({
       schemaVersion: 1,
       integrations: [
         {
@@ -50,9 +51,70 @@ describe('ownership store', () => {
           lastSuccessfulSetupAt: '2026-08-02T00:00:00.000Z',
         },
       ],
-    });
+    }));
     expect(JSON.parse(readFileSync(metadataPath, 'utf8')).integrations[0].configPath).toBe(
       join(root, 'codex.toml'),
     );
+  });
+
+  it('preserves both records when independent stores update concurrently', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'relay-ownership-'));
+    roots.push(root);
+    const metadataPath = join(root, 'config.json');
+    const codexPath = join(root, 'codex.toml');
+    const claudePath = join(root, 'claude.json');
+    const first = createOwnershipStore({ metadataPath, applicationVersion: '0.1.0' });
+    const second = createOwnershipStore({ metadataPath, applicationVersion: '0.1.0' });
+    const record = (client: 'codex' | 'claude-code', configPath: string) => ({
+      client,
+      configPath,
+      entryId: 'relay' as const,
+      command: 'relay' as const,
+      args: ['mcp'] as const,
+      status: 'enabled' as const,
+      applicationVersion: '0.1.0',
+      lastSuccessfulSetupAt: '2026-08-02T00:00:00.000Z',
+    });
+
+    await Promise.all([
+      first.update((current) => ({
+        schemaVersion: 1,
+        integrations: [...current.integrations, record('codex', codexPath)],
+      })),
+      second.update((current) => ({
+        schemaVersion: 1,
+        integrations: [...current.integrations, record('claude-code', claudePath)],
+      })),
+    ]);
+
+    await expect(first.read()).resolves.toMatchObject({
+      integrations: [
+        expect.objectContaining({ client: 'claude-code', configPath: claudePath }),
+        expect.objectContaining({ client: 'codex', configPath: codexPath }),
+      ],
+    });
+  });
+
+  it('fails with an actionable conflict when the ownership lock remains held', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'relay-ownership-'));
+    roots.push(root);
+    const metadataPath = join(root, 'config.json');
+    const lockPath = `${metadataPath}.relay-lock`;
+    writeFileSync(lockPath, 'held');
+    const store = createOwnershipStore({
+      metadataPath,
+      applicationVersion: '0.1.0',
+      lockRetryDelayMs: 0,
+      lockMaxAttempts: 2,
+      sleep: async () => undefined,
+    });
+    try {
+      await expect(store.update((current) => current)).rejects.toMatchObject({
+        constructor: SetupConflictError,
+        message: expect.stringMatching(/in progress.*retry/i),
+      });
+    } finally {
+      unlinkSync(lockPath);
+    }
   });
 });
