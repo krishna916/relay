@@ -1,8 +1,11 @@
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseOperationalCommand } from '../../../../src/interfaces/cli/parse-operational-command.js';
 import { CliUsageError } from '../../../../src/interfaces/cli/output/cli-errors.js';
 
 describe('parseOperationalCommand', () => {
+  const absoluteConfigPath = resolve('tmp', 'codex.toml');
+
   it('parses setup preview and explicit apply', () => {
     expect(parseOperationalCommand(['setup'])).toEqual({ kind: 'setup', apply: false });
     expect(
@@ -11,24 +14,24 @@ describe('parseOperationalCommand', () => {
         '--client',
         'codex',
         '--config-file',
-        'C:/tmp/codex.toml',
+        absoluteConfigPath,
         '--apply',
       ]),
-    ).toEqual({ kind: 'setup', client: 'codex', configFile: 'C:/tmp/codex.toml', apply: true });
+    ).toEqual({ kind: 'setup', client: 'codex', configFile: absoluteConfigPath, apply: true });
   });
   it('rejects unsafe or unsupported mutation grammar', () => {
     for (const argv of [
       ['setup', '--client', 'codex', '--config-file', 'relative.toml'],
       ['setup', '--client', 'generic-mcp', '--apply'],
-      ['setup', '--client', 'generic-mcp', '--config-file', 'C:/tmp/mcp.json'],
-      ['config', 'disable', '--client', 'codex', '--config-file', 'C:/tmp/codex.toml'],
+      ['setup', '--client', 'generic-mcp', '--config-file', absoluteConfigPath],
+      ['config', 'disable', '--client', 'codex', '--config-file', absoluteConfigPath],
       [
         'config',
         'remove',
         '--client',
         'codex',
         '--config-file',
-        'C:/tmp/codex.toml',
+        absoluteConfigPath,
         '--apply',
         '--apply',
       ],
