@@ -123,7 +123,7 @@ describe('validateAgentIntegrationAssets', () => {
     writeFileSync(
       path,
       readFileSync(path, 'utf8').replace(
-        'Validation RELAY_DB_PATH must be explicit and isolated; omission is permitted only for non-validation use.',
+        'Validation RELAY_DB_PATH must be a non-empty absolute path in an isolated location; omission is permitted only for non-validation use.',
         'The database is available.',
       ),
     );

@@ -13,6 +13,7 @@ import type {
   MutableIntegrationClient,
   RelayOwnershipFile,
 } from './setup-types.js';
+import { RELAY_ENTRY_ID } from './relay-entry.js';
 
 export async function planIntegrationChange(input: {
   readonly action: 'setup' | 'disable' | 'remove';
@@ -72,7 +73,7 @@ export async function planIntegrationChange(input: {
   return {
     client: input.client,
     configPath,
-    entryId: 'relay',
+    entryId: RELAY_ENTRY_ID,
     operation,
     changed:
       nextContent !== content ||

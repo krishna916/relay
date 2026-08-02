@@ -16,6 +16,9 @@ describe('Claude JSON adapter', () => {
     expect(adapter.removeRelayEntry(edited)).toContain('other-agent');
     expect(adapter.inspect(adapter.removeRelayEntry(edited)).kind).toBe('absent');
   });
+  it('recognizes an absent entry when mcpServers is omitted', () => {
+    expect(adapter.inspect(fixture('no-mcp-servers.json')).kind).toBe('absent');
+  });
   it('fails closed for malformed and conflicting entries', () => {
     expect(() => adapter.parse(fixture('malformed.json'))).toThrow(/malformed/i);
     expect(adapter.inspect(fixture('conflicting.json')).kind).toBe('conflicting');

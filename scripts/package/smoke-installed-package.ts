@@ -118,6 +118,7 @@ function runCli(
 
 interface CliEnvelope {
   readonly data?: {
+    readonly changed?: boolean;
     readonly task?: { readonly id?: string };
     readonly change?: { readonly to?: string };
   };
@@ -238,9 +239,14 @@ export async function verifyInstalledPackage(rootDir = process.cwd()): Promise<v
       throw new Error(`Installed Relay executable is missing: ${commandPath}`);
     if (commandPath.includes(rootDir))
       throw new Error('Installed smoke resolved the repository executable.');
+    const isolatedHome = join(temporaryRoot, 'home');
     const setupEnvironment = {
       APPDATA: join(temporaryRoot, 'appdata'),
       LOCALAPPDATA: join(temporaryRoot, 'localappdata'),
+      HOME: isolatedHome,
+      XDG_CONFIG_HOME: join(isolatedHome, '.config'),
+      XDG_DATA_HOME: join(isolatedHome, '.local', 'share'),
+      XDG_CACHE_HOME: join(isolatedHome, '.cache'),
     };
 
     const setup = runCli(commandPath, unrelatedCwd, databasePath, ['setup'], setupEnvironment);
@@ -296,7 +302,8 @@ export async function verifyInstalledPackage(rootDir = process.cwd()): Promise<v
       ['setup', '--client', 'codex', '--config-file', codexConfig, '--apply'],
       setupEnvironment,
     );
-    if (rerun.status !== 0 || !rerun.stdout.includes('"changed":false'))
+    const rerunData = rerun.status === 0 ? envelope(rerun).data : undefined;
+    if (rerun.status !== 0 || rerunData?.changed !== false)
       throw new Error('Installed setup rerun was not idempotent.');
     for (const action of [
       ['config', 'disable', '--client', 'codex', '--config-file', codexConfig, '--apply'],

@@ -1,4 +1,4 @@
-import { parse as parseToml } from '@iarna/toml';
+import { load as parseToml } from 'js-toml';
 import { describe, expect, it } from 'vitest';
 import { renderIntegrationSnippet } from '../../../../src/distribution/setup/snippets.js';
 

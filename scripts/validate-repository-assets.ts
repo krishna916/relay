@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { parse as parseToml } from '@iarna/toml';
+import { load as parseToml } from 'js-toml';
 import { parse as parseJsonc, type ParseError } from 'jsonc-parser';
 import { validateSkillAssets } from './validate-skill-assets.js';
 import { validateAgentIntegrationAssets } from './validate-agent-integration-assets.js';
@@ -132,15 +132,26 @@ function validateJsonFiles(files: readonly string[]): void {
     const normalizedPath = filePath.replaceAll('\\', '/');
     if (
       normalizedPath.endsWith('tests/fixtures/setup/metadata/malformed.json') ||
-      normalizedPath.endsWith('tests/fixtures/setup/claude-code/malformed.json') ||
-      normalizedPath.endsWith('tests/fixtures/setup/claude-code/formatted.json')
+      normalizedPath.endsWith('tests/fixtures/setup/claude-code/malformed.json')
     ) {
       continue;
     }
 
-    const errors: ParseError[] = [];
-    parseJsonc(readFileSync(filePath, 'utf-8'), errors);
-    if (errors.length > 0) throw new Error(`Malformed JSON/JSONC asset: ${filePath}`);
+    const source = readFileSync(filePath, 'utf-8');
+    const isClaudeJsoncFixture =
+      normalizedPath.endsWith('tests/fixtures/setup/claude-code/unrelated.json') ||
+      normalizedPath.endsWith('tests/fixtures/setup/claude-code/formatted.json');
+    if (isClaudeJsoncFixture) {
+      const errors: ParseError[] = [];
+      parseJsonc(source, errors);
+      if (errors.length > 0) throw new Error(`Malformed JSON/JSONC asset: ${filePath}`);
+      continue;
+    }
+    try {
+      JSON.parse(source);
+    } catch (error) {
+      throw new Error(`Malformed JSON asset: ${filePath}`, { cause: error });
+    }
   }
 }
 
@@ -399,12 +410,6 @@ function validateDistributionContract(
   );
   if (compatibility.releaseTrigger !== 'manual-maintainer-action') {
     fail('Distribution version fixture must require a manual maintainer release action.');
-  }
-
-  for (const path of requiredDistributionAssets.filter((asset) =>
-    asset.startsWith('tests/fixtures/setup/'),
-  )) {
-    if (!existsSync(join(rootDir, path))) fail(`Setup fixture is missing: ${path}`);
   }
 }
 

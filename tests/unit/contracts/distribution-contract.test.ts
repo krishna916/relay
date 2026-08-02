@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
-import { parse as parseToml } from '@iarna/toml';
+import { load as parseToml } from 'js-toml';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 

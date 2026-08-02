@@ -1,9 +1,13 @@
-import { parse as parseToml } from '@iarna/toml';
+import { load as parseToml } from 'js-toml';
 import type { ClientConfigAdapter, ClientEntryState } from './client-adapter.js';
 import { renderIntegrationSnippet } from '../snippets.js';
+import { RELAY_ARGS, RELAY_COMMAND, RELAY_ENTRY_ID } from '../relay-entry.js';
 import { SetupConflictError, SetupUsageError } from '../setup-errors.js';
 
-const headerPattern = /^\s*\[mcp_servers\.relay\][^\r\n]*(?:\r?\n|$)/gm;
+const headerPattern = new RegExp(
+  `^\\s*\\[mcp_servers\\.${RELAY_ENTRY_ID}\\][^\\r\\n]*(?:\\r?\\n|$)`,
+  'gm',
+);
 
 export function createCodexTomlAdapter(): ClientConfigAdapter {
   return {
@@ -54,9 +58,9 @@ function inspect(content: string): ClientEntryState {
   const keys = Object.keys(servers.relay);
   if (
     keys.length === 2 &&
-    command === 'relay' &&
-    args?.length === 1 &&
-    args[0] === 'mcp' &&
+    command === RELAY_COMMAND &&
+    args?.length === RELAY_ARGS.length &&
+    args[0] === RELAY_ARGS[0] &&
     singleRelayHeader(content) !== undefined
   )
     return { kind: 'matching', command, args };

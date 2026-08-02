@@ -3,7 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createOwnershipStore } from '../../../../src/distribution/setup/ownership-store.js';
-import { SetupConflictError } from '../../../../src/distribution/setup/setup-errors.js';
+import {
+  SetupConflictError,
+  SetupStorageError,
+} from '../../../../src/distribution/setup/setup-errors.js';
 
 describe('ownership store', () => {
   const roots: string[] = [];
@@ -30,6 +33,21 @@ describe('ownership store', () => {
     await expect(
       createOwnershipStore({ metadataPath, applicationVersion: '0.1.0' }).read(),
     ).rejects.toThrow(/schema/i);
+  });
+
+  it('preserves the metadata parse error as the storage cause', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'relay-ownership-'));
+    roots.push(root);
+    const metadataPath = join(root, 'config.json');
+    writeFileSync(metadataPath, '{');
+
+    try {
+      await createOwnershipStore({ metadataPath, applicationVersion: '0.1.0' }).read();
+      throw new Error('Expected malformed metadata to fail.');
+    } catch (error) {
+      expect(error).toBeInstanceOf(SetupStorageError);
+      expect((error as SetupStorageError).cause).toBeInstanceOf(SyntaxError);
+    }
   });
 
   it('normalizes and sorts valid records on read and writes atomically', async () => {
@@ -111,7 +129,7 @@ describe('ownership store', () => {
     try {
       await expect(store.update((current) => current)).rejects.toMatchObject({
         constructor: SetupConflictError,
-        message: expect.stringMatching(/in progress.*retry/i),
+        message: expect.stringMatching(/in progress.*retry.*relay-lock/i),
       });
     } finally {
       unlinkSync(lockPath);

@@ -1,16 +1,17 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, open, readFile, unlink, writeFile, type FileHandle } from 'node:fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { dirname, normalize, resolve } from 'node:path';
 import { replaceFile } from './backup-and-atomic-write.js';
+import { withExclusiveFileLock } from './file-lock.js';
+import { RELAY_ARGS, RELAY_COMMAND, RELAY_ENTRY_ID } from './relay-entry.js';
 import type { RelayIntegrationOwnership, RelayOwnershipFile } from './setup-types.js';
-import { SetupConflictError, SetupStorageError } from './setup-errors.js';
-
-const OWNERSHIP_LOCK_RETRY_DELAY_MS = 25;
-const OWNERSHIP_LOCK_MAX_ATTEMPTS = 40;
+import { SetupStorageError } from './setup-errors.js';
 
 export interface OwnershipStore {
   read(): Promise<RelayOwnershipFile>;
-  update(mutate: (current: RelayOwnershipFile) => RelayOwnershipFile): Promise<RelayOwnershipFile>;
+  update(
+    mutate: (current: RelayOwnershipFile) => RelayOwnershipFile | Promise<RelayOwnershipFile>,
+  ): Promise<RelayOwnershipFile>;
 }
 
 export function createOwnershipStore(input: {
@@ -36,9 +37,7 @@ export function createOwnershipStore(input: {
     } catch (error) {
       throw new SetupStorageError(
         `Relay ownership metadata schema is invalid at ${input.metadataPath}.`,
-        {
-          cause: error,
-        },
+        error,
       );
     }
   };
@@ -68,114 +67,22 @@ export function createOwnershipStore(input: {
   return {
     read: readOwnership,
     update: async (mutate) => {
-      return withOwnershipLock(
-        input.metadataPath,
+      return withExclusiveFileLock(
+        `${input.metadataPath}.relay-lock`,
         async () => {
           const current = await readOwnership();
-          const next = validateOwnership(mutate(current), input.applicationVersion);
+          const next = validateOwnership(await mutate(current), input.applicationVersion);
           await writeValidatedOwnership(next);
           return next;
         },
         {
-          ...(input.lockRetryDelayMs === undefined
-            ? {}
-            : { lockRetryDelayMs: input.lockRetryDelayMs }),
-          ...(input.lockMaxAttempts === undefined
-            ? {}
-            : { lockMaxAttempts: input.lockMaxAttempts }),
+          ...(input.lockRetryDelayMs === undefined ? {} : { retryDelayMs: input.lockRetryDelayMs }),
+          ...(input.lockMaxAttempts === undefined ? {} : { maxAttempts: input.lockMaxAttempts }),
           ...(input.sleep === undefined ? {} : { sleep: input.sleep }),
         },
       );
     },
   };
-}
-
-async function withOwnershipLock<T>(
-  metadataPath: string,
-  action: () => Promise<T>,
-  options: {
-    readonly lockRetryDelayMs?: number;
-    readonly lockMaxAttempts?: number;
-    readonly sleep?: (milliseconds: number) => Promise<void>;
-  } = {},
-): Promise<T> {
-  const lockPath = `${metadataPath}.relay-lock`;
-  const retryDelayMs = options.lockRetryDelayMs ?? OWNERSHIP_LOCK_RETRY_DELAY_MS;
-  const maxAttempts = options.lockMaxAttempts ?? OWNERSHIP_LOCK_MAX_ATTEMPTS;
-  const sleep = options.sleep ?? ((milliseconds: number) => delay(milliseconds));
-  try {
-    await mkdir(dirname(metadataPath), { recursive: true });
-  } catch (error) {
-    throw new SetupStorageError(
-      `Relay ownership metadata could not be prepared at ${metadataPath}.`,
-      error,
-    );
-  }
-
-  let handle: FileHandle | undefined;
-  let attempts = 0;
-  while (handle === undefined) {
-    try {
-      handle = await open(lockPath, 'wx', 0o600);
-    } catch (error) {
-      if (!isExists(error))
-        throw new SetupStorageError(
-          `Relay ownership lock could not be opened at ${lockPath}.`,
-          error,
-        );
-      attempts += 1;
-      if (attempts >= maxAttempts)
-        throw new SetupConflictError(
-          `Another Relay configuration operation is in progress for ${metadataPath}. Retry after it completes.`,
-        );
-      await sleep(retryDelayMs);
-    }
-  }
-
-  let result: T | undefined;
-  let actionFailed = false;
-  let actionError: unknown;
-  try {
-    try {
-      await handle.writeFile(
-        `${JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() })}\n`,
-        'utf8',
-      );
-      await handle.sync();
-    } catch (error) {
-      throw new SetupStorageError(
-        `Relay ownership lock could not be written at ${lockPath}.`,
-        error,
-      );
-    }
-    result = await action();
-  } catch (error) {
-    actionFailed = true;
-    actionError = error;
-  }
-
-  let cleanupError: unknown;
-  try {
-    await handle.close();
-  } catch (error) {
-    cleanupError = error;
-  }
-  try {
-    await unlink(lockPath);
-  } catch (error) {
-    if (!isMissingFile(error)) cleanupError ??= error;
-  }
-  if (cleanupError !== undefined)
-    throw new SetupStorageError(
-      `Relay ownership lock could not be released at ${lockPath}.`,
-      cleanupError,
-    );
-  if (actionFailed) throw actionError;
-  return result as T;
-}
-
-async function delay(milliseconds: number): Promise<void> {
-  await new Promise<void>((resolveDelay) => setTimeout(resolveDelay, milliseconds));
 }
 
 function validateOwnership(value: unknown, _applicationVersion: string): RelayOwnershipFile {
@@ -201,11 +108,11 @@ function validateRecord(value: unknown): RelayIntegrationOwnership {
   if (!isRecord(value)) throw new Error('Relay ownership record is invalid.');
   if (
     (value.client !== 'codex' && value.client !== 'claude-code') ||
-    value.entryId !== 'relay' ||
-    value.command !== 'relay' ||
+    value.entryId !== RELAY_ENTRY_ID ||
+    value.command !== RELAY_COMMAND ||
     !Array.isArray(value.args) ||
     value.args.length !== 1 ||
-    value.args[0] !== 'mcp' ||
+    value.args[0] !== RELAY_ARGS[0] ||
     (value.status !== 'enabled' && value.status !== 'disabled') ||
     typeof value.applicationVersion !== 'string' ||
     typeof value.lastSuccessfulSetupAt !== 'string' ||
@@ -217,9 +124,9 @@ function validateRecord(value: unknown): RelayIntegrationOwnership {
   return {
     client: value.client,
     configPath: normalize(resolve(value.configPath)),
-    entryId: 'relay',
-    command: 'relay',
-    args: ['mcp'],
+    entryId: RELAY_ENTRY_ID,
+    command: RELAY_COMMAND,
+    args: RELAY_ARGS,
     status: value.status,
     applicationVersion: value.applicationVersion,
     lastSuccessfulSetupAt: value.lastSuccessfulSetupAt,
@@ -242,8 +149,4 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isMissingFile(error: unknown): boolean {
   return isRecord(error) && error.code === 'ENOENT';
-}
-
-function isExists(error: unknown): boolean {
-  return isRecord(error) && error.code === 'EEXIST';
 }

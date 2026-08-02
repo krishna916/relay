@@ -1,5 +1,4 @@
 import { mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
 import type { RuntimePaths } from '../../distribution/resolve-runtime-paths.js';
 import { initializeRelay } from '../../distribution/setup/initialize-relay.js';
 import {
@@ -12,8 +11,10 @@ import { createCodexTomlAdapter } from '../../distribution/setup/clients/codex-t
 import { planIntegrationChange } from '../../distribution/setup/plan-integration-change.js';
 import { renderIntegrationSnippet } from '../../distribution/setup/snippets.js';
 import type { MutableIntegrationClient } from '../../distribution/setup/setup-types.js';
+import { CliUsageError } from './output/cli-errors.js';
 import { parseOperationalCommand, type OperationalCommand } from './parse-operational-command.js';
 import { writeOperationalError, writeOperationalSuccess } from './operational-output.js';
+import { resolveOwnershipMetadataPath } from '../production-dependencies.js';
 
 export interface OperationalDependencies {
   readonly runtimePaths: RuntimePaths;
@@ -39,7 +40,7 @@ export async function runOperationalCommand(
     const store =
       dependencies.ownershipStore ??
       createOwnershipStore({
-        metadataPath: join(dependencies.runtimePaths.configRoot, 'config.json'),
+        metadataPath: resolveOwnershipMetadataPath(dependencies.runtimePaths),
         applicationVersion: dependencies.applicationVersion,
       });
     const needsInitialization =
@@ -65,7 +66,7 @@ export async function runOperationalCommand(
       writeOperationalSuccess(dependencies.stdout, 'config paths', {
         paths: {
           ...dependencies.runtimePaths,
-          metadataPath: join(dependencies.runtimePaths.configRoot, 'config.json'),
+          metadataPath: resolveOwnershipMetadataPath(dependencies.runtimePaths),
         },
       });
       return 0;
@@ -94,8 +95,10 @@ export async function runOperationalCommand(
       });
       return 0;
     }
-    const client = command.client as MutableIntegrationClient;
-    const configPath = command.configFile!;
+    if (!isMutableOperationalCommand(command))
+      throw new CliUsageError('This command does not target a mutable client configuration.');
+    const client: MutableIntegrationClient = command.client;
+    const configPath = command.configFile;
     const adapter = client === 'codex' ? createCodexTomlAdapter() : createClaudeJsonAdapter();
     const ownership = await store.read();
     const action =
@@ -135,4 +138,20 @@ export async function runOperationalCommand(
   } catch (error) {
     return writeOperationalError(dependencies.stdout, dependencies.stderr, error);
   }
+}
+
+function isMutableOperationalCommand(command: OperationalCommand): command is
+  | Extract<OperationalCommand, { readonly kind: 'config-disable' | 'config-remove' }>
+  | (Extract<OperationalCommand, { readonly kind: 'setup' }> & {
+      readonly client: MutableIntegrationClient;
+      readonly configFile: string;
+    }) {
+  return (
+    (command.kind === 'setup' ||
+      command.kind === 'config-disable' ||
+      command.kind === 'config-remove') &&
+    command.client !== undefined &&
+    command.client !== 'generic-mcp' &&
+    command.configFile !== undefined
+  );
 }

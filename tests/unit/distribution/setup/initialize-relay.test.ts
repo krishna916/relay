@@ -29,7 +29,7 @@ describe('initializeRelay', () => {
         const textPath = path.toString();
         mkdirSync(textPath, options);
         calls.push(textPath);
-        return textPath;
+        return join(root, 'shared');
       }) as typeof mkdirFunction,
       openRuntime: (databasePath) => {
         calls.push(databasePath);

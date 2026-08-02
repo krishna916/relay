@@ -5,7 +5,7 @@ import { fingerprint } from './plan-integration-change.js';
 import { SetupConflictError, SetupStorageError } from './setup-errors.js';
 
 export interface BackupAndAtomicWriteResult {
-  readonly backupPath: string;
+  readonly backupPath?: string;
   readonly originalExisted: boolean;
   readonly originalMode: number;
 }
@@ -26,12 +26,9 @@ export async function backupAndAtomicWrite(input: {
   const original = await readOriginalFile(input.targetPath);
   if (fingerprint(original.contents) !== input.expectedFingerprint)
     throw new SetupConflictError(`Configuration changed before replacement: ${input.targetPath}`);
-  const backupPath = await createExclusiveBackup(
-    input.targetPath,
-    input.now,
-    original.contents,
-    original.mode,
-  );
+  const backupPath = original.existed
+    ? await createExclusiveBackup(input.targetPath, input.now, original.contents, original.mode)
+    : undefined;
   const tempPath = join(
     dirname(input.targetPath),
     `.${basename(input.targetPath)}.${process.pid}.${randomUUID()}.tmp`,
@@ -57,7 +54,7 @@ export async function backupAndAtomicWrite(input: {
     replaced = true;
     input.validate(await readFile(input.targetPath, 'utf8'));
     return {
-      backupPath,
+      ...(backupPath === undefined ? {} : { backupPath }),
       originalExisted: original.existed,
       originalMode: original.mode,
     };
@@ -65,7 +62,7 @@ export async function backupAndAtomicWrite(input: {
     if (replaced) {
       try {
         await restoreOriginalFile({
-          backupPath,
+          ...(backupPath === undefined ? {} : { backupPath }),
           targetPath: input.targetPath,
           originalExisted: original.existed,
           originalMode: original.mode,
@@ -85,7 +82,7 @@ export async function backupAndAtomicWrite(input: {
 }
 
 export async function restoreOriginalFile(input: {
-  readonly backupPath: string;
+  readonly backupPath?: string;
   readonly targetPath: string;
   readonly originalExisted: boolean;
   readonly originalMode: number;
@@ -96,6 +93,8 @@ export async function restoreOriginalFile(input: {
     });
     return;
   }
+  if (input.backupPath === undefined)
+    throw new SetupStorageError(`No backup is available to restore ${input.targetPath}.`);
   await restoreFile(input.backupPath, input.targetPath, input.originalMode);
 }
 

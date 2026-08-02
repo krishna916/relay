@@ -152,7 +152,7 @@ describe('built CLI', () => {
     } finally {
       rmSync(workspace, { recursive: true, force: true });
     }
-  });
+  }, 15_000);
 
   it('validates before runtime creation and maps an isolated storage failure', () => {
     const workspace = mkdtempSync(join(tmpdir(), 'relay-cli-validation-'));

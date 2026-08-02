@@ -1,4 +1,12 @@
-import { existsSync, readFileSync, mkdtempSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -21,7 +29,8 @@ describe('backupAndAtomicWrite', () => {
       validate: (content) => JSON.parse(content) as unknown,
       now: new Date('2026-08-02T01:02:03.004Z'),
     });
-    expect(readFileSync(result.backupPath, 'utf8')).toBe(original);
+    expect(result.backupPath).toBeDefined();
+    expect(readFileSync(result.backupPath!, 'utf8')).toBe(original);
     expect(readFileSync(path, 'utf8')).toContain('relay');
     expect(result.backupPath).toContain('.relay-backup-20260802T010203.004Z');
   });
@@ -56,10 +65,10 @@ describe('backupAndAtomicWrite', () => {
       now: new Date('2026-08-02T01:02:03.004Z'),
     });
     expect(result.backupPath).toContain('.relay-backup-20260802T010203.004Z-1');
-    expect(readFileSync(result.backupPath, 'utf8')).toBe(original);
+    expect(readFileSync(result.backupPath!, 'utf8')).toBe(original);
   });
 
-  it('restores a missing original file to absence while retaining an empty backup', async () => {
+  it('restores a missing original file to absence without creating a backup', async () => {
     const root = mkdtempSync(join(tmpdir(), 'relay-write-'));
     const path = join(root, 'new-config.toml');
     const result = await backupAndAtomicWrite({
@@ -71,10 +80,31 @@ describe('backupAndAtomicWrite', () => {
     });
 
     expect(result.originalExisted).toBe(false);
+    expect(result.backupPath).toBeUndefined();
     expect(existsSync(path)).toBe(true);
     await restoreOriginalFile({ ...result, targetPath: path });
     expect(existsSync(path)).toBe(false);
-    expect(existsSync(result.backupPath)).toBe(true);
-    expect(readFileSync(result.backupPath)).toHaveLength(0);
+    expect(readdirSync(root).some((name) => name.includes('.relay-backup-'))).toBe(false);
+  });
+
+  it('restores an existing target with exact bytes and mode', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'relay-write-'));
+    const path = join(root, 'existing-config.toml');
+    const original = '[profile]\nname = "existing"\n';
+    writeFileSync(path, original);
+    chmodSync(path, 0o640);
+    const originalMode = statSync(path).mode & 0o777;
+    const result = await backupAndAtomicWrite({
+      targetPath: path,
+      expectedFingerprint: fingerprint(original),
+      nextContent: '[mcp_servers.relay]\ncommand = "relay"\nargs = ["mcp"]\n',
+      validate: () => undefined,
+      now: new Date('2026-08-02T01:02:03.004Z'),
+    });
+
+    await restoreOriginalFile({ ...result, targetPath: path });
+
+    expect(readFileSync(path, 'utf8')).toBe(original);
+    expect(statSync(path).mode & 0o777).toBe(originalMode);
   });
 });

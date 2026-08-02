@@ -25,7 +25,7 @@ export async function initializeRelay(
       dependencies.runtimePaths.configRoot,
     ]) {
       const created = await dependencies.mkdir(directory, { recursive: true });
-      if (created !== undefined) createdDirectories.push(created);
+      if (created !== undefined) createdDirectories.push(directory);
     }
   } catch (error) {
     throw new SetupStorageError('Relay directories could not be initialized.', error);

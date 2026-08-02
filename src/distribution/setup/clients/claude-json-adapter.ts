@@ -2,9 +2,8 @@ import { modify, parse, type ParseError } from 'jsonc-parser';
 import type { ClientConfigAdapter, ClientEntryState } from './client-adapter.js';
 import type { MutableIntegrationClient } from '../setup-types.js';
 import { renderIntegrationSnippet } from '../snippets.js';
+import { RELAY_ENTRY, RELAY_ENTRY_ID } from '../relay-entry.js';
 import { SetupUsageError } from '../setup-errors.js';
-
-const relayEntry = { command: 'relay', args: ['mcp'] } as const;
 
 export function createClaudeJsonAdapter(): ClientConfigAdapter {
   return {
@@ -14,7 +13,7 @@ export function createClaudeJsonAdapter(): ClientConfigAdapter {
     upsertRelayEntry: (content) => {
       const document = readDocument(content);
       if (inspect(document).kind === 'matching') return content;
-      const edits = modify(content, ['mcpServers', 'relay'], relayEntry, {
+      const edits = modify(content, ['mcpServers', RELAY_ENTRY_ID], RELAY_ENTRY, {
         formattingOptions: { insertSpaces: true, tabSize: 2, eol: newlineFor(content) },
       });
       return applyEdits(content, edits);
@@ -58,7 +57,12 @@ function inspect(document: Record<string, unknown>): ClientEntryState {
       ? relay.args
       : undefined;
   const keys = Object.keys(relay);
-  if (keys.length === 2 && command === 'relay' && args?.length === 1 && args[0] === 'mcp')
+  if (
+    keys.length === 2 &&
+    command === RELAY_ENTRY.command &&
+    args?.length === RELAY_ENTRY.args.length &&
+    args[0] === RELAY_ENTRY.args[0]
+  )
     return { kind: 'matching', command, args };
   return {
     kind: 'conflicting',

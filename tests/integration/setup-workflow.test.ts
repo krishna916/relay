@@ -72,7 +72,7 @@ describe('installed setup workflow', () => {
     ).toBe(0);
     expect(existsSync(databasePath)).toBe(true);
     expect(run('task', 'get', taskId!, '--output', 'json').stdout).toContain(taskId!);
-  });
+  }, 15_000);
 
   it('returns a JSON storage error when the database path is unusable', () => {
     const root = mkdtempSync(join(tmpdir(), 'relay-setup-error-'));

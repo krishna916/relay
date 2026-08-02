@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { parse } from '@iarna/toml';
+import { load as parseToml } from 'js-toml';
 
 export interface ValidateAgentIntegrationAssetsOptions {
   readonly rootDir?: string;
@@ -175,35 +175,34 @@ function validateTemplateShape(rootDir: string): void {
       args?: unknown;
       mcpServers?: Record<string, Record<string, unknown>>;
     };
-    const server = parsed.mcpServers?.relay ?? parsed;
-    if (
-      JSON.stringify(Object.keys(server).sort()) !== JSON.stringify(['args', 'command']) ||
-      server.command !== 'relay' ||
-      JSON.stringify(server.args) !== JSON.stringify(['mcp'])
-    )
-      fail(`${path} must use separate command and arguments for the installed relay mcp command.`);
+    validateInstalledMcpServer(parsed.mcpServers?.relay ?? parsed, path);
   }
 
   const tomlSource = readAsset(rootDir, 'integrations/codex/config.toml.example');
   if (/(?:[A-Z]:[\\/]Users[\\/]|\/Users\/|\/home\/|~\/)/i.test(tomlSource)) {
     fail('integrations/codex/config.toml.example must not contain a machine-specific home path.');
   }
-  const toml = parse(tomlSource) as {
+  const toml = parseToml(tomlSource) as {
     mcp_servers?: {
       relay?: Record<string, unknown>;
     };
   };
   const codexServer = toml.mcp_servers?.relay;
-  if (
-    codexServer === undefined ||
-    JSON.stringify(Object.keys(codexServer).sort()) !== JSON.stringify(['args', 'command']) ||
-    codexServer?.command !== 'relay' ||
-    !Array.isArray(codexServer.args) ||
-    codexServer.args.length !== 1 ||
-    codexServer.args[0] !== 'mcp'
-  ) {
+  if (codexServer === undefined)
     fail('integrations/codex/config.toml.example must invoke the installed relay mcp command.');
-  }
+  validateInstalledMcpServer(codexServer, 'integrations/codex/config.toml.example');
+}
+
+function validateInstalledMcpServer(value: unknown, label: string): void {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    fail(`${label} must define one installed relay server object.`);
+  const server = value as Record<string, unknown>;
+  if (
+    JSON.stringify(Object.keys(server).sort()) !== JSON.stringify(['args', 'command']) ||
+    server.command !== 'relay' ||
+    JSON.stringify(server.args) !== JSON.stringify(['mcp'])
+  )
+    fail(`${label} must use separate command and arguments for the installed relay mcp command.`);
 }
 
 export function validateAgentIntegrationAssets(
@@ -276,7 +275,4 @@ export function validateAgentIntegrationAssets(
     fail('Vendor assets must not copy behavioural policy.');
   validateRemovalGuidance(rootDir);
   validateTemplateShape(rootDir);
-  JSON.parse(readFileSync(join(integrationRoot, 'generic-mcp/server-config.json.example'), 'utf8'));
-  JSON.parse(readFileSync(join(integrationRoot, 'claude-code/.mcp.json.example'), 'utf8'));
-  parse(readFileSync(join(integrationRoot, 'codex/config.toml.example'), 'utf8'));
 }

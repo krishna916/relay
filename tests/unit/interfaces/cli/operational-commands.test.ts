@@ -47,5 +47,37 @@ describe('parseOperationalCommand', () => {
       kind: 'config-snippet',
       client: 'generic-mcp',
     });
+    expect(
+      parseOperationalCommand([
+        'config',
+        'disable',
+        '--client',
+        'codex',
+        '--config-file',
+        absoluteConfigPath,
+        '--apply',
+      ]),
+    ).toEqual({
+      kind: 'config-disable',
+      client: 'codex',
+      configFile: absoluteConfigPath,
+      apply: true,
+    });
+    expect(
+      parseOperationalCommand([
+        'config',
+        'remove',
+        '--client',
+        'codex',
+        '--config-file',
+        absoluteConfigPath,
+        '--apply',
+      ]),
+    ).toEqual({
+      kind: 'config-remove',
+      client: 'codex',
+      configFile: absoluteConfigPath,
+      apply: true,
+    });
   });
 });
