@@ -1,0 +1,4 @@
+# Preserve comments, spacing, and order.
+[mcp_servers.other]
+command    = "other-agent"
+args = [ "serve" ]

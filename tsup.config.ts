@@ -13,5 +13,6 @@ export default defineConfig({
   sourcemap: false,
   splitting: false,
   bundle: true,
+  external: ['@iarna/toml', 'jsonc-parser'],
   shims: true,
 });

@@ -1,0 +1,13 @@
+{
+  // Keep this comment and unrelated values.
+  "profile": {
+    "name": "local",
+    "secret_like": "fixture-secret-never-print"
+  },
+  "mcpServers": {
+    "other": {
+      "command": "other-agent",
+      "args": ["serve"]
+    }
+  }
+}

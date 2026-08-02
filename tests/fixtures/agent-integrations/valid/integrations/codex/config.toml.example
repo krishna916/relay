@@ -1,6 +1,3 @@
 [mcp_servers.relay]
-command = "node"
-args = ["__RELAY_CHECKOUT__/dist/mcp/main.js"]
-
-[mcp_servers.relay.env]
-RELAY_DB_PATH = "__RELAY_CHECKOUT__/.relay-validation/relay.db"
+command = "relay"
+args = ["mcp"]

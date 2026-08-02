@@ -160,7 +160,6 @@ function validateRemovalGuidance(rootDir: string): void {
 }
 
 function validateTemplateShape(rootDir: string): void {
-  const expectedMcpPath = '/tmp/relay-checkout/dist/mcp/main.js';
   const jsonTemplates = [
     'integrations/generic-mcp/server-config.json.example',
     'integrations/claude-code/.mcp.json.example',
@@ -171,49 +170,39 @@ function validateTemplateShape(rootDir: string): void {
     if (/(?:[A-Z]:[\\/]Users[\\/]|\/Users\/|\/home\/|~\/)/i.test(source)) {
       fail(`${path} must not contain a machine-specific home path.`);
     }
-    const parsed = JSON.parse(source.replaceAll('__RELAY_CHECKOUT__', '/tmp/relay-checkout')) as {
+    const parsed = JSON.parse(source) as {
       command?: unknown;
       args?: unknown;
-      mcpServers?: Record<string, { command?: unknown; args?: unknown }>;
+      mcpServers?: Record<string, Record<string, unknown>>;
     };
     const server = parsed.mcpServers?.relay ?? parsed;
-    if (server.command !== 'node' || !Array.isArray(server.args) || server.args.length !== 1) {
-      fail(`${path} must separate command and arguments for a stdio server.`);
-    }
-    if (server.args[0] !== expectedMcpPath) {
-      fail(`${path} must use the canonical dist/mcp/main.js entry path.`);
-    }
-    if (typeof server.command !== 'string' || /[\\/\s]/.test(server.command)) {
-      fail(`${path} must not embed a shell command in command.`);
-    }
+    if (
+      JSON.stringify(Object.keys(server).sort()) !== JSON.stringify(['args', 'command']) ||
+      server.command !== 'relay' ||
+      JSON.stringify(server.args) !== JSON.stringify(['mcp'])
+    )
+      fail(`${path} must use separate command and arguments for the installed relay mcp command.`);
   }
 
   const tomlSource = readAsset(rootDir, 'integrations/codex/config.toml.example');
   if (/(?:[A-Z]:[\\/]Users[\\/]|\/Users\/|\/home\/|~\/)/i.test(tomlSource)) {
     fail('integrations/codex/config.toml.example must not contain a machine-specific home path.');
   }
-  const toml = parse(tomlSource.replaceAll('__RELAY_CHECKOUT__', '/tmp/relay-checkout')) as {
+  const toml = parse(tomlSource) as {
     mcp_servers?: {
-      relay?: {
-        command?: unknown;
-        args?: unknown;
-        env?: { RELAY_DB_PATH?: unknown };
-      };
+      relay?: Record<string, unknown>;
     };
   };
   const codexServer = toml.mcp_servers?.relay;
   if (
-    codexServer?.command !== 'node' ||
+    codexServer === undefined ||
+    JSON.stringify(Object.keys(codexServer).sort()) !== JSON.stringify(['args', 'command']) ||
+    codexServer?.command !== 'relay' ||
     !Array.isArray(codexServer.args) ||
     codexServer.args.length !== 1 ||
-    codexServer.args[0] !== expectedMcpPath
+    codexServer.args[0] !== 'mcp'
   ) {
-    fail(
-      'integrations/codex/config.toml.example must use node plus the canonical dist/mcp/main.js entry as separate fields.',
-    );
-  }
-  if (codexServer.env?.RELAY_DB_PATH !== '/tmp/relay-checkout/.relay-validation/relay.db') {
-    fail('integrations/codex/config.toml.example must configure an isolated RELAY_DB_PATH.');
+    fail('integrations/codex/config.toml.example must invoke the installed relay mcp command.');
   }
 }
 
@@ -286,21 +275,8 @@ export function validateAgentIntegrationAssets(
   if (/^## Autonomy boundaries$/m.test(contents))
     fail('Vendor assets must not copy behavioural policy.');
   validateRemovalGuidance(rootDir);
-  for (const match of all.matchAll(/relay mcp/gi)) {
-    const context = all.slice(Math.max(0, match.index! - 80), match.index! + 100);
-    if (!/(future|not available|Epic #18)/i.test(context))
-      fail('relay mcp must be marked as future-only.');
-  }
   validateTemplateShape(rootDir);
-  const replaceCheckout = (text: string) =>
-    text.replaceAll('__RELAY_CHECKOUT__', '/tmp/relay-checkout');
-  JSON.parse(
-    replaceCheckout(
-      readFileSync(join(integrationRoot, 'generic-mcp/server-config.json.example'), 'utf8'),
-    ),
-  );
-  JSON.parse(
-    replaceCheckout(readFileSync(join(integrationRoot, 'claude-code/.mcp.json.example'), 'utf8')),
-  );
-  parse(replaceCheckout(readFileSync(join(integrationRoot, 'codex/config.toml.example'), 'utf8')));
+  JSON.parse(readFileSync(join(integrationRoot, 'generic-mcp/server-config.json.example'), 'utf8'));
+  JSON.parse(readFileSync(join(integrationRoot, 'claude-code/.mcp.json.example'), 'utf8'));
+  parse(readFileSync(join(integrationRoot, 'codex/config.toml.example'), 'utf8'));
 }

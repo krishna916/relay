@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parse as parseToml } from '@iarna/toml';
+import { parse as parseJsonc, type ParseError } from 'jsonc-parser';
 import { validateSkillAssets } from './validate-skill-assets.js';
 import { validateAgentIntegrationAssets } from './validate-agent-integration-assets.js';
 import { validateMcpbAssets } from './validate-mcpb-assets.js';
@@ -36,6 +37,27 @@ export const requiredDistributionAssets = [
   'tests/fixtures/distribution/config-examples/claude-code-conflict.json',
   'tests/fixtures/distribution/lifecycle-policy.json',
   'tests/fixtures/distribution/version-compatibility.json',
+  'tests/fixtures/setup/codex/empty.toml',
+  'tests/fixtures/setup/codex/unrelated.toml',
+  'tests/fixtures/setup/codex/matching.toml',
+  'tests/fixtures/setup/codex/conflicting.toml',
+  'tests/fixtures/setup/codex/malformed.toml',
+  'tests/fixtures/setup/codex/formatted.toml',
+  'tests/fixtures/setup/codex/crlf.toml',
+  'tests/fixtures/setup/claude-code/empty.json',
+  'tests/fixtures/setup/claude-code/unrelated.json',
+  'tests/fixtures/setup/claude-code/matching.json',
+  'tests/fixtures/setup/claude-code/conflicting.json',
+  'tests/fixtures/setup/claude-code/malformed.json',
+  'tests/fixtures/setup/claude-code/formatted.json',
+  'tests/fixtures/setup/claude-code/crlf.json',
+  'tests/fixtures/setup/metadata/empty.json',
+  'tests/fixtures/setup/metadata/enabled.json',
+  'tests/fixtures/setup/metadata/disabled.json',
+  'tests/fixtures/setup/metadata/malformed.json',
+  'tests/fixtures/setup/metadata/unsupported-schema.json',
+  'tests/fixtures/setup/metadata/duplicate.json',
+  'tests/fixtures/setup/metadata/wrong-command.json',
 ] as const;
 
 function walkFiles(rootDir: string, startDir = rootDir): string[] {
@@ -107,8 +129,18 @@ function validateJsonFiles(files: readonly string[]): void {
     if (!filePath.endsWith('.json')) {
       continue;
     }
+    const normalizedPath = filePath.replaceAll('\\', '/');
+    if (
+      normalizedPath.endsWith('tests/fixtures/setup/metadata/malformed.json') ||
+      normalizedPath.endsWith('tests/fixtures/setup/claude-code/malformed.json') ||
+      normalizedPath.endsWith('tests/fixtures/setup/claude-code/formatted.json')
+    ) {
+      continue;
+    }
 
-    JSON.parse(readFileSync(filePath, 'utf-8'));
+    const errors: ParseError[] = [];
+    parseJsonc(readFileSync(filePath, 'utf-8'), errors);
+    if (errors.length > 0) throw new Error(`Malformed JSON/JSONC asset: ${filePath}`);
   }
 }
 
@@ -367,6 +399,12 @@ function validateDistributionContract(
   );
   if (compatibility.releaseTrigger !== 'manual-maintainer-action') {
     fail('Distribution version fixture must require a manual maintainer release action.');
+  }
+
+  for (const path of requiredDistributionAssets.filter((asset) =>
+    asset.startsWith('tests/fixtures/setup/'),
+  )) {
+    if (!existsSync(join(rootDir, path))) fail(`Setup fixture is missing: ${path}`);
   }
 }
 

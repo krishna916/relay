@@ -1,8 +1,10 @@
 # Agent Integration
 
-## Supported source-checkout model
+## Supported installed model
 
-Relay integrations run the built entries from an absolute source checkout: `node __RELAY_CHECKOUT__/dist/mcp/main.js` or `node __RELAY_CHECKOUT__/dist/cli/main.js`. `relay mcp` is a future packaged command owned by Epic #18 and is not available.
+Installed integrations invoke the stable command `relay mcp`. Use `relay setup --client codex --config-file <absolute-path>` or the equivalent Claude Code command to preview a change, then add `--apply` only after reviewing the exact target, operation, and snippet. Generic MCP remains snippet-only.
+
+For source development only, run the built entries from an absolute source checkout: `node __RELAY_CHECKOUT__/dist/mcp/main.js` or `node __RELAY_CHECKOUT__/dist/cli/main.js`. These source-checkout examples are intentionally separate from installed templates.
 
 For source development only, run `pnpm dev:mcp` from the checkout; vendor configuration should use the built Node entry so it is independent of the current working directory.
 
@@ -25,7 +27,7 @@ Set `RELAY_DB_PATH` to `__RELAY_CHECKOUT__/.relay-validation/relay.db` for first
 
 ## Canonical MCP and CLI entry points
 
-See [generic MCP](../integrations/generic-mcp/README.md) and [generic CLI](../integrations/generic-cli/README.md). The canonical MCP server is `node __RELAY_CHECKOUT__/dist/mcp/main.js`; `relay mcp` remains future-only and unavailable until Epic #18.
+See [generic MCP](../integrations/generic-mcp/README.md) and [generic CLI](../integrations/generic-cli/README.md). Installed configuration uses `relay mcp`; source-checkout validation uses the explicit built Node entry above.
 
 ## Session and provenance example
 

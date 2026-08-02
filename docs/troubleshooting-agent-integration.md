@@ -4,6 +4,14 @@
 
 **Symptom:** build fails. **Check:** `node --version` and `pnpm --version`. **Resolution:** use the documented versions.
 
+## Setup preview or conflict failure
+
+**Symptom:** setup refuses to apply. **Check:** run the same command without `--apply` and inspect the exact target, operation, and `relay` entry. **Resolution:** use an explicit absolute `--config-file`, resolve any conflicting or unowned `relay` entry manually, and keep the original file and Relay backup intact.
+
+## Configuration backup or race failure
+
+**Symptom:** an apply reports a backup, write, or concurrent-change error. **Check:** inspect the named target and sibling `.relay-backup-...` file. **Resolution:** do not delete the backup; restore or review the original, then retry after the client file is stable.
+
 ## Missing dist/mcp/main.js or dist/cli/main.js
 
 **Symptom:** process cannot start. **Check:** run `pnpm build:node`. **Resolution:** rebuild before configuring the client.

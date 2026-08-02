@@ -38,6 +38,11 @@ configuration, and cache paths are independent of the current directory.
 platform default, and whitespace or relative values fail with usage/validation
 exit code 2. CLI, MCP, and UI use the same effective database path.
 
+After installation, initialize Relay with `relay setup`. To configure Codex or
+Claude Code, preview with an explicit absolute `--config-file` and add
+`--apply` only after reviewing the exact entry; see [safe setup and
+configuration](../setup-and-configuration.md). Generic MCP is snippet-only.
+
 ## Supported runtime
 
 The initial release claim is Node.js 24 on Windows x64, macOS arm64, and

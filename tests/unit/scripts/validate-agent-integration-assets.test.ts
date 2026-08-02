@@ -106,18 +106,15 @@ describe('validateAgentIntegrationAssets', () => {
     expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/task_archive/i);
   });
 
-  it('rejects a Codex config that falls back to the default database', () => {
+  it('rejects a Codex config that does not use the installed command', () => {
     const rootDir = createRoot();
     const path = join(rootDir, 'integrations/codex/config.toml.example');
     writeFileSync(
       path,
-      readFileSync(path, 'utf8').replace(
-        'RELAY_DB_PATH = "__RELAY_CHECKOUT__/.relay-validation/relay.db"',
-        'RELAY_DB_PATH = "/default/relay.db"',
-      ),
+      readFileSync(path, 'utf8').replace('command = "relay"', 'command = "node"'),
     );
 
-    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/isolated.*RELAY_DB_PATH/i);
+    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/installed relay mcp/i);
   });
 
   it('rejects generic MCP guidance without explicit validation database isolation', () => {
@@ -126,7 +123,7 @@ describe('validateAgentIntegrationAssets', () => {
     writeFileSync(
       path,
       readFileSync(path, 'utf8').replace(
-        'Validation requires explicit isolated RELAY_DB_PATH; omission is permitted only for non-validation use.',
+        'Validation RELAY_DB_PATH must be explicit and isolated; omission is permitted only for non-validation use.',
         'The database is available.',
       ),
     );
@@ -220,12 +217,12 @@ describe('validateAgentIntegrationAssets', () => {
     expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow();
   });
 
-  it('rejects an unqualified packaged relay mcp command', () => {
+  it('accepts the now-available packaged relay mcp command', () => {
     const rootDir = createRoot();
     const path = join(rootDir, 'docs/agent-integration.md');
     writeFileSync(path, `${readFileSync(path, 'utf8')} Use relay mcp now.`);
 
-    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/future-only/i);
+    expect(() => validateAgentIntegrationAssets({ rootDir })).not.toThrow();
   });
 
   it('rejects a canonical capture skill without autonomous-create permission', () => {
@@ -319,12 +316,10 @@ describe('validateAgentIntegrationAssets', () => {
     const path = join(rootDir, 'integrations/generic-mcp/server-config.json.example');
     writeFileSync(
       path,
-      readFileSync(path, 'utf8').replace('dist/mcp/main.js', 'dist/other-mcp.js'),
+      readFileSync(path, 'utf8').replace('"command": "relay"', '"command": "other"'),
     );
 
-    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(
-      /canonical.*dist\/mcp\/main\.js/i,
-    );
+    expect(() => validateAgentIntegrationAssets({ rootDir })).toThrow(/installed relay mcp/i);
   });
 
   it('rejects removal guidance that deletes the SQLite database', () => {
