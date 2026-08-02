@@ -1,0 +1,3 @@
+[mcp_servers.relay]
+command = "other-agent"
+args = ["serve"]

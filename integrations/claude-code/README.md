@@ -1,6 +1,6 @@
 # Claude Code integration
 
-Build Relay and substitute an absolute checkout path. Add the stdio server with `claude mcp add --transport stdio --scope project --env RELAY_DB_PATH=ABSOLUTE_CHECKOUT/.relay-validation/relay.db relay -- node ABSOLUTE_CHECKOUT/dist/mcp/main.js`, or copy the template to the project root as `.mcp.json`. `local` is private to the current project, `project` is shared through `.mcp.json`, and `user` applies across projects; local takes priority. Set the same isolated `RELAY_DB_PATH` in the selected configuration.
+Use `relay setup --client claude-code --config-file <absolute-path>` to preview the exact JSON entry, then add `--apply` only after reviewing a disposable or reviewed file. The generated entry invokes `relay mcp`; no client-file discovery occurs. The source-checkout command remains documented separately for repository development. `local` is private to the current project, `project` is shared through `.mcp.json`, and `user` applies across projects; local takes priority.
 
 Install the canonical [Relay Capture](../../skills/relay-capture/SKILL.md) and [Relay Session Review](../../skills/relay-session-review/SKILL.md) skill directories by copying or symlinking them unchanged to `.claude/skills/relay-capture/` and `.claude/skills/relay-session-review/`. For a personal installation across projects, use the client’s documented user-scoped skills directory. Do not copy the policy text into Claude-specific documentation or use instruction-file imports as skill discovery.
 

@@ -1,5 +1,5 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -90,6 +90,7 @@ function runCli(
   cwd: string,
   databasePath: string,
   args: readonly string[],
+  environment: Readonly<Record<string, string>> = {},
 ): CliRun {
   const result =
     process.platform === 'win32'
@@ -101,11 +102,15 @@ function runCli(
             '/c',
             [commandPath, ...args].map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg)).join(' '),
           ],
-          { cwd, env: { ...process.env, RELAY_DB_PATH: databasePath }, encoding: 'utf8' },
+          {
+            cwd,
+            env: { ...process.env, ...environment, RELAY_DB_PATH: databasePath },
+            encoding: 'utf8',
+          },
         )
       : spawnSync(commandPath, args, {
           cwd,
-          env: { ...process.env, RELAY_DB_PATH: databasePath },
+          env: { ...process.env, ...environment, RELAY_DB_PATH: databasePath },
           encoding: 'utf8',
         });
   return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
@@ -113,6 +118,7 @@ function runCli(
 
 interface CliEnvelope {
   readonly data?: {
+    readonly changed?: boolean;
     readonly task?: { readonly id?: string };
     readonly change?: { readonly to?: string };
   };
@@ -233,6 +239,83 @@ export async function verifyInstalledPackage(rootDir = process.cwd()): Promise<v
       throw new Error(`Installed Relay executable is missing: ${commandPath}`);
     if (commandPath.includes(rootDir))
       throw new Error('Installed smoke resolved the repository executable.');
+    const isolatedHome = join(temporaryRoot, 'home');
+    const setupEnvironment = {
+      APPDATA: join(temporaryRoot, 'appdata'),
+      LOCALAPPDATA: join(temporaryRoot, 'localappdata'),
+      HOME: isolatedHome,
+      XDG_CONFIG_HOME: join(isolatedHome, '.config'),
+      XDG_DATA_HOME: join(isolatedHome, '.local', 'share'),
+      XDG_CACHE_HOME: join(isolatedHome, '.cache'),
+    };
+
+    const setup = runCli(commandPath, unrelatedCwd, databasePath, ['setup'], setupEnvironment);
+    if (setup.status !== 0 || setup.stderr !== '')
+      throw new Error(`Installed setup initialization failed: ${setup.stderr}`);
+    for (const args of [
+      ['config', 'paths'],
+      ['config', 'snippet', '--client', 'codex'],
+      ['config', 'snippet', '--client', 'claude-code'],
+      ['config', 'snippet', '--client', 'generic-mcp'],
+    ]) {
+      const result = runCli(commandPath, unrelatedCwd, databasePath, args, setupEnvironment);
+      if (result.status !== 0 || result.stderr !== '')
+        throw new Error(
+          `Installed operational command failed (${args.join(' ')}): ${result.stderr}`,
+        );
+      envelope(result);
+    }
+
+    const codexConfig = join(temporaryRoot, 'codex.toml');
+    const codexBefore = '[profile]\nname = "installed-smoke"\n';
+    writeFileSync(codexConfig, codexBefore);
+    const preview = runCli(
+      commandPath,
+      unrelatedCwd,
+      databasePath,
+      ['setup', '--client', 'codex', '--config-file', codexConfig],
+      setupEnvironment,
+    );
+    const previewData =
+      preview.status === 0
+        ? (envelope(preview).data as { snippet?: string } | undefined)
+        : undefined;
+    if (preview.status !== 0 || !previewData?.snippet?.includes('command = "relay"'))
+      throw new Error(
+        `Installed setup preview failed (status=${String(preview.status)}): stdout=${preview.stdout} stderr=${preview.stderr}`,
+      );
+    const applied = runCli(
+      commandPath,
+      unrelatedCwd,
+      databasePath,
+      ['setup', '--client', 'codex', '--config-file', codexConfig, '--apply'],
+      setupEnvironment,
+    );
+    if (applied.status !== 0) throw new Error(`Installed setup apply failed: ${applied.stderr}`);
+    const appliedData = envelope(applied).data as { backupPath?: string } | undefined;
+    if (!appliedData?.backupPath || readFileSync(appliedData.backupPath, 'utf8') !== codexBefore)
+      throw new Error('Installed setup did not preserve an exact Codex backup.');
+    const rerun = runCli(
+      commandPath,
+      unrelatedCwd,
+      databasePath,
+      ['setup', '--client', 'codex', '--config-file', codexConfig, '--apply'],
+      setupEnvironment,
+    );
+    const rerunData = rerun.status === 0 ? envelope(rerun).data : undefined;
+    if (rerun.status !== 0 || rerunData?.changed !== false)
+      throw new Error('Installed setup rerun was not idempotent.');
+    for (const action of [
+      ['config', 'disable', '--client', 'codex', '--config-file', codexConfig, '--apply'],
+      ['setup', '--client', 'codex', '--config-file', codexConfig, '--apply'],
+      ['config', 'remove', '--client', 'codex', '--config-file', codexConfig, '--apply'],
+    ]) {
+      const result = runCli(commandPath, unrelatedCwd, databasePath, action, setupEnvironment);
+      if (result.status !== 0)
+        throw new Error(
+          `Installed configuration action failed (${action.join(' ')}): ${result.stderr}`,
+        );
+    }
 
     const capture = runCli(commandPath, unrelatedCwd, databasePath, [
       'task',

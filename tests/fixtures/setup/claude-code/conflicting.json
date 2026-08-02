@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "relay": {
+      "command": "other-agent",
+      "args": ["serve"]
+    }
+  }
+}

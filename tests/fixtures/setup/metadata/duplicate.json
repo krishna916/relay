@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "integrations": [
+    {
+      "client": "codex",
+      "configPath": "C:/tmp/codex.toml",
+      "entryId": "relay",
+      "command": "relay",
+      "args": ["mcp"],
+      "status": "enabled",
+      "applicationVersion": "0.1.0",
+      "lastSuccessfulSetupAt": "2026-08-02T00:00:00.000Z"
+    },
+    {
+      "client": "codex",
+      "configPath": "C:/tmp/./codex.toml",
+      "entryId": "relay",
+      "command": "relay",
+      "args": ["mcp"],
+      "status": "disabled",
+      "applicationVersion": "0.1.0",
+      "lastSuccessfulSetupAt": "2026-08-02T00:00:00.000Z"
+    }
+  ]
+}

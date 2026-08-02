@@ -132,12 +132,7 @@ export interface RelayIntegrationOwnership {
   readonly lastBackupPath?: string;
 }
 
-export type IntegrationOperation =
-  | 'created'
-  | 'updated'
-  | 'unchanged'
-  | 'disabled'
-  | 'removed';
+export type IntegrationOperation = 'created' | 'updated' | 'unchanged' | 'disabled' | 'removed';
 
 export interface IntegrationChangePlan {
   readonly client: MutableIntegrationClient;
@@ -584,14 +579,27 @@ git commit -m "feat: apply owned configuration changes atomically"
 
 ```ts
 export type OperationalCommand =
-  | { readonly kind: 'setup'; readonly client?: IntegrationClient; readonly configFile?: string; readonly apply: boolean }
+  | {
+      readonly kind: 'setup';
+      readonly client?: IntegrationClient;
+      readonly configFile?: string;
+      readonly apply: boolean;
+    }
   | { readonly kind: 'config-paths' }
   | { readonly kind: 'config-integrations' }
   | { readonly kind: 'config-snippet'; readonly client: IntegrationClient }
-  | { readonly kind: 'config-disable' | 'config-remove'; readonly client: MutableIntegrationClient; readonly configFile: string; readonly apply: true };
+  | {
+      readonly kind: 'config-disable' | 'config-remove';
+      readonly client: MutableIntegrationClient;
+      readonly configFile: string;
+      readonly apply: true;
+    };
 
 export function parseOperationalCommand(argv: readonly string[]): OperationalCommand;
-export async function runOperationalCommand(command: OperationalCommand, dependencies: OperationalDependencies): Promise<number>;
+export async function runOperationalCommand(
+  command: OperationalCommand,
+  dependencies: OperationalDependencies,
+): Promise<number>;
 ```
 
 - [ ] **Step 1: Write failing parser tests for the locked command grammar.**

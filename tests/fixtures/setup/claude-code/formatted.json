@@ -1,0 +1,6 @@
+{
+  // Preserve comments and formatting.
+  "mcpServers": {
+    "other": { "command": "other-agent", "args": ["serve"] }
+  }
+}
