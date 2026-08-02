@@ -53,9 +53,7 @@ Expose one mutation API so callers cannot accidentally reintroduce an unlocked r
 ```ts
 export interface OwnershipStore {
   read(): Promise<RelayOwnershipFile>;
-  update(
-    mutate: (current: RelayOwnershipFile) => RelayOwnershipFile,
-  ): Promise<RelayOwnershipFile>;
+  update(mutate: (current: RelayOwnershipFile) => RelayOwnershipFile): Promise<RelayOwnershipFile>;
 }
 ```
 
@@ -184,19 +182,14 @@ git commit -m "test: use host-native setup config paths"
 ```ts
 export interface OwnershipStore {
   read(): Promise<RelayOwnershipFile>;
-  update(
-    mutate: (current: RelayOwnershipFile) => RelayOwnershipFile,
-  ): Promise<RelayOwnershipFile>;
+  update(mutate: (current: RelayOwnershipFile) => RelayOwnershipFile): Promise<RelayOwnershipFile>;
 }
 ```
 
 - Internal helper:
 
 ```ts
-async function withOwnershipLock<T>(
-  metadataPath: string,
-  action: () => Promise<T>,
-): Promise<T>;
+async function withOwnershipLock<T>(metadataPath: string, action: () => Promise<T>): Promise<T>;
 ```
 
 - [ ] **Step 1: Write a failing concurrent-update test.**
@@ -316,10 +309,7 @@ await input.ownershipStore.update((ownership) => {
   );
   return {
     schemaVersion: 1,
-    integrations:
-      input.plan.operation === 'removed'
-        ? existing
-        : [...existing, nextRecord],
+    integrations: input.plan.operation === 'removed' ? existing : [...existing, nextRecord],
   };
 });
 ```
