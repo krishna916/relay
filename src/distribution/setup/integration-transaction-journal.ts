@@ -64,17 +64,14 @@ export async function recoverIntegrationTransaction(input: {
       new Error('Journal configuration path mismatch.'),
     );
 
+  const currentFingerprint = await readConfigFingerprint(input.configPath);
   if (journal.phase === 'prepared') {
-    const currentFingerprint = await readConfigFingerprint(input.configPath);
     if (currentFingerprint === journal.beforeFingerprint) {
       await deleteIntegrationTransactionJournal(input.journalPath);
       return 'rolled-back';
     }
-    if (currentFingerprint !== journal.nextFingerprint)
-      throw new SetupConflictError(
-        `The client configuration changed during an interrupted Relay transaction. Preserve the transaction journal and backup: ${input.journalPath}`,
-      );
   }
+  if (currentFingerprint !== journal.nextFingerprint) throw transactionConflict(input);
 
   const ownership = await input.ownershipStore.read();
   const record = ownership.integrations.find(
@@ -92,10 +89,6 @@ export async function recoverIntegrationTransaction(input: {
 
   try {
     if (journal.beforeFingerprint === journal.nextFingerprint) {
-      if ((await readConfigFingerprint(input.configPath)) !== journal.beforeFingerprint)
-        throw new SetupConflictError(
-          `The client configuration changed during an interrupted Relay transaction. Preserve the transaction journal and backup: ${input.journalPath}`,
-        );
       await deleteIntegrationTransactionJournal(input.journalPath);
       return 'rolled-back';
     }
@@ -114,6 +107,15 @@ export async function recoverIntegrationTransaction(input: {
       new AggregateError([error, new Error(`Original transaction journal: ${input.journalPath}`)]),
     );
   }
+}
+
+function transactionConflict(input: {
+  readonly journalPath: string;
+  readonly configPath: string;
+}): SetupConflictError {
+  return new SetupConflictError(
+    `The client configuration changed after the interrupted Relay transaction. Relay preserved the client configuration, transaction journal, and backup for manual inspection. Config: ${input.configPath}. Journal: ${input.journalPath}.`,
+  );
 }
 
 async function readIntegrationTransactionJournal(

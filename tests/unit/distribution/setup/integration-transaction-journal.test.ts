@@ -199,7 +199,10 @@ describe('integration transaction journal recovery', () => {
     async (action, status) => {
       const { configPath, journalPath } = createCase();
       writeFileSync(configPath, '');
-      await writeIntegrationTransactionJournal(journalPath, journalFor({ configPath, action }));
+      await writeIntegrationTransactionJournal(
+        journalPath,
+        journalFor({ configPath, action, nextFingerprint: fingerprint('') }),
+      );
       const store = createStore({
         schemaVersion: 1,
         integrations: [
@@ -233,7 +236,7 @@ describe('integration transaction journal recovery', () => {
     writeFileSync(configPath, '');
     await writeIntegrationTransactionJournal(
       journalPath,
-      journalFor({ configPath, action: 'remove' }),
+      journalFor({ configPath, action: 'remove', nextFingerprint: fingerprint('') }),
     );
     await expect(
       recoverIntegrationTransaction({
@@ -245,6 +248,108 @@ describe('integration transaction journal recovery', () => {
       }),
     ).resolves.toBe('completed');
     expect(existsSync(journalPath)).toBe(false);
+  });
+
+  it('fails closed when matching ownership exists but the client file changed externally', async () => {
+    const { root, configPath, journalPath } = createCase();
+    const external = '[profile]\nname = "external"\n';
+    const backupPath = join(root, 'codex.toml.relay-backup');
+    writeFileSync(configPath, external);
+    writeFileSync(backupPath, '[profile]\nname = "before"\n');
+    const ownership = {
+      schemaVersion: 1 as const,
+      integrations: [
+        {
+          client: 'codex' as const,
+          configPath,
+          entryId: 'relay' as const,
+          command: 'relay' as const,
+          args: ['mcp'] as const,
+          status: 'enabled' as const,
+          applicationVersion: '0.1.0',
+          lastSuccessfulSetupAt: '2026-08-02T01:02:03.004Z',
+        },
+      ],
+    };
+    const store = createStore(ownership);
+    await writeIntegrationTransactionJournal(
+      journalPath,
+      journalFor({ configPath, backupPath, nextFingerprint: fingerprint('next') }),
+    );
+
+    await expect(
+      recoverIntegrationTransaction({
+        journalPath,
+        configPath,
+        adapter: createCodexTomlAdapter(),
+        ownershipStore: store,
+        applicationVersion: '0.1.0',
+      }),
+    ).rejects.toBeInstanceOf(SetupConflictError);
+    expect(readFileSync(configPath, 'utf8')).toBe(external);
+    expect(existsSync(journalPath)).toBe(true);
+    expect(existsSync(backupPath)).toBe(true);
+    await expect(store.read()).resolves.toEqual(ownership);
+  });
+
+  it('fails closed when ownership is missing and the client file changed externally', async () => {
+    const { root, configPath, journalPath } = createCase();
+    const external = '[profile]\nname = "external"\n';
+    const backup = '[profile]\nname = "before"\n';
+    const backupPath = join(root, 'codex.toml.relay-backup');
+    writeFileSync(configPath, external);
+    writeFileSync(backupPath, backup);
+    const store = createStore({ schemaVersion: 1, integrations: [] });
+    await writeIntegrationTransactionJournal(
+      journalPath,
+      journalFor({ configPath, backupPath, nextFingerprint: fingerprint('next') }),
+    );
+
+    await expect(
+      recoverIntegrationTransaction({
+        journalPath,
+        configPath,
+        adapter: createCodexTomlAdapter(),
+        ownershipStore: store,
+        applicationVersion: '0.1.0',
+      }),
+    ).rejects.toMatchObject({
+      constructor: SetupConflictError,
+      message: expect.stringContaining(configPath),
+    });
+    expect(readFileSync(configPath, 'utf8')).toBe(external);
+    expect(existsSync(journalPath)).toBe(true);
+    expect(readFileSync(backupPath, 'utf8')).toBe(backup);
+    await expect(store.read()).resolves.toEqual({ schemaVersion: 1, integrations: [] });
+  });
+
+  it('fails closed when a no-content-change transaction target changed externally', async () => {
+    const { configPath, journalPath } = createCase();
+    const external = '[profile]\nname = "external"\n';
+    writeFileSync(configPath, external);
+    await writeIntegrationTransactionJournal(
+      journalPath,
+      journalFor({
+        configPath,
+        beforeFingerprint: fingerprint('same'),
+        nextFingerprint: fingerprint('same'),
+      }),
+    );
+
+    await expect(
+      recoverIntegrationTransaction({
+        journalPath,
+        configPath,
+        adapter: createCodexTomlAdapter(),
+        ownershipStore: createStore({ schemaVersion: 1, integrations: [] }),
+        applicationVersion: '0.1.0',
+      }),
+    ).rejects.toMatchObject({
+      constructor: SetupConflictError,
+      message: expect.stringMatching(/journal|config/i),
+    });
+    expect(readFileSync(configPath, 'utf8')).toBe(external);
+    expect(existsSync(journalPath)).toBe(true);
   });
 
   it('restores an existing client file byte-for-byte and preserves its mode', async () => {
