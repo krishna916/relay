@@ -1,4 +1,5 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
+import { DoctorInterruptedError, type DoctorTerminationSignal } from './doctor-interruption.js';
 
 export const DOCTOR_MCP_TIMEOUT_MS = 5_000;
 export const DOCTOR_UI_TIMEOUT_MS = 8_000;
@@ -12,12 +13,42 @@ export interface ChildProcessProbeResult {
   readonly timedOut: boolean;
 }
 
+interface RegisteredCleanup {
+  readonly cleanup: () => Promise<void> | void;
+  started: boolean;
+  promise?: Promise<void>;
+}
+
+export interface DoctorTemporaryRoot {
+  readonly path: string;
+  cleanup(): Promise<void>;
+}
+
+export interface DoctorSignalRegistration {
+  readonly getSignal: () => DoctorTerminationSignal | undefined;
+  readonly cleanupStarted: () => Promise<void>;
+  readonly remove: () => void;
+}
+
+interface DoctorSignalTarget {
+  on(signal: DoctorTerminationSignal, listener: () => void): unknown;
+  off(signal: DoctorTerminationSignal, listener: () => void): unknown;
+}
+
 const activeChildren = new Set<ChildProcess>();
-const activeCleanups = new Set<() => Promise<void> | void>();
+const activeCleanups = new Set<RegisteredCleanup>();
+const childTerminationPromises = new WeakMap<ChildProcess, Promise<void>>();
 
 export function registerDoctorCleanup(cleanup: () => Promise<void> | void): () => void {
-  activeCleanups.add(cleanup);
-  return () => activeCleanups.delete(cleanup);
+  const entry = createRegisteredCleanup(cleanup);
+  return () => unregisterCleanup(entry);
+}
+
+export function registerDoctorTemporaryRoot(root: DoctorTemporaryRoot): {
+  readonly cleanup: () => Promise<void>;
+} {
+  const entry = createRegisteredCleanup(root.cleanup);
+  return { cleanup: () => runRegisteredCleanup(entry) };
 }
 
 export async function runChildProcessProbe(input: {
@@ -105,25 +136,77 @@ export async function runChildProcessProbe(input: {
 }
 
 export async function cleanupDoctorChildren(): Promise<void> {
-  await Promise.all([
-    ...[...activeChildren].map((child) => terminateChild(child)),
-    ...[...activeCleanups].map((cleanup) => Promise.resolve().then(cleanup)),
-  ]);
+  await Promise.allSettled([...activeCleanups].map((entry) => runRegisteredCleanup(entry)));
 }
 
-export function installDoctorSignalHandlers(): () => void {
-  const handler = (): void => {
-    void cleanupDoctorChildren();
+export function installDoctorSignalHandlers(input: {
+  readonly controller: AbortController;
+  readonly signalTarget?: DoctorSignalTarget;
+}): DoctorSignalRegistration {
+  let receivedSignal: DoctorTerminationSignal | undefined;
+  let signalCleanup: Promise<void> | undefined;
+  const signalTarget = input.signalTarget ?? process;
+  const handleSignal = (signal: DoctorTerminationSignal): void => {
+    if (receivedSignal !== undefined) return;
+    receivedSignal = signal;
+    input.controller.abort(new DoctorInterruptedError(signal));
+    signalCleanup = cleanupDoctorChildren();
   };
-  process.on('SIGINT', handler);
-  process.on('SIGTERM', handler);
-  return () => {
-    process.off('SIGINT', handler);
-    process.off('SIGTERM', handler);
+
+  const onInterrupt = (): void => handleSignal('SIGINT');
+  const onTerminate = (): void => handleSignal('SIGTERM');
+  signalTarget.on('SIGINT', onInterrupt);
+  signalTarget.on('SIGTERM', onTerminate);
+
+  let removed = false;
+  return {
+    getSignal: () => receivedSignal,
+    cleanupStarted: () => signalCleanup ?? Promise.resolve(),
+    remove: () => {
+      if (removed) return;
+      removed = true;
+      signalTarget.off('SIGINT', onInterrupt);
+      signalTarget.off('SIGTERM', onTerminate);
+    },
   };
 }
 
-async function terminateChild(child: ChildProcess): Promise<void> {
+function createRegisteredCleanup(cleanup: () => Promise<void> | void): RegisteredCleanup {
+  const entry: RegisteredCleanup = {
+    cleanup,
+    started: false,
+  };
+  activeCleanups.add(entry);
+  return entry;
+}
+
+function unregisterCleanup(entry: RegisteredCleanup): void {
+  if (!entry.started) activeCleanups.delete(entry);
+}
+
+function runRegisteredCleanup(entry: RegisteredCleanup): Promise<void> {
+  if (entry.promise !== undefined) return entry.promise;
+  entry.started = true;
+  entry.promise = Promise.resolve()
+    .then(entry.cleanup)
+    .catch(() => undefined)
+    .finally(() => {
+      activeCleanups.delete(entry);
+    });
+  return entry.promise;
+}
+
+function terminateChild(child: ChildProcess): Promise<void> {
+  const existing = childTerminationPromises.get(child);
+  if (existing !== undefined) return existing;
+  const promise = terminateChildInternal(child).finally(() => {
+    childTerminationPromises.delete(child);
+  });
+  childTerminationPromises.set(child, promise);
+  return promise;
+}
+
+async function terminateChildInternal(child: ChildProcess): Promise<void> {
   if (child.exitCode !== null || child.signalCode !== null || child.killed) return;
   const pid = child.pid;
   try {

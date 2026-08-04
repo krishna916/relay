@@ -1,9 +1,11 @@
 import type { ChildProcess } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 import {
   cleanupDoctorChildren,
   DOCTOR_UI_TIMEOUT_MS,
+  registerDoctorTemporaryRoot,
   runChildProcessProbe,
 } from './child-process-probe.js';
 import type { InstalledRelayCommand } from './check-mcp.js';
@@ -21,6 +23,7 @@ export function createUiLoopbackCheck(input: {
     id: 'ui.loopback',
     run: async () => {
       const root = await input.temporaryRootFactory();
+      const registeredRoot = registerDoctorTemporaryRoot(root);
       let probe: Promise<Awaited<ReturnType<typeof runChildProcessProbe>>> | undefined;
       try {
         let resolveReady: ((url: string) => void) | undefined;
@@ -41,6 +44,10 @@ export function createUiLoopbackCheck(input: {
           timeoutMs: DOCTOR_UI_TIMEOUT_MS,
           maxCaptureBytes: 32_768,
           onSpawn: (child: ChildProcess) => {
+            if (doctorProbeTestEnabled()) {
+              const marker = process.env.RELAY_DOCTOR_TEST_UI_MARKER;
+              if (marker !== undefined) writeFileSync(marker, 'ui-started');
+            }
             child.stderr?.on('data', (chunk: Buffer | string) => {
               readinessBuffer = `${readinessBuffer}${chunk.toString()}`.slice(-32_768);
               const match = /\[INFO\] HTTP server running at (https?:\/\/[^\s]+)/.exec(
@@ -118,10 +125,14 @@ export function createUiLoopbackCheck(input: {
       } finally {
         await cleanupDoctorChildren();
         await probe?.catch(() => undefined);
-        await root.cleanup();
+        await registeredRoot.cleanup();
       }
     },
   };
+}
+
+function doctorProbeTestEnabled(): boolean {
+  return process.env.NODE_ENV === 'test' || process.env.RELAY_RUN_PACKAGE_SMOKE === '1';
 }
 
 class UiHealthTimeout extends Error {}

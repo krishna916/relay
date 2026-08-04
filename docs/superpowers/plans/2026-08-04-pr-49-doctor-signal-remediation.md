@@ -161,9 +161,10 @@ const checks = checksFor(healthyResults).map((check) => ({
   },
 }));
 
-await expect(
-  runDoctor({ context, checks, signal: controller.signal }),
-).rejects.toMatchObject({ name: 'DoctorInterruptedError', signal: 'SIGINT' });
+await expect(runDoctor({ context, checks, signal: controller.signal })).rejects.toMatchObject({
+  name: 'DoctorInterruptedError',
+  signal: 'SIGINT',
+});
 expect(calls).toEqual([]);
 ```
 

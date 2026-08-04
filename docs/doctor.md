@@ -4,6 +4,10 @@
 default output is human-readable; `relay doctor --output json` writes one
 schema-versioned JSON document for automation and support.
 
+Ctrl+C and SIGTERM stop the diagnostic run, clean up active probes and
+temporary roots, and do not emit a completed report. Interrupted runs return
+130 for SIGINT and 143 for SIGTERM.
+
 Exit codes are stable:
 
 - `0`: no check failed. Warnings and skipped checks are allowed.

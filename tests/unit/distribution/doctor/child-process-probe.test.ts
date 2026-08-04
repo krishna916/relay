@@ -2,15 +2,86 @@ import { describe, expect, it } from 'vitest';
 import { join } from 'node:path';
 import { kill } from 'node:process';
 import {
+  cleanupDoctorChildren,
   DOCTOR_MAX_CAPTURE_BYTES,
   DOCTOR_MCP_TIMEOUT_MS,
   DOCTOR_UI_TIMEOUT_MS,
+  installDoctorSignalHandlers,
+  registerDoctorCleanup,
+  registerDoctorTemporaryRoot,
   runChildProcessProbe,
 } from '../../../../src/distribution/doctor/child-process-probe.js';
+import { DoctorInterruptedError } from '../../../../src/distribution/doctor/doctor-interruption.js';
 
 const fixtureDir = join(process.cwd(), 'tests', 'fixtures', 'doctor', 'process');
 
 describe('doctor child process probe', () => {
+  it('aborts once, awaits cleanup, and keeps the first signal', async () => {
+    const listeners = new Map<string, () => void>();
+    const target = {
+      on: (signal: 'SIGINT' | 'SIGTERM', listener: () => void) => listeners.set(signal, listener),
+      off: (signal: 'SIGINT' | 'SIGTERM', listener: () => void) => {
+        if (listeners.get(signal) === listener) listeners.delete(signal);
+      },
+    };
+    let releaseCleanup!: () => void;
+    const cleanupFinished = new Promise<void>((resolve) => {
+      releaseCleanup = resolve;
+    });
+    let cleanupCalls = 0;
+    registerDoctorCleanup(async () => {
+      cleanupCalls += 1;
+      await cleanupFinished;
+    });
+    const controller = new AbortController();
+    const registration = installDoctorSignalHandlers({ controller, signalTarget: target });
+
+    listeners.get('SIGINT')?.();
+    listeners.get('SIGTERM')?.();
+
+    expect(registration.getSignal()).toBe('SIGINT');
+    expect(controller.signal.reason).toBeInstanceOf(DoctorInterruptedError);
+    expect((controller.signal.reason as DoctorInterruptedError).signal).toBe('SIGINT');
+    await Promise.resolve();
+    expect(cleanupCalls).toBe(1);
+    let cleanupResolved = false;
+    void registration.cleanupStarted().then(() => {
+      cleanupResolved = true;
+    });
+    await Promise.resolve();
+    expect(cleanupResolved).toBe(false);
+    releaseCleanup();
+    await registration.cleanupStarted();
+    expect(cleanupResolved).toBe(true);
+
+    registration.remove();
+    expect(listeners.size).toBe(0);
+    registration.remove();
+    await cleanupDoctorChildren();
+  });
+
+  it('runs a temporary-root cleanup once across signal and local cleanup', async () => {
+    let releaseCleanup!: () => void;
+    const cleanupFinished = new Promise<void>((resolve) => {
+      releaseCleanup = resolve;
+    });
+    let cleanupCalls = 0;
+    const root = registerDoctorTemporaryRoot({
+      path: 'test-root',
+      cleanup: async () => {
+        cleanupCalls += 1;
+        await cleanupFinished;
+      },
+    });
+    const signalCleanup = cleanupDoctorChildren();
+    const localCleanup = root.cleanup();
+    releaseCleanup();
+    await Promise.all([signalCleanup, localCleanup]);
+
+    expect(cleanupCalls).toBe(1);
+    await cleanupDoctorChildren();
+  });
+
   it('captures a healthy child and exposes the locked timeout constants', async () => {
     const result = await runChildProcessProbe({
       command: process.execPath,

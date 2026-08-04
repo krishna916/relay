@@ -1,6 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { registerDoctorCleanup } from './child-process-probe.js';
+import { writeFileSync } from 'node:fs';
+import { registerDoctorCleanup, registerDoctorTemporaryRoot } from './child-process-probe.js';
 import type { DoctorCheck } from './doctor-types.js';
 
 export interface InstalledRelayCommand {
@@ -37,6 +38,7 @@ export function createMcpHandshakeCheck(input: {
     id: 'mcp.handshake',
     run: async () => {
       const root = await input.temporaryRootFactory();
+      const registeredRoot = registerDoctorTemporaryRoot(root);
       const transport = new StdioClientTransport({
         command: input.installedCommand.command,
         args: [...input.installedCommand.prefixArgs, 'mcp'],
@@ -51,8 +53,19 @@ export function createMcpHandshakeCheck(input: {
       });
       const unregisterCleanup = registerDoctorCleanup(() => transport.close());
       const client = new Client({ name: 'relay-doctor', version: '1.0.0' });
+      let unregisterHold: (() => void) | undefined;
       try {
         await withTimeout(client.connect(transport), 5_000);
+        if (doctorProbeHoldEnabled('mcp')) {
+          const marker = process.env.RELAY_DOCTOR_TEST_MARKER;
+          if (marker !== undefined) writeFileSync(marker, 'mcp-ready');
+          let releaseHold!: () => void;
+          const hold = new Promise<void>((resolve) => {
+            releaseHold = resolve;
+          });
+          unregisterHold = registerDoctorCleanup(releaseHold);
+          await hold;
+        }
         const tools = (await withTimeout(client.listTools(), 5_000)).tools.map((tool) => tool.name);
         const missing = REQUIRED_TOOLS.filter((name) => !tools.includes(name));
         if (missing.length > 0) {
@@ -79,13 +92,21 @@ export function createMcpHandshakeCheck(input: {
               : 'The installed Relay MCP server could not be started safely.',
         };
       } finally {
+        unregisterHold?.();
         unregisterCleanup();
         await client.close().catch(() => undefined);
         await transport.close().catch(() => undefined);
-        await root.cleanup();
+        await registeredRoot.cleanup();
       }
     },
   };
+}
+
+function doctorProbeHoldEnabled(probe: 'mcp'): boolean {
+  return (
+    process.env.RELAY_DOCTOR_TEST_HOLD_PROBE === probe &&
+    (process.env.NODE_ENV === 'test' || process.env.RELAY_RUN_PACKAGE_SMOKE === '1')
+  );
 }
 
 function joinDatabasePath(root: string): string {

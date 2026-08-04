@@ -9,6 +9,7 @@ import {
   runDoctorCommand,
   type DoctorCommandDependencies,
 } from '../../../../src/interfaces/cli/run-doctor-command.js';
+import { DoctorInterruptedError } from '../../../../src/distribution/doctor/doctor-interruption.js';
 
 function report() {
   return {
@@ -113,5 +114,54 @@ describe('relay doctor CLI', () => {
     await expect(
       runDoctorCommand(['doctor'], dependencies({ createChecks: () => failingChecks })),
     ).resolves.toBe(1);
+  });
+
+  it.each([
+    ['SIGINT', 130],
+    ['SIGTERM', 143],
+  ] as const)('%s returns %d and emits no report', async (signal, expectedExitCode) => {
+    outputs.length = 0;
+    errors.length = 0;
+    let controller!: AbortController;
+    let releaseCheck!: () => void;
+    let releaseCleanup!: () => void;
+    const checkStarted = new Promise<void>((resolve) => {
+      releaseCheck = resolve;
+    });
+    const checks: readonly DoctorCheck[] = DOCTOR_CHECK_ORDER.map((id, index) => ({
+      id,
+      run:
+        index === 0
+          ? async () => {
+              releaseCheck();
+              await new Promise((resolve) => setTimeout(resolve, 0));
+              return { status: 'healthy' as const, code: `${id}.ok`, message: 'ready' };
+            }
+          : async () => ({ status: 'healthy' as const, code: `${id}.ok`, message: 'ready' }),
+    }));
+    const commandPromise = runDoctorCommand(
+      ['doctor', '--output', 'json'],
+      dependencies({
+        createChecks: () => checks,
+        installSignalHandlers: ({ controller: captured }) => {
+          controller = captured;
+          const cleanupPromise = new Promise<void>((resolve) => {
+            releaseCleanup = resolve;
+          });
+          return {
+            getSignal: () => signal,
+            cleanupStarted: () => cleanupPromise,
+            remove: () => undefined,
+          };
+        },
+      }),
+    );
+    await checkStarted;
+    controller.abort(new DoctorInterruptedError(signal));
+    releaseCleanup();
+
+    await expect(commandPromise).resolves.toBe(expectedExitCode);
+    expect(outputs).toEqual([]);
+    expect(errors).toEqual([]);
   });
 });
