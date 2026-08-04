@@ -137,11 +137,14 @@ async function terminateChild(child: ChildProcess): Promise<void> {
     }
   }
   const exited = await waitForExit(child, 500);
+  if (process.platform === 'win32' && pid !== undefined) {
+    await taskkill(pid);
+    await waitForExit(child, 500);
+    return;
+  }
   if (exited) return;
   try {
-    if (process.platform === 'win32' && pid !== undefined) {
-      await taskkill(pid);
-    } else if (pid === undefined) {
+    if (pid === undefined) {
       child.kill('SIGKILL');
     } else process.kill(-pid, 'SIGKILL');
   } catch {

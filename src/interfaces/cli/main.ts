@@ -9,6 +9,7 @@ import {
 } from '../production-dependencies.js';
 import { runDoctorCommand } from './run-doctor-command.js';
 import { parseDoctorCommand } from './parse-doctor-command.js';
+import { writeDoctorBootstrapFailure } from './doctor-output.js';
 import { runOperationalCommand } from './run-operational-command.js';
 import { writeOperationalError } from './operational-output.js';
 
@@ -24,18 +25,27 @@ void runRelay(process.argv.slice(2), {
   runMcp: runMcpServer,
   runUi: runUiServer,
   runDoctor: (argv) => {
+    let command;
     try {
-      parseDoctorCommand(argv);
+      command = parseDoctorCommand(argv);
     } catch (error) {
       process.stderr.write(
         `${error instanceof Error ? error.message : 'Invalid doctor command.'}\n`,
       );
       return Promise.resolve(2);
     }
-    return runDoctorCommand(
-      argv,
-      createDoctorDependencies({ stdout: process.stdout, stderr: process.stderr }),
-    );
+    try {
+      return runDoctorCommand(
+        argv,
+        createDoctorDependencies({ stdout: process.stdout, stderr: process.stderr }),
+      ).catch(() => {
+        writeDoctorBootstrapFailure(process.stdout, command.output);
+        return 1;
+      });
+    } catch {
+      writeDoctorBootstrapFailure(process.stdout, command?.output ?? 'human');
+      return Promise.resolve(1);
+    }
   },
   runOperationalCommand: async (argv) => {
     try {

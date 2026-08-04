@@ -37,4 +37,28 @@ describe('doctor UI check', () => {
     }).run();
     expect(result).toMatchObject({ status: 'failure', code: 'ui.health-timeout' });
   });
+
+  it('fails a UI health body that never completes', async () => {
+    const result = await createUiLoopbackCheck({
+      installedCommand: {
+        command: process.execPath,
+        prefixArgs: [join(fixtureDir, 'ui-ready-child.mjs')],
+      },
+      temporaryRootFactory: async () => ({
+        path: process.cwd(),
+        cleanup: async () => undefined,
+      }),
+      fetch: async () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode('{"name":"relay"'));
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      requestTimeoutMs: 10,
+    }).run();
+    expect(result).toMatchObject({ status: 'failure', code: 'ui.health-timeout' });
+  });
 });

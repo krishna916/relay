@@ -64,7 +64,7 @@ export function createUiLoopbackCheck(input: {
             message: 'The Relay UI reported a non-loopback address.',
           };
         }
-        const health = await fetchHealth(
+        const { response: health, controller } = await fetchHealth(
           input.fetch,
           `${url}/api/health`,
           input.requestTimeoutMs ?? DOCTOR_UI_REQUEST_TIMEOUT_MS,
@@ -75,7 +75,21 @@ export function createUiLoopbackCheck(input: {
             code: 'ui.health-failed',
             message: 'The Relay UI health endpoint did not return success.',
           };
-        const healthBody = (await health.json()) as { name?: unknown; status?: unknown };
+        let healthBody: { name?: unknown; status?: unknown };
+        try {
+          healthBody = (await readHealthBody(
+            health,
+            controller,
+            input.requestTimeoutMs ?? DOCTOR_UI_REQUEST_TIMEOUT_MS,
+          )) as { name?: unknown; status?: unknown };
+        } catch (error) {
+          if (error instanceof UiHealthTimeout) throw error;
+          return {
+            status: 'failure',
+            code: 'ui.health-invalid',
+            message: 'The Relay UI health endpoint returned an unexpected response.',
+          };
+        }
         if (healthBody.name !== 'relay' || healthBody.status !== 'ok') {
           return {
             status: 'failure',
@@ -116,12 +130,34 @@ async function fetchHealth(
   fetch: typeof globalThis.fetch,
   url: string,
   timeoutMs: number,
-): Promise<Response> {
+): Promise<{ response: Response; controller: AbortController }> {
   const controller = new AbortController();
   let timer: NodeJS.Timeout | undefined;
   try {
-    return await Promise.race([
+    const response = await Promise.race([
       fetch(url, { signal: controller.signal }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(new UiHealthTimeout());
+        }, timeoutMs);
+      }),
+    ]);
+    return { response, controller };
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+async function readHealthBody(
+  response: Response,
+  controller: AbortController,
+  timeoutMs: number,
+): Promise<unknown> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      response.json(),
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => {
           controller.abort();
