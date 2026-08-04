@@ -7,15 +7,19 @@ import {
   type DoctorReport,
   type DoctorStatus,
 } from './doctor-types.js';
+import { DoctorInterruptedError } from './doctor-interruption.js';
 
 export async function runDoctor(input: {
   readonly context: DoctorCheckContext;
   readonly checks: readonly DoctorCheck[];
+  readonly signal?: AbortSignal;
 }): Promise<DoctorReport> {
   assertCheckOrder(input.checks);
+  throwIfDoctorAborted(input.signal);
   const checks: DoctorCheckResult[] = [];
 
   for (const check of input.checks) {
+    throwIfDoctorAborted(input.signal);
     const startedAt = input.context.monotonicNow();
     try {
       const result = await check.run();
@@ -24,7 +28,10 @@ export async function runDoctor(input: {
         ...sanitizeResult(result),
         durationMs: durationMs(startedAt, input.context.monotonicNow()),
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof DoctorInterruptedError) {
+        throw error;
+      }
       checks.push({
         id: check.id,
         status: 'failure',
@@ -33,6 +40,7 @@ export async function runDoctor(input: {
         durationMs: durationMs(startedAt, input.context.monotonicNow()),
       });
     }
+    throwIfDoctorAborted(input.signal);
   }
 
   return {
@@ -47,6 +55,19 @@ export async function runDoctor(input: {
     },
     checks,
   };
+}
+
+function throwIfDoctorAborted(signal: AbortSignal | undefined): void {
+  if (!signal?.aborted) {
+    return;
+  }
+
+  const reason = signal.reason;
+  if (reason instanceof DoctorInterruptedError) {
+    throw reason;
+  }
+
+  throw new DoctorInterruptedError('SIGTERM');
 }
 
 function assertCheckOrder(checks: readonly DoctorCheck[]): void {
