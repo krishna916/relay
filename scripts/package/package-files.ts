@@ -3,6 +3,7 @@ export const REQUIRED_MIGRATION_PATHS: readonly string[] = [
   'package/assets/migrations/0002_tasks.sql',
   'package/assets/migrations/0003_task_session_id.sql',
   'package/assets/migrations/0004_task_normalized_title.sql',
+  'package/assets/compatibility.json',
 ];
 
 export const REQUIRED_PACKAGE_PATHS: readonly string[] = [

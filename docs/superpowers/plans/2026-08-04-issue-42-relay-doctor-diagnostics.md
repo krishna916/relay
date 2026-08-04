@@ -623,8 +623,15 @@ export interface DoctorCommand {
 }
 
 export function parseDoctorCommand(argv: readonly string[]): DoctorCommand;
-export function writeDoctorReport(stream: { write(text: string): unknown }, report: DoctorReport, output: DoctorCommand['output']): void;
-export async function runDoctorCommand(argv: readonly string[], dependencies: DoctorCommandDependencies): Promise<number>;
+export function writeDoctorReport(
+  stream: { write(text: string): unknown },
+  report: DoctorReport,
+  output: DoctorCommand['output'],
+): void;
+export async function runDoctorCommand(
+  argv: readonly string[],
+  dependencies: DoctorCommandDependencies,
+): Promise<number>;
 ```
 
 - [ ] **Step 1: Write failing parser/dispatcher tests.**

@@ -1,5 +1,10 @@
 # Safe setup and agent configuration
 
+After installation, run [`relay doctor`](doctor.md) from an arbitrary working
+directory to inspect runtime, assets, paths, database state, owned client
+entries, and isolated MCP/UI startup. Doctor never mutates the configured
+database or client files; see the human verification matrix in that guide.
+
 `relay setup` initializes Relay's data and configuration roots and opens the canonical database runtime so forward migrations run. It never replaces, resets, or deletes an existing database. Re-running it is safe.
 
 Mutable client setup is preview-first: it mutates only when `--apply` is supplied.

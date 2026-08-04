@@ -16,6 +16,7 @@
   "homepage": "https://github.com/krishna916/relay#readme",
   "files": [
     "dist/",
+    "assets/compatibility.json",
     "assets/migrations/",
     "skills/",
     "integrations/",

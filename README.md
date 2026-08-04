@@ -2,6 +2,8 @@
 
 Safe installed setup is documented in [setup and configuration](docs/setup-and-configuration.md). Use an explicit absolute `--config-file` and preview before `--apply`; generic MCP is snippet-only.
 
+Use [`relay doctor`](docs/doctor.md) or `relay doctor --output json` to inspect an installed environment. Doctor is non-destructive; warning-only reports exit `0`, failures exit `1`, and invalid command usage exits `2`.
+
 For Linux-only Claude Desktop MCPB evaluation, see [the MCPB guide](integrations/claude-desktop/README.md) and [verification record](docs/claude-desktop-mcpb-verification.md).
 
 **Testing Relay for the first time?** Follow the [source-checkout installation and usage guide](docs/source-checkout-guide.md) to clone, run, connect an AI client, and complete a safe smoke test.

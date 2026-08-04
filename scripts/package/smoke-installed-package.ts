@@ -317,6 +317,55 @@ export async function verifyInstalledPackage(rootDir = process.cwd()): Promise<v
         );
     }
 
+    const doctorJson = runCli(
+      commandPath,
+      unrelatedCwd,
+      databasePath,
+      ['doctor', '--output', 'json'],
+      setupEnvironment,
+    );
+    if (doctorJson.status !== 0 || doctorJson.stderr !== '')
+      throw new Error(`Installed doctor JSON failed: ${doctorJson.stderr}`);
+    const doctorReport = JSON.parse(doctorJson.stdout) as {
+      schemaVersion?: number;
+      checks?: Array<{ id?: string }>;
+    };
+    if (
+      doctorReport.schemaVersion !== 1 ||
+      JSON.stringify(doctorReport.checks?.map((check) => check.id)) !==
+        JSON.stringify([
+          'runtime.version',
+          'runtime.platform',
+          'package.assets',
+          'paths.resolution',
+          'paths.access',
+          'database.state',
+          'database.integrity',
+          'database.native-addon',
+          'integrations.codex',
+          'integrations.claude-code',
+          'integrations.generic-mcp',
+          'compatibility.assets',
+          'mcp.handshake',
+          'ui.loopback',
+        ])
+    ) {
+      throw new Error('Installed doctor JSON did not return the stable 14-check contract.');
+    }
+    const doctorHuman = runCli(
+      commandPath,
+      unrelatedCwd,
+      databasePath,
+      ['doctor'],
+      setupEnvironment,
+    );
+    if (
+      doctorHuman.status !== 0 ||
+      doctorHuman.stderr !== '' ||
+      !doctorHuman.stdout.includes('Doctor summary:')
+    )
+      throw new Error(`Installed doctor human output failed: ${doctorHuman.stderr}`);
+
     const capture = runCli(commandPath, unrelatedCwd, databasePath, [
       'task',
       'capture',

@@ -65,7 +65,7 @@ describe('runRelay', () => {
   it('rejects unknown operational commands with usage exit code 2', async () => {
     let message = '';
     const code = await runRelay(
-      ['doctor'],
+      ['unknown'],
       dependencies({
         stderr: {
           write: (text) => {
@@ -76,5 +76,20 @@ describe('runRelay', () => {
     );
     expect(code).toBe(2);
     expect(message).toMatch(/unknown.*command/i);
+  });
+
+  it('routes only the exact top-level doctor command to the doctor runner', async () => {
+    const calls: readonly string[][] = [];
+    const code = await runRelay(
+      ['doctor', '--output', 'json'],
+      dependencies({
+        runDoctor: async (argv) => {
+          (calls as string[][]).push([...argv]);
+          return 1;
+        },
+      }),
+    );
+    expect(code).toBe(1);
+    expect(calls).toEqual([['doctor', '--output', 'json']]);
   });
 });

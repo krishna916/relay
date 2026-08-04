@@ -25,6 +25,7 @@ export async function stagePackageAssets(options: StagePackageAssetsOptions = {}
   const rootDir = resolve(options.rootDir ?? process.cwd());
   await copyMigrations(rootDir);
   for (const required of [
+    'assets/compatibility.json',
     'dist/web/index.html',
     'skills/relay-capture/SKILL.md',
     'integrations/generic-mcp/README.md',

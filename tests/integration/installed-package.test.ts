@@ -1,11 +1,8 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
-import {
-  readExpectedPackageVersion,
-  verifyInstalledPackage,
-} from '../../scripts/package/smoke-installed-package.js';
+import { expect, it } from 'vitest';
+import { readExpectedPackageVersion } from '../../scripts/package/smoke-installed-package.js';
 
 it('derives the expected smoke version from package metadata', () => {
   const root = mkdtempSync(join(tmpdir(), 'relay-version-fixture-'));
@@ -21,10 +18,4 @@ it('derives the expected smoke version from package metadata', () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
-});
-
-describe.skipIf(process.env.RELAY_RUN_PACKAGE_SMOKE !== '1')('installed Relay npm package', () => {
-  it('executes from an isolated prefix and unrelated cwd', async () => {
-    await verifyInstalledPackage();
-  }, 300_000);
 });

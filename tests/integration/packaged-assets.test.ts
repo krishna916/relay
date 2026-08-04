@@ -20,6 +20,8 @@ describe('packaged immutable assets', () => {
       writeFileSync(join(rootDir, 'skills', 'relay-capture', 'SKILL.md'), '# Relay Capture\n');
       mkdirSync(join(rootDir, 'integrations', 'generic-mcp'), { recursive: true });
       writeFileSync(join(rootDir, 'integrations', 'generic-mcp', 'README.md'), '# Generic MCP\n');
+      mkdirSync(join(rootDir, 'assets'), { recursive: true });
+      writeFileSync(join(rootDir, 'assets', 'compatibility.json'), '{"schemaVersion":1}\n');
 
       await stagePackageAssets({ rootDir });
       const staged = join(rootDir, 'assets', 'migrations', '0001_scaffold.sql');

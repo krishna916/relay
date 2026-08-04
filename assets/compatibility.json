@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "minimumPackageVersion": "0.1.0",
+  "mcpContractSchemaVersion": 1,
+  "migrationManifestVersion": 1,
+  "migrationCount": 4,
+  "skillMetadataVersion": 1,
+  "integrationTemplateVersion": 1
+}
