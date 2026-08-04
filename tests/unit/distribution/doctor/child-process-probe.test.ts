@@ -82,6 +82,45 @@ describe('doctor child process probe', () => {
     await cleanupDoctorChildren();
   });
 
+  it('stops child cleanup before removing a temporary root and retries failures', async () => {
+    let childStopped = false;
+    let rootCleanupCalls = 0;
+    registerDoctorCleanup(() => {
+      childStopped = true;
+    });
+    registerDoctorTemporaryRoot({
+      path: 'test-root',
+      cleanup: async () => {
+        rootCleanupCalls += 1;
+        if (!childStopped && rootCleanupCalls === 1) throw new Error('root still in use');
+      },
+    });
+
+    await cleanupDoctorChildren();
+
+    expect(childStopped).toBe(true);
+    expect(rootCleanupCalls).toBe(1);
+
+    await cleanupDoctorChildren();
+    expect(rootCleanupCalls).toBe(1);
+
+    let retryCalls = 0;
+    let failFirst = true;
+    registerDoctorTemporaryRoot({
+      path: 'retry-root',
+      cleanup: async () => {
+        retryCalls += 1;
+        if (failFirst) {
+          failFirst = false;
+          throw new Error('transient root cleanup failure');
+        }
+      },
+    });
+    await cleanupDoctorChildren();
+    await cleanupDoctorChildren();
+    expect(retryCalls).toBe(2);
+  });
+
   it('captures a healthy child and exposes the locked timeout constants', async () => {
     const result = await runChildProcessProbe({
       command: process.execPath,

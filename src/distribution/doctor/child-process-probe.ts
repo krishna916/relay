@@ -15,8 +15,9 @@ export interface ChildProcessProbeResult {
 
 interface RegisteredCleanup {
   readonly cleanup: () => Promise<void> | void;
+  readonly kind: 'child' | 'temporary-root';
   started: boolean;
-  promise?: Promise<void>;
+  promise: Promise<void> | undefined;
 }
 
 export interface DoctorTemporaryRoot {
@@ -40,14 +41,14 @@ const activeCleanups = new Set<RegisteredCleanup>();
 const childTerminationPromises = new WeakMap<ChildProcess, Promise<void>>();
 
 export function registerDoctorCleanup(cleanup: () => Promise<void> | void): () => void {
-  const entry = createRegisteredCleanup(cleanup);
+  const entry = createRegisteredCleanup(cleanup, 'child');
   return () => unregisterCleanup(entry);
 }
 
 export function registerDoctorTemporaryRoot(root: DoctorTemporaryRoot): {
   readonly cleanup: () => Promise<void>;
 } {
-  const entry = createRegisteredCleanup(root.cleanup);
+  const entry = createRegisteredCleanup(root.cleanup, 'temporary-root');
   return { cleanup: () => runRegisteredCleanup(entry) };
 }
 
@@ -136,7 +137,15 @@ export async function runChildProcessProbe(input: {
 }
 
 export async function cleanupDoctorChildren(): Promise<void> {
-  await Promise.allSettled([...activeCleanups].map((entry) => runRegisteredCleanup(entry)));
+  const entries = [...activeCleanups];
+  await Promise.allSettled(
+    entries.filter((entry) => entry.kind === 'child').map((entry) => runRegisteredCleanup(entry)),
+  );
+  await Promise.allSettled(
+    entries
+      .filter((entry) => entry.kind === 'temporary-root')
+      .map((entry) => runRegisteredCleanup(entry)),
+  );
 }
 
 export function installDoctorSignalHandlers(input: {
@@ -171,10 +180,15 @@ export function installDoctorSignalHandlers(input: {
   };
 }
 
-function createRegisteredCleanup(cleanup: () => Promise<void> | void): RegisteredCleanup {
+function createRegisteredCleanup(
+  cleanup: () => Promise<void> | void,
+  kind: RegisteredCleanup['kind'],
+): RegisteredCleanup {
   const entry: RegisteredCleanup = {
     cleanup,
+    kind,
     started: false,
+    promise: undefined,
   };
   activeCleanups.add(entry);
   return entry;
@@ -189,10 +203,16 @@ function runRegisteredCleanup(entry: RegisteredCleanup): Promise<void> {
   entry.started = true;
   entry.promise = Promise.resolve()
     .then(entry.cleanup)
-    .catch(() => undefined)
-    .finally(() => {
-      activeCleanups.delete(entry);
-    });
+    .then(
+      () => {
+        activeCleanups.delete(entry);
+      },
+      (error: unknown) => {
+        entry.promise = undefined;
+        entry.started = false;
+        throw error;
+      },
+    );
   return entry.promise;
 }
 

@@ -201,7 +201,7 @@ async function waitForDoctorExit(
       child.kill('SIGKILL');
       reject(new Error('Installed doctor did not exit after its termination signal.'));
     }, timeoutMs);
-    child.once('exit', (status, signal) => {
+    child.once('close', (status, signal) => {
       clearTimeout(timer);
       resolve({ status, signal });
     });
@@ -214,6 +214,7 @@ export async function verifyInstalledDoctorSignals(input: {
   readonly cwd: string;
   readonly databasePath: string;
   readonly environment: Readonly<Record<string, string>>;
+  readonly preservedPaths?: readonly string[];
 }): Promise<void> {
   // Windows emulates child SIGINT/SIGTERM with forceful termination, so Node
   // cannot run the command's JavaScript signal handlers in this process shape.
@@ -231,6 +232,9 @@ export async function verifyInstalledDoctorSignals(input: {
     const childMarker = join(caseRoot, 'mcp-child-pid');
     const configuredBefore = readFileSync(input.databasePath);
     const configuredMtime = statSync(input.databasePath).mtimeMs;
+    const preservedBefore = (input.preservedPaths ?? [])
+      .filter((path) => existsSync(path))
+      .map((path) => ({ path, bytes: readFileSync(path), mtime: statSync(path).mtimeMs }));
     const temporaryBefore = new Set(
       readdirSync(tmpdir()).filter((name) => name.startsWith('.relay-doctor-')),
     );
@@ -244,6 +248,7 @@ export async function verifyInstalledDoctorSignals(input: {
         RELAY_DOCTOR_TEST_MARKER: mcpMarker,
         RELAY_DOCTOR_TEST_UI_MARKER: uiMarker,
         RELAY_DOCTOR_TEST_CHILD_MARKER: childMarker,
+        RELAY_DOCTOR_TEST_SENTINEL: 'doctor-signal-secret',
         RELAY_RUN_PACKAGE_SMOKE: '1',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -272,6 +277,8 @@ export async function verifyInstalledDoctorSignals(input: {
         /^\s*at /m.test(stderr)
       )
         throw new Error(`Interrupted doctor leaked sensitive diagnostics for ${signal}.`);
+      if (stderr.includes('doctor-signal-secret') || stderr.includes('CREATE TABLE'))
+        throw new Error(`Interrupted doctor leaked test secrets for ${signal}.`);
       if (existsSync(uiMarker))
         throw new Error(`UI probe started after interrupted MCP probe for ${signal}.`);
       await waitForProcessExit(childPid);
@@ -284,6 +291,14 @@ export async function verifyInstalledDoctorSignals(input: {
         throw new Error(`Configured database changed after ${signal}.`);
       if (statSync(input.databasePath).mtimeMs !== configuredMtime)
         throw new Error(`Configured database mtime changed after ${signal}.`);
+      for (const preserved of preservedBefore) {
+        if (!existsSync(preserved.path))
+          throw new Error(`Preserved client or ownership file disappeared after ${signal}.`);
+        if (!readFileSync(preserved.path).equals(preserved.bytes))
+          throw new Error(`Preserved client or ownership file changed after ${signal}.`);
+        if (statSync(preserved.path).mtimeMs !== preserved.mtime)
+          throw new Error(`Preserved client or ownership mtime changed after ${signal}.`);
+      }
     } finally {
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
       rmSync(caseRoot, { recursive: true, force: true });
@@ -501,6 +516,7 @@ export async function verifyInstalledPackage(rootDir = process.cwd()): Promise<v
       cwd: unrelatedCwd,
       databasePath,
       environment: setupEnvironment,
+      preservedPaths: [codexConfig, join(setupEnvironment.XDG_CONFIG_HOME, 'relay', 'config.json')],
     });
 
     const capture = runCli(commandPath, unrelatedCwd, databasePath, [

@@ -125,8 +125,15 @@ describe('relay doctor CLI', () => {
     let controller!: AbortController;
     let releaseCheck!: () => void;
     let releaseCleanup!: () => void;
+    let resolveCleanupStarted!: () => void;
+    let settled = false;
+    let cleanupStartedCalls = 0;
+    let removeCalls = 0;
     const checkStarted = new Promise<void>((resolve) => {
       releaseCheck = resolve;
+    });
+    const cleanupStartedObserved = new Promise<void>((resolve) => {
+      resolveCleanupStarted = resolve;
     });
     const checks: readonly DoctorCheck[] = DOCTOR_CHECK_ORDER.map((id, index) => ({
       id,
@@ -150,18 +157,32 @@ describe('relay doctor CLI', () => {
           });
           return {
             getSignal: () => signal,
-            cleanupStarted: () => cleanupPromise,
-            remove: () => undefined,
+            cleanupStarted: () => {
+              cleanupStartedCalls += 1;
+              resolveCleanupStarted();
+              return cleanupPromise;
+            },
+            remove: () => {
+              removeCalls += 1;
+            },
           };
         },
       }),
     );
+    void commandPromise.then(() => {
+      settled = true;
+    });
     await checkStarted;
     controller.abort(new DoctorInterruptedError(signal));
-    releaseCleanup();
+    await cleanupStartedObserved;
+    expect(cleanupStartedCalls).toBe(1);
+    expect(settled).toBe(false);
+    expect(removeCalls).toBe(0);
 
+    releaseCleanup();
     await expect(commandPromise).resolves.toBe(expectedExitCode);
     expect(outputs).toEqual([]);
     expect(errors).toEqual([]);
+    expect(removeCalls).toBe(1);
   });
 });
