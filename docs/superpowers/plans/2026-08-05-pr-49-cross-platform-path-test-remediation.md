@@ -40,7 +40,7 @@ const runtimePaths: RuntimePaths = {
 The positive test also passes:
 
 ```ts
-metadataPath: 'D:\\Users\\relay\\Config\\config.json'
+metadataPath: 'D:\\Users\\relay\\Config\\config.json';
 ```
 
 On GitHub Actions Ubuntu, Node's host-native `path.isAbsolute()` correctly treats these strings as non-absolute. `createPathResolutionCheck()` therefore returns `paths.resolution.invalid`, while the test expects `paths.resolution.valid`.
@@ -120,13 +120,13 @@ Do not use `process.cwd()` string concatenation. Do not use `os.tmpdir()` becaus
 Change all three occurrences of:
 
 ```ts
-'D:\\Users\\relay\\Config\\config.json'
+'D:\\Users\\relay\\Config\\config.json';
 ```
 
 into:
 
 ```ts
-metadataPath
+metadataPath;
 ```
 
 This applies to:
@@ -154,7 +154,7 @@ runtimePaths: { ...runtimePaths, dataRoot: 'relative' }
 Use the shared absolute metadata fixture:
 
 ```ts
-metadataPath
+metadataPath;
 ```
 
 The complete input should become:
