@@ -1,3 +1,4 @@
+import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   createPathAccessCheck,
@@ -5,18 +6,22 @@ import {
 } from '../../../../src/distribution/doctor/check-paths.js';
 import type { RuntimePaths } from '../../../../src/distribution/resolve-runtime-paths.js';
 
+const fixtureRoot = resolve('tmp', 'relay-doctor-paths');
+
 const runtimePaths: RuntimePaths = {
-  dataRoot: 'D:\\Users\\relay\\AppData',
-  configRoot: 'D:\\Users\\relay\\Config',
-  cacheRoot: 'D:\\Users\\relay\\Cache',
-  databasePath: 'D:\\Users\\relay\\AppData\\relay.db',
+  dataRoot: join(fixtureRoot, 'data'),
+  configRoot: join(fixtureRoot, 'config'),
+  cacheRoot: join(fixtureRoot, 'cache'),
+  databasePath: join(fixtureRoot, 'data', 'relay.db'),
 };
+
+const metadataPath = join(fixtureRoot, 'config', 'config.json');
 
 describe('doctor path checks', () => {
   it('reports resolved absolute paths without depending on cwd', async () => {
     const result = await createPathResolutionCheck({
       runtimePaths,
-      metadataPath: 'D:\\Users\\relay\\Config\\config.json',
+      metadataPath,
     }).run();
     expect(result).toMatchObject({ status: 'healthy', code: 'paths.resolution.valid' });
     expect(result.details).toMatchObject({
@@ -37,7 +42,7 @@ describe('doctor path checks', () => {
     const accessed: string[] = [];
     const result = await createPathAccessCheck({
       runtimePaths,
-      metadataPath: 'D:\\Users\\relay\\Config\\config.json',
+      metadataPath,
       access: async (path) => {
         const value = path.toString();
         accessed.push(value);
@@ -52,7 +57,7 @@ describe('doctor path checks', () => {
   it('fails when the required data root is absent', async () => {
     const result = await createPathAccessCheck({
       runtimePaths,
-      metadataPath: 'D:\\Users\\relay\\Config\\config.json',
+      metadataPath,
       access: async (path) => {
         if (path.toString() === runtimePaths.dataRoot) throw new Error('missing');
       },
