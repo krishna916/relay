@@ -72,46 +72,56 @@ export function createUiLoopbackCheck(input: {
             message: 'The Relay UI reported a non-loopback address.',
           };
         }
-        const { response: health, controller } = await fetchHealth(
+        const {
+          response: health,
+          controller,
+          cleanup: cleanupHealth,
+        } = await fetchHealth(
           input.fetch,
           `${url}/api/health`,
           input.requestTimeoutMs ?? DOCTOR_UI_REQUEST_TIMEOUT_MS,
           signal,
         );
-        if (!health.ok)
-          return {
-            status: 'failure',
-            code: 'ui.health-failed',
-            message: 'The Relay UI health endpoint did not return success.',
-          };
-        let healthBody: { name?: unknown; status?: unknown };
         try {
-          healthBody = (await readHealthBody(
-            health,
-            controller,
-            input.requestTimeoutMs ?? DOCTOR_UI_REQUEST_TIMEOUT_MS,
-          )) as { name?: unknown; status?: unknown };
-        } catch (error) {
-          if (error instanceof UiHealthTimeout) throw error;
+          if (!health.ok)
+            return {
+              status: 'failure',
+              code: 'ui.health-failed',
+              message: 'The Relay UI health endpoint did not return success.',
+            };
+          let healthBody: { name?: unknown; status?: unknown };
+          try {
+            healthBody = (await readHealthBody(
+              health,
+              controller,
+              input.requestTimeoutMs ?? DOCTOR_UI_REQUEST_TIMEOUT_MS,
+            )) as { name?: unknown; status?: unknown };
+          } catch (error) {
+            if (signal?.aborted) throw signal.reason;
+            if (error instanceof UiHealthTimeout) throw error;
+            return {
+              status: 'failure',
+              code: 'ui.health-invalid',
+              message: 'The Relay UI health endpoint returned an unexpected response.',
+            };
+          }
+          if (healthBody.name !== 'relay' || healthBody.status !== 'ok') {
+            return {
+              status: 'failure',
+              code: 'ui.health-invalid',
+              message: 'The Relay UI health endpoint returned an unexpected response.',
+            };
+          }
           return {
-            status: 'failure',
-            code: 'ui.health-invalid',
-            message: 'The Relay UI health endpoint returned an unexpected response.',
+            status: 'healthy',
+            code: 'ui.loopback-ok',
+            message: 'The installed Relay UI started on loopback and passed its health check.',
           };
+        } finally {
+          cleanupHealth();
         }
-        if (healthBody.name !== 'relay' || healthBody.status !== 'ok') {
-          return {
-            status: 'failure',
-            code: 'ui.health-invalid',
-            message: 'The Relay UI health endpoint returned an unexpected response.',
-          };
-        }
-        return {
-          status: 'healthy',
-          code: 'ui.loopback-ok',
-          message: 'The installed Relay UI started on loopback and passed its health check.',
-        };
       } catch (error) {
+        if (signal?.aborted) throw signal.reason;
         if (error instanceof UiHealthTimeout) {
           return {
             status: 'failure',
@@ -144,12 +154,14 @@ async function fetchHealth(
   url: string,
   timeoutMs: number,
   signal?: AbortSignal,
-): Promise<{ response: Response; controller: AbortController }> {
+): Promise<{ response: Response; controller: AbortController; cleanup: () => void }> {
   const controller = new AbortController();
   const abort = (): void => controller.abort(signal?.reason);
+  const cleanup = (): void => signal?.removeEventListener('abort', abort);
   if (signal?.aborted) abort();
   else signal?.addEventListener('abort', abort, { once: true });
   let timer: NodeJS.Timeout | undefined;
+  let responseReceived = false;
   try {
     const response = await Promise.race([
       fetch(url, { signal: controller.signal }),
@@ -160,10 +172,11 @@ async function fetchHealth(
         }, timeoutMs);
       }),
     ]);
-    return { response, controller };
+    responseReceived = true;
+    return { response, controller, cleanup };
   } finally {
     if (timer !== undefined) clearTimeout(timer);
-    signal?.removeEventListener('abort', abort);
+    if (!responseReceived) cleanup();
   }
 }
 

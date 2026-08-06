@@ -62,6 +62,42 @@ describe('doctor UI check', () => {
     expect(result).toMatchObject({ status: 'failure', code: 'ui.health-timeout' });
   });
 
+  it('propagates cancellation while reading the UI health body', async () => {
+    const controller = new AbortController();
+    const cancellation = new Error('doctor cancelled');
+    let resolveFetchStarted: (() => void) | undefined;
+    const fetchStarted = new Promise<void>((resolve) => {
+      resolveFetchStarted = resolve;
+    });
+    const result = createUiLoopbackCheck({
+      installedCommand: {
+        command: process.execPath,
+        prefixArgs: [join(fixtureDir, 'ui-ready-child.mjs')],
+      },
+      temporaryRootFactory: async () => ({
+        path: process.cwd(),
+        cleanup: async () => undefined,
+      }),
+      fetch: async (_url, init) => {
+        resolveFetchStarted?.();
+        const requestSignal = init?.signal;
+        return {
+          ok: true,
+          json: () =>
+            new Promise<never>((_resolve, reject) => {
+              requestSignal?.addEventListener('abort', () => reject(requestSignal.reason), {
+                once: true,
+              });
+            }),
+        } as unknown as Response;
+      },
+    }).run(controller.signal);
+
+    await fetchStarted;
+    controller.abort(cancellation);
+    await expect(result).rejects.toBe(cancellation);
+  });
+
   it('rejects a UI readiness URL outside loopback', async () => {
     const result = await createUiLoopbackCheck({
       installedCommand: {

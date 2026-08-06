@@ -45,8 +45,16 @@ describe('resolveHttpPort', () => {
     expect(resolveHttpPort()).toBe(0);
   });
 
-  it('throws RelayError for invalid RELAY_HTTP_PORT environment variable', () => {
-    process.env.RELAY_HTTP_PORT = 'invalid';
+  it.each(['invalid', '123abc', '1e3', '0x10', '+100', ' 100 '])(
+    'throws RelayError for invalid RELAY_HTTP_PORT value %s',
+    (envPort) => {
+      process.env.RELAY_HTTP_PORT = envPort;
+      expect(() => resolveHttpPort()).toThrow(RelayError);
+    },
+  );
+
+  it('throws RelayError for an out-of-range RELAY_HTTP_PORT environment variable', () => {
+    process.env.RELAY_HTTP_PORT = '65536';
     expect(() => resolveHttpPort()).toThrow(RelayError);
   });
 
