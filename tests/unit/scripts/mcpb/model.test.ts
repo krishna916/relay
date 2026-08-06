@@ -89,7 +89,7 @@ describe('Linux MCPB package model', () => {
     ) as { pnpm?: { onlyBuiltDependencies?: string[] } };
 
     expect(packageJson.pnpm).toEqual({
-      overrides: { tmp: '0.2.7' },
+      overrides: { tmp: '0.2.7', 'brace-expansion@>=4.0.0 <5.0.9': '5.0.9' },
       onlyBuiltDependencies: ['better-sqlite3', 'esbuild'],
     });
     expect(runtimePackageJson.pnpm).toEqual({

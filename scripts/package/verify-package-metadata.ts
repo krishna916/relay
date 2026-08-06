@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 export const REQUIRED_ONLY_BUILT_DEPENDENCIES = ['better-sqlite3', 'esbuild'] as const;
-export const REQUIRED_PNPM_OVERRIDES = { tmp: '0.2.7' } as const;
+export const REQUIRED_PNPM_OVERRIDES = {
+  tmp: '0.2.7',
+  'brace-expansion@>=4.0.0 <5.0.9': '5.0.9',
+} as const;
 
 interface PackageJson {
   readonly name?: string;
@@ -70,7 +73,7 @@ export function verifyPackageMetadata(rootDir: string): void {
   );
   assert(
     JSON.stringify(pkg.pnpm?.overrides) === JSON.stringify(REQUIRED_PNPM_OVERRIDES),
-    'package.json must preserve the tmp 0.2.7 override.',
+    'package.json must preserve the required pnpm overrides.',
   );
   assert(
     JSON.stringify(pkg.pnpm?.onlyBuiltDependencies) ===

@@ -26,7 +26,7 @@ async function fixtureRoot(): Promise<string> {
         bin: { relay: './dist/cli/main.js' },
         engines: { node: '>=24 <25' },
         pnpm: {
-          overrides: { tmp: '0.2.7' },
+          overrides: { tmp: '0.2.7', 'brace-expansion@>=4.0.0 <5.0.9': '5.0.9' },
           onlyBuiltDependencies: ['better-sqlite3', 'esbuild'],
         },
         dependencies: {

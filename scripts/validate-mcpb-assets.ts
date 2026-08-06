@@ -105,7 +105,7 @@ export function validateMcpbAssets(options: ValidateMcpbAssetsOptions = {}): voi
     root as { pnpm?: { overrides?: Record<string, string>; onlyBuiltDependencies?: string[] } }
   ).pnpm;
   if (JSON.stringify(rootPnpm?.overrides) !== JSON.stringify(REQUIRED_PNPM_OVERRIDES))
-    fail('Root pnpm metadata must preserve the tmp 0.2.7 override.');
+    fail('Root pnpm metadata must preserve the required pnpm overrides.');
   if (
     JSON.stringify(rootPnpm?.onlyBuiltDependencies) !==
     JSON.stringify(REQUIRED_ONLY_BUILT_DEPENDENCIES)
