@@ -1,19 +1,13 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { writeFileSync } from 'node:fs';
 import { createMcpServer } from './create-mcp-server.js';
 import { mcpLogger } from './logger.js';
 import { createTaskRuntime } from '../shared/create-task-runtime.js';
 import { runMcpServer as runMcpServerWithDependencies } from './run-mcp-server.js';
+import { writeDoctorProbeMarker } from './doctor-probe-marker.js';
 
 export async function runMcpServer(): Promise<number> {
-  if (
-    process.env.RELAY_DOCTOR_TEST_HOLD_PROBE === 'mcp' &&
-    (process.env.NODE_ENV === 'test' || process.env.RELAY_RUN_PACKAGE_SMOKE === '1')
-  ) {
-    const marker = process.env.RELAY_DOCTOR_TEST_CHILD_MARKER;
-    if (marker !== undefined) writeFileSync(marker, String(process.pid));
-  }
+  writeDoctorProbeMarker();
   const started = await runMcpServerWithDependencies({
     createRuntime: createTaskRuntime,
     createServer: createMcpServer,

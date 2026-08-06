@@ -48,7 +48,7 @@ export interface DoctorCheckContext {
 
 export interface DoctorCheck {
   readonly id: DoctorCheckId;
-  run(): Promise<Omit<DoctorCheckResult, 'id' | 'durationMs'>>;
+  run(signal?: AbortSignal): Promise<Omit<DoctorCheckResult, 'id' | 'durationMs'>>;
 }
 
 export const DOCTOR_CHECK_ORDER = [
@@ -67,3 +67,26 @@ export const DOCTOR_CHECK_ORDER = [
   'mcp.handshake',
   'ui.loopback',
 ] as const satisfies readonly DoctorCheckId[];
+
+type HasDuplicateDoctorCheckId<
+  Ids extends readonly DoctorCheckId[],
+  Seen extends DoctorCheckId = never,
+> = Ids extends readonly [infer Head, ...infer Tail]
+  ? Head extends DoctorCheckId
+    ? Head extends Seen
+      ? true
+      : Tail extends readonly DoctorCheckId[]
+        ? HasDuplicateDoctorCheckId<Tail, Seen | Head>
+        : false
+    : false
+  : false;
+
+type DoctorCheckOrderContract =
+  Exclude<DoctorCheckId, (typeof DOCTOR_CHECK_ORDER)[number]> extends never
+    ? HasDuplicateDoctorCheckId<typeof DOCTOR_CHECK_ORDER> extends false
+      ? true
+      : false
+    : false;
+
+type AssertDoctorCheckOrder<T extends true> = T;
+export type DoctorCheckOrderIsComplete = AssertDoctorCheckOrder<DoctorCheckOrderContract>;

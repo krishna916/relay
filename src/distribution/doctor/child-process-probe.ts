@@ -36,7 +36,6 @@ interface DoctorSignalTarget {
   off(signal: DoctorTerminationSignal, listener: () => void): unknown;
 }
 
-const activeChildren = new Set<ChildProcess>();
 const activeCleanups = new Set<RegisteredCleanup>();
 const childTerminationPromises = new WeakMap<ChildProcess, Promise<void>>();
 
@@ -59,16 +58,17 @@ export async function runChildProcessProbe(input: {
   readonly env: NodeJS.ProcessEnv;
   readonly timeoutMs: number;
   readonly maxCaptureBytes: number;
+  readonly signal?: AbortSignal;
   readonly onSpawn?: (child: ChildProcess) => void;
 }): Promise<ChildProcessProbeResult> {
   const child = spawn(input.command, [...input.args], {
     cwd: input.cwd,
     env: input.env,
     detached: process.platform !== 'win32',
+    signal: input.signal,
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
-  activeChildren.add(child);
   const unregisterCleanup = registerDoctorCleanup(() => terminateChild(child));
   const stdout: Buffer[] = [];
   const stderr: Buffer[] = [];
@@ -93,7 +93,6 @@ export async function runChildProcessProbe(input: {
     input.onSpawn?.(child);
   } catch (error) {
     await terminateChild(child);
-    activeChildren.delete(child);
     unregisterCleanup();
     throw error;
   }
@@ -104,11 +103,9 @@ export async function runChildProcessProbe(input: {
       const settle = (value: ChildProcessProbeResult): void => {
         if (settled) return;
         settled = true;
-        activeChildren.delete(child);
         resolve(value);
       };
       child.once('error', (error) => {
-        activeChildren.delete(child);
         if (!settled) {
           settled = true;
           reject(error);
@@ -131,7 +128,6 @@ export async function runChildProcessProbe(input: {
     return result;
   } finally {
     if (timeout !== undefined) clearTimeout(timeout);
-    activeChildren.delete(child);
     unregisterCleanup();
   }
 }
@@ -146,6 +142,10 @@ export async function cleanupDoctorChildren(): Promise<void> {
       .filter((entry) => entry.kind === 'temporary-root')
       .map((entry) => runRegisteredCleanup(entry)),
   );
+}
+
+export function terminateDoctorChild(child: ChildProcess): Promise<void> {
+  return terminateChild(child);
 }
 
 export function installDoctorSignalHandlers(input: {
@@ -240,12 +240,12 @@ async function terminateChildInternal(child: ChildProcess): Promise<void> {
     }
   }
   const exited = await waitForExit(child, 500);
+  if (exited) return;
   if (process.platform === 'win32' && pid !== undefined) {
     await taskkill(pid);
     await waitForExit(child, 500);
     return;
   }
-  if (exited) return;
   try {
     if (pid === undefined) {
       child.kill('SIGKILL');

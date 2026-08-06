@@ -146,11 +146,11 @@ describe('doctor child process probe', () => {
       args: [join(fixtureDir, 'hanging-child.mjs')],
       cwd: process.cwd(),
       env: process.env,
-      timeoutMs: 50,
+      timeoutMs: 1_000,
       maxCaptureBytes: 4,
     });
     expect(result.timedOut).toBe(true);
-    expect(result.stdout.length).toBeLessThanOrEqual(4);
+    expect(result.stdout).toBe('hang');
   });
 
   it('cleans up when the spawn callback throws', async () => {
@@ -179,6 +179,8 @@ describe('doctor child process probe', () => {
       maxCaptureBytes: 128,
     });
     const childPid = Number(result.stdout);
+    expect(Number.isInteger(childPid)).toBe(true);
+    expect(childPid).toBeGreaterThan(0);
     expect(result.timedOut).toBe(true);
     await expect(waitForProcessExit(childPid)).resolves.toBe(true);
   });

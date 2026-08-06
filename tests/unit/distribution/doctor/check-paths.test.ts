@@ -1,4 +1,5 @@
 import { join, resolve } from 'node:path';
+import { constants } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   createPathAccessCheck,
@@ -51,7 +52,7 @@ describe('doctor path checks', () => {
       stat: async () => ({ isDirectory: () => true }) as never,
     }).run();
     expect(result).toMatchObject({ status: 'warning', code: 'paths.access.metadata-missing' });
-    expect(accessed).not.toContain(expect.stringContaining('probe'));
+    expect(accessed.every((path) => !path.includes('probe'))).toBe(true);
   });
 
   it('fails when the required data root is absent', async () => {
@@ -67,6 +68,28 @@ describe('doctor path checks', () => {
       status: 'failure',
       code: 'paths.access.required-root-missing',
       message: 'A required Relay data or configuration directory is unavailable. Run relay setup.',
+    });
+  });
+
+  it('reports observed cache permissions and directory state', async () => {
+    const result = await createPathAccessCheck({
+      runtimePaths,
+      metadataPath,
+      access: async (path, mode) => {
+        if (path.toString() === runtimePaths.cacheRoot && mode === constants.W_OK)
+          throw new Error('cache is read-only');
+      },
+      stat: async () => ({ isDirectory: () => true }) as never,
+    }).run();
+    expect(result).toMatchObject({
+      status: 'warning',
+      code: 'paths.access.cache-missing',
+      details: {
+        exists: true,
+        readable: true,
+        writable: false,
+        isDirectory: true,
+      },
     });
   });
 });

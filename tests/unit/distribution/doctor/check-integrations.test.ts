@@ -100,11 +100,137 @@ describe('doctor integration checks', () => {
         })) as unknown as typeof readFileFunction,
       access: async () => undefined,
     });
-    await expect(generic.run()).resolves.toMatchObject({
+    const result = await generic.run();
+    expect(result).toMatchObject({
       status: 'failure',
       code: 'integrations.generic-mcp.template-invalid',
     });
-    const result = await generic.run();
     expect(JSON.stringify(result)).not.toContain('secret');
+  });
+
+  it('reports invalid ownership metadata safely', async () => {
+    const [codex] = createIntegrationChecks({
+      ownershipStore: {
+        read: async () => {
+          throw new Error('ownership secret');
+        },
+        update: async () => emptyOwnership,
+      },
+      adapters: {
+        codex: adapter('codex', 'matching'),
+        'claude-code': adapter('claude-code', 'matching'),
+      },
+      integrationsDir: '/tmp/relay-integrations',
+      readFile: (async () => '') as unknown as typeof readFileFunction,
+      access: async () => undefined,
+    });
+    await expect(codex.run()).resolves.toMatchObject({
+      status: 'failure',
+      code: 'integrations.codex.ownership-invalid',
+    });
+  });
+
+  it('reports disabled owned records', async () => {
+    const [codex] = createIntegrationChecks({
+      ownershipStore: store({
+        schemaVersion: 1,
+        integrations: [
+          {
+            client: 'codex',
+            configPath: '/tmp/codex.toml',
+            entryId: 'relay',
+            command: 'relay',
+            args: ['mcp'],
+            status: 'disabled',
+            applicationVersion: '0.1.0',
+            lastSuccessfulSetupAt: '2026-08-04T00:00:00.000Z',
+          },
+        ],
+      }),
+      adapters: {
+        codex: adapter('codex', 'matching'),
+        'claude-code': adapter('claude-code', 'matching'),
+      },
+      integrationsDir: '/tmp/relay-integrations',
+      readFile: (async () => '') as unknown as typeof readFileFunction,
+      access: async () => undefined,
+    });
+    await expect(codex.run()).resolves.toMatchObject({
+      status: 'warning',
+      code: 'integrations.codex.disabled',
+    });
+  });
+
+  it('reports unreadable and unparsable owned configuration files', async () => {
+    const ownership: RelayOwnershipFile = {
+      schemaVersion: 1,
+      integrations: [
+        {
+          client: 'codex',
+          configPath: '/tmp/codex.toml',
+          entryId: 'relay',
+          command: 'relay',
+          args: ['mcp'],
+          status: 'enabled',
+          applicationVersion: '0.1.0',
+          lastSuccessfulSetupAt: '2026-08-04T00:00:00.000Z',
+        },
+      ],
+    };
+    const [unreadable] = createIntegrationChecks({
+      ownershipStore: store(ownership),
+      adapters: {
+        codex: adapter('codex', 'matching'),
+        'claude-code': adapter('claude-code', 'matching'),
+      },
+      integrationsDir: '/tmp/relay-integrations',
+      readFile: (async () => 'safe') as unknown as typeof readFileFunction,
+      access: async () => {
+        throw new Error('unreadable');
+      },
+    });
+    await expect(unreadable.run()).resolves.toMatchObject({
+      status: 'failure',
+      code: 'integrations.codex.file-unreadable',
+    });
+
+    const [unparsable] = createIntegrationChecks({
+      ownershipStore: store(ownership),
+      adapters: {
+        codex: {
+          ...adapter('codex', 'matching'),
+          parse: () => {
+            throw new Error('malformed');
+          },
+        },
+        'claude-code': adapter('claude-code', 'matching'),
+      },
+      integrationsDir: '/tmp/relay-integrations',
+      readFile: (async () => 'malformed') as unknown as typeof readFileFunction,
+      access: async () => undefined,
+    });
+    await expect(unparsable.run()).resolves.toMatchObject({
+      status: 'failure',
+      code: 'integrations.codex.config-unparsable',
+    });
+  });
+
+  it('reports an unreadable generic MCP template separately from an invalid shape', async () => {
+    const [, , generic] = createIntegrationChecks({
+      ownershipStore: store(emptyOwnership),
+      adapters: {
+        codex: adapter('codex', 'matching'),
+        'claude-code': adapter('claude-code', 'matching'),
+      },
+      integrationsDir: '/tmp/relay-integrations',
+      readFile: (async () => '') as unknown as typeof readFileFunction,
+      access: async () => {
+        throw new Error('template unreadable');
+      },
+    });
+    await expect(generic.run()).resolves.toMatchObject({
+      status: 'failure',
+      code: 'integrations.generic-mcp.template-unreadable',
+    });
   });
 });

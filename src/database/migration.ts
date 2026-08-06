@@ -31,7 +31,7 @@ export function loadMigrationFiles(migrationsDir: string): readonly MigrationFil
 
 export function loadMigrationManifest(migrationsDir: string): readonly MigrationManifestEntry[] {
   const entries = readdirSync(migrationsDir, { withFileTypes: true });
-  const files: MigrationFile[] = [];
+  const files: MigrationManifestEntry[] = [];
   const seenVersions = new Set<number>();
 
   for (const entry of entries) {
@@ -54,10 +54,8 @@ export function loadMigrationManifest(migrationsDir: string): readonly Migration
     }
     seenVersions.add(version);
 
-    files.push({ version, name, filename: entry.name, sql: '', checksum: '' });
+    files.push({ version, name, filename: entry.name });
   }
 
-  return files
-    .sort((a, b) => a.version - b.version)
-    .map(({ version, name, filename }) => ({ version, name, filename }));
+  return files.sort((a, b) => a.version - b.version);
 }

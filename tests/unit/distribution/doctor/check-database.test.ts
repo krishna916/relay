@@ -6,7 +6,7 @@ import {
   inspectDatabaseReadOnly,
 } from '../../../../src/distribution/doctor/check-database.js';
 import { describe, expect, it } from 'vitest';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -21,8 +21,8 @@ describe('doctor database checks', () => {
         openReadOnly: (path) => new Database(path, { readonly: true, fileMustExist: true }),
       }).run();
       expect(result).toMatchObject({ status: 'warning', code: 'database.missing' });
+      expect(existsSync(databasePath)).toBe(false);
     } finally {
-      expect(() => new Database(databasePath)).toThrow();
       rmSync(root, { recursive: true, force: true });
     }
   });
@@ -69,6 +69,31 @@ describe('doctor database checks', () => {
     }
   });
 
+  it('reports every available migration as pending when the ledger table is absent', () => {
+    const root = mkdtempSync(join(tmpdir(), 'relay-doctor-db-'));
+    const migrationsDir = join(root, 'migrations');
+    const databasePath = join(root, 'relay.db');
+    mkdirSync(migrationsDir);
+    writeFileSync(join(migrationsDir, '0001_example.sql'), 'CREATE TABLE example (id INTEGER);');
+    const db = new Database(databasePath);
+    db.close();
+    try {
+      expect(
+        inspectDatabaseReadOnly({
+          databasePath,
+          migrationsDir,
+          openReadOnly: (path) => new Database(path, { readonly: true, fileMustExist: true }),
+        }),
+      ).toMatchObject({
+        exists: true,
+        appliedMigrations: [],
+        pendingMigrations: ['0001_example.sql'],
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it('sanitizes failed quick checks and native addon load failures', async () => {
     const brokenDatabase = {
       prepare: () => ({ all: () => [{ quick_check: 'page 7 is corrupt' }] }),
@@ -95,17 +120,20 @@ describe('doctor database checks', () => {
   });
 
   it('loads the native addon through an isolated in-memory probe', async () => {
-    let openedPath: string | undefined;
+    let closed = false;
     const result = await createNativeAddonCheck({
       openProbe: () => {
-        openedPath = ':memory:';
-        return { close: () => undefined } as never;
+        return {
+          close: () => {
+            closed = true;
+          },
+        } as never;
       },
       nodeAbi: '137',
       packageVersion: '13.0.1',
     }).run();
     expect(result.status).toBe('healthy');
-    expect(openedPath).toBe(':memory:');
+    expect(closed).toBe(true);
   });
 
   it('accepts a healthy quick check', async () => {

@@ -49,34 +49,40 @@ export function createPathAccessCheck(input: {
     run: async () => {
       const roots = [input.runtimePaths.dataRoot, input.runtimePaths.configRoot];
       for (const root of roots) {
-        if (!(await directoryState(root))) {
+        const state = await directoryState(root);
+        if (!state.exists || !state.isDirectory || !state.readable || !state.writable) {
           return {
             status: 'failure',
             code: 'paths.access.required-root-missing',
             message:
               'A required Relay data or configuration directory is unavailable. Run relay setup.',
-            details: { path: root, exists: false, readable: false, writable: false },
+            details: { path: root, ...state },
           };
         }
       }
 
       const cache = await directoryState(input.runtimePaths.cacheRoot);
-      if (!cache) {
+      if (!cache.exists || !cache.isDirectory || !cache.readable || !cache.writable) {
         return {
           status: 'warning',
           code: 'paths.access.cache-missing',
           message: 'The Relay cache directory is not available.',
-          details: { path: input.runtimePaths.cacheRoot, exists: false },
+          details: { path: input.runtimePaths.cacheRoot, ...cache },
         };
       }
 
       const databaseParent = await directoryState(dirname(input.runtimePaths.databasePath));
-      if (!databaseParent) {
+      if (
+        !databaseParent.exists ||
+        !databaseParent.isDirectory ||
+        !databaseParent.readable ||
+        !databaseParent.writable
+      ) {
         return {
           status: 'failure',
           code: 'paths.access.database-parent-inaccessible',
           message: 'The Relay database parent directory cannot be accessed.',
-          details: { path: dirname(input.runtimePaths.databasePath), exists: false },
+          details: { path: dirname(input.runtimePaths.databasePath), ...databaseParent },
         };
       }
 
@@ -100,13 +106,34 @@ export function createPathAccessCheck(input: {
     },
   };
 
-  async function directoryState(path: string): Promise<boolean> {
+  async function directoryState(path: string): Promise<{
+    readonly exists: boolean;
+    readonly readable: boolean;
+    readonly writable: boolean;
+    readonly isDirectory: boolean;
+  }> {
+    let information: Awaited<ReturnType<typeof input.stat>>;
     try {
-      await input.access(path, constants.R_OK | constants.W_OK);
-      const information = await input.stat(path);
-      return information.isDirectory();
+      information = await input.stat(path);
     } catch {
-      return false;
+      return { exists: false, readable: false, writable: false, isDirectory: false };
     }
+    const isDirectory = information.isDirectory();
+    if (!isDirectory) return { exists: true, readable: false, writable: false, isDirectory };
+    let readable = false;
+    let writable = false;
+    try {
+      await input.access(path, constants.R_OK);
+      readable = true;
+    } catch {
+      /* report the observed unreadable state */
+    }
+    try {
+      await input.access(path, constants.W_OK);
+      writable = true;
+    } catch {
+      /* report the observed unwritable state */
+    }
+    return { exists: true, readable, writable, isDirectory };
   }
 }

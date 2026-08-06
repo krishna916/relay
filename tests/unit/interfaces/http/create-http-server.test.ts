@@ -40,6 +40,11 @@ describe('resolveHttpPort', () => {
     expect(resolveHttpPort()).toBe(9090);
   });
 
+  it('accepts port zero for an operating-system assigned port', () => {
+    process.env.RELAY_HTTP_PORT = '0';
+    expect(resolveHttpPort()).toBe(0);
+  });
+
   it('throws RelayError for invalid RELAY_HTTP_PORT environment variable', () => {
     process.env.RELAY_HTTP_PORT = 'invalid';
     expect(() => resolveHttpPort()).toThrow(RelayError);

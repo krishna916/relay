@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createCompatibilityCheck } from '../../../../src/distribution/doctor/check-compatibility.js';
@@ -43,6 +43,7 @@ describe('doctor compatibility check', () => {
       await expect(
         createCompatibilityCheck({
           applicationVersion: '0.1.0',
+          compatibilityManifestPath: join(root, 'assets', 'compatibility.json'),
           migrationsDir: join(root, 'assets', 'migrations'),
           skillsDir: join(root, 'skills'),
           integrationsDir: join(root, 'integrations'),
@@ -62,12 +63,53 @@ describe('doctor compatibility check', () => {
       );
       const result = await createCompatibilityCheck({
         applicationVersion: '0.1.0',
+        compatibilityManifestPath: join(root, 'assets', 'compatibility.json'),
         migrationsDir: join(root, 'assets', 'migrations'),
         skillsDir: join(root, 'skills'),
         integrationsDir: join(root, 'integrations'),
       }).run();
       expect(result).toMatchObject({ status: 'failure', code: 'compatibility.assets.invalid' });
       expect(JSON.stringify(result)).not.toContain('hidden');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects an application version below the manifest minimum', async () => {
+    const root = fixture();
+    try {
+      const manifestPath = join(root, 'assets', 'compatibility.json');
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>;
+      manifest.minimumPackageVersion = '0.2.0';
+      writeFileSync(manifestPath, JSON.stringify(manifest));
+      const result = await createCompatibilityCheck({
+        applicationVersion: '0.1.0',
+        compatibilityManifestPath: manifestPath,
+        migrationsDir: join(root, 'assets', 'migrations'),
+        skillsDir: join(root, 'skills'),
+        integrationsDir: join(root, 'integrations'),
+      }).run();
+      expect(result).toMatchObject({ status: 'failure', code: 'compatibility.assets.invalid' });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a migration count mismatch', async () => {
+    const root = fixture();
+    try {
+      writeFileSync(
+        join(root, 'assets', 'migrations', '0002_extra.sql'),
+        'CREATE TABLE extra (id INTEGER);',
+      );
+      const result = await createCompatibilityCheck({
+        applicationVersion: '0.1.0',
+        compatibilityManifestPath: join(root, 'assets', 'compatibility.json'),
+        migrationsDir: join(root, 'assets', 'migrations'),
+        skillsDir: join(root, 'skills'),
+        integrationsDir: join(root, 'integrations'),
+      }).run();
+      expect(result).toMatchObject({ status: 'failure', code: 'compatibility.assets.invalid' });
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

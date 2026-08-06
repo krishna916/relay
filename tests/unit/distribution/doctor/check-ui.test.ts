@@ -10,7 +10,7 @@ describe('doctor UI check', () => {
     const result = await createUiLoopbackCheck({
       installedCommand: { command: 'missing-relay-command', prefixArgs: [] },
       temporaryRootFactory: async () => ({
-        path: 'D:\\Temp\\doctor',
+        path: process.cwd(),
         cleanup: async () => {
           cleaned = true;
         },
@@ -60,5 +60,39 @@ describe('doctor UI check', () => {
       requestTimeoutMs: 10,
     }).run();
     expect(result).toMatchObject({ status: 'failure', code: 'ui.health-timeout' });
+  });
+
+  it('rejects a UI readiness URL outside loopback', async () => {
+    const result = await createUiLoopbackCheck({
+      installedCommand: {
+        command: process.execPath,
+        prefixArgs: [join(fixtureDir, 'ui-non-loopback-child.mjs')],
+      },
+      temporaryRootFactory: async () => ({
+        path: process.cwd(),
+        cleanup: async () => undefined,
+      }),
+      fetch: globalThis.fetch,
+    }).run();
+    expect(result).toMatchObject({ status: 'failure', code: 'ui.non-loopback' });
+  });
+
+  it('rejects an unexpected UI health response', async () => {
+    const result = await createUiLoopbackCheck({
+      installedCommand: {
+        command: process.execPath,
+        prefixArgs: [join(fixtureDir, 'ui-ready-child.mjs')],
+      },
+      temporaryRootFactory: async () => ({
+        path: process.cwd(),
+        cleanup: async () => undefined,
+      }),
+      fetch: async () =>
+        new Response(JSON.stringify({ name: 'unexpected', status: 'ok' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    }).run();
+    expect(result).toMatchObject({ status: 'failure', code: 'ui.health-invalid' });
   });
 });

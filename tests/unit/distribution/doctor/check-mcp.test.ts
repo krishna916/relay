@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import {
   createMcpHandshakeCheck,
   resolveInstalledRelayCommand,
@@ -16,10 +19,12 @@ describe('doctor MCP check', () => {
 
   it('sanitizes an installed command spawn failure and cleans its temporary root', async () => {
     let cleaned = false;
+    const temporaryRoot = join(tmpdir(), 'relay-doctor-mcp-test');
+    mkdirSync(temporaryRoot, { recursive: true });
     const result = await createMcpHandshakeCheck({
       installedCommand: { command: 'missing-relay-command', prefixArgs: [] },
       temporaryRootFactory: async () => ({
-        path: 'D:\\Temp\\doctor',
+        path: temporaryRoot,
         cleanup: async () => {
           cleaned = true;
         },

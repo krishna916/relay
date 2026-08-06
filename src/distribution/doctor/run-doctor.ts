@@ -22,7 +22,7 @@ export async function runDoctor(input: {
     throwIfDoctorAborted(input.signal);
     const startedAt = input.context.monotonicNow();
     try {
-      const result = await check.run();
+      const result = await check.run(input.signal);
       checks.push({
         id: check.id,
         ...sanitizeResult(result),

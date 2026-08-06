@@ -32,8 +32,9 @@ describe('runDoctor', () => {
     const calls: DoctorCheckId[] = [];
     const checks = checksFor(results).map((check) => ({
       id: check.id,
-      run: async () => {
+      run: async (signal?: AbortSignal) => {
         calls.push(check.id);
+        expect(signal).toBeUndefined();
         return check.run();
       },
     }));
@@ -86,6 +87,87 @@ describe('runDoctor', () => {
       durationMs: 0,
     });
     expect(JSON.stringify(report)).not.toContain('secret SQL');
+  });
+
+  it.each([
+    ['status', { status: 'invalid', code: 'bad.status', message: 'bad' }],
+    ['code', { status: 'healthy', code: 42, message: 'bad' }],
+    ['message', { status: 'healthy', code: 'bad.message', message: 42 }],
+  ])('sanitizes invalid check %s results', async (_label, invalidResult) => {
+    const checks = checksFor(
+      DOCTOR_CHECK_ORDER.map(() => ({ status: 'healthy' as const, message: 'ok' })),
+    ).map((check, index) => ({
+      id: check.id,
+      run: index === 0 ? async () => invalidResult as never : check.run,
+    }));
+    const report = await runDoctor({
+      context: {
+        applicationVersion: '0.1.0',
+        now: () => generatedAt,
+        monotonicNow: () => 1,
+      },
+      checks,
+    });
+    expect(report.checks[0]).toMatchObject({
+      status: 'failure',
+      code: `${DOCTOR_CHECK_ORDER[0]}.internal-error`,
+      message: 'The diagnostic check could not be completed safely.',
+    });
+  });
+
+  it('sanitizes and sorts valid detail keys', async () => {
+    const checks = checksFor(
+      DOCTOR_CHECK_ORDER.map(() => ({ status: 'healthy' as const, message: 'ok' })),
+    ).map((check, index) => ({
+      id: check.id,
+      run:
+        index === 0
+          ? async () => ({
+              status: 'healthy' as const,
+              code: 'paths.ok',
+              message: 'ready',
+              details: {
+                zeta: true,
+                'invalid-key': 'drop',
+                alpha: 'keep',
+              },
+            })
+          : check.run,
+    }));
+    const report = await runDoctor({
+      context: {
+        applicationVersion: '0.1.0',
+        now: () => generatedAt,
+        monotonicNow: () => 1,
+      },
+      checks,
+    });
+    expect(Object.keys(report.checks[0]?.details ?? {})).toEqual(['alpha', 'zeta']);
+  });
+
+  it('passes the abort signal into every check execution', async () => {
+    const controller = new AbortController();
+    const seen: AbortSignal[] = [];
+    const checks = checksFor(
+      DOCTOR_CHECK_ORDER.map(() => ({ status: 'healthy' as const, message: 'ok' })),
+    ).map((check) => ({
+      id: check.id,
+      run: async (signal?: AbortSignal) => {
+        if (signal !== undefined) seen.push(signal);
+        return check.run(signal);
+      },
+    }));
+    await runDoctor({
+      context: {
+        applicationVersion: '0.1.0',
+        now: () => generatedAt,
+        monotonicNow: () => 1,
+      },
+      checks,
+      signal: controller.signal,
+    });
+    expect(seen).toHaveLength(DOCTOR_CHECK_ORDER.length);
+    expect(seen.every((signal) => signal === controller.signal)).toBe(true);
   });
 
   it('rejects when the controller is already aborted before the first check', async () => {

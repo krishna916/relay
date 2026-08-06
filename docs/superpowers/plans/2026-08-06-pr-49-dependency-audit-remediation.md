@@ -82,7 +82,13 @@ Run:
 
 ```bash
 mkdir -p .artifacts/audit
-pnpm audit --json > .artifacts/audit/before.json || true
+if pnpm audit --json > .artifacts/audit/before.json; then
+  echo 'Expected pnpm audit to report the baseline advisories.'
+  exit 1
+else
+  audit_status=$?
+  printf 'Captured expected non-zero pnpm audit status: %s\n' "$audit_status"
+fi
 ```
 
 Expected: command writes JSON and exits non-zero because the three high advisories are present.
@@ -172,7 +178,12 @@ Expected: PASS with unchanged MCP tool names and contracts.
 Run:
 
 ```bash
-pnpm audit --json > .artifacts/audit/after-sdk-upgrade.json || true
+if pnpm audit --json > .artifacts/audit/after-sdk-upgrade.json; then
+  audit_status=0
+else
+  audit_status=$?
+fi
+printf 'Captured pnpm audit status after the SDK upgrade: %s\n' "$audit_status"
 pnpm audit --audit-level high
 ```
 

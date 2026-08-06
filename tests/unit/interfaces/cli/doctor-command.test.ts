@@ -103,6 +103,13 @@ describe('relay doctor CLI', () => {
     await expect(runDoctorCommand(['doctor', '--bad'], dependencies())).resolves.toBe(2);
     expect(errors.join('')).toContain('Unknown doctor option');
     await expect(runDoctorCommand(['doctor', '--output', 'json'], dependencies())).resolves.toBe(0);
+    const warningChecks = DOCTOR_CHECK_ORDER.map((id) => ({
+      id,
+      run: async () => ({ status: 'warning' as const, code: `${id}.warning`, message: 'warning' }),
+    }));
+    await expect(
+      runDoctorCommand(['doctor'], dependencies({ createChecks: () => warningChecks })),
+    ).resolves.toBe(0);
     const failingChecks = DOCTOR_CHECK_ORDER.map((id, index) => ({
       id,
       run: async () => ({

@@ -56,22 +56,31 @@ export function createIntegrationChecks(input: {
         }
         const adapter = input.adapters[client];
         for (const record of enabled) {
+          let content: string;
           try {
             await input.access(record.configPath, constants.R_OK);
-            const content = await input.readFile(record.configPath, 'utf8');
-            adapter.parse(content);
-            if (adapter.inspect(content).kind !== 'matching') {
-              return {
-                status: 'failure',
-                code: `integrations.${client}.entry-conflict`,
-                message: `The owned ${label} Relay entry is missing or conflicting.`,
-              };
-            }
+            content = await input.readFile(record.configPath, 'utf8');
           } catch {
             return {
               status: 'failure',
               code: `integrations.${client}.file-unreadable`,
               message: `The owned ${label} configuration file could not be validated safely.`,
+            };
+          }
+          try {
+            adapter.parse(content);
+          } catch {
+            return {
+              status: 'failure',
+              code: `integrations.${client}.config-unparsable`,
+              message: `The owned ${label} configuration could not be parsed safely.`,
+            };
+          }
+          if (adapter.inspect(content).kind !== 'matching') {
+            return {
+              status: 'failure',
+              code: `integrations.${client}.entry-conflict`,
+              message: `The owned ${label} Relay entry is missing or conflicting.`,
             };
           }
         }
@@ -89,23 +98,30 @@ export function createIntegrationChecks(input: {
     return {
       id: 'integrations.generic-mcp',
       run: async () => {
+        const path = join(input.integrationsDir, 'generic-mcp', 'server-config.json.example');
+        let parsed: unknown;
         try {
-          const path = join(input.integrationsDir, 'generic-mcp', 'server-config.json.example');
           await input.access(path, constants.R_OK);
-          const parsed = JSON.parse(await input.readFile(path, 'utf8')) as unknown;
-          if (!isGenericRelayEntry(parsed)) throw new Error('invalid template');
-          return {
-            status: 'skipped',
-            code: 'integrations.generic-mcp.user-config-not-owned',
-            message: 'Generic MCP user configuration is not owned by Relay and was not discovered.',
-          };
+          parsed = JSON.parse(await input.readFile(path, 'utf8')) as unknown;
         } catch {
           return {
             status: 'failure',
-            code: 'integrations.generic-mcp.template-invalid',
-            message: 'The packaged generic MCP integration template is missing or invalid.',
+            code: 'integrations.generic-mcp.template-unreadable',
+            message: 'The packaged generic MCP integration template could not be read safely.',
           };
         }
+        if (!isGenericRelayEntry(parsed)) {
+          return {
+            status: 'failure',
+            code: 'integrations.generic-mcp.template-invalid',
+            message: 'The packaged generic MCP integration template is invalid.',
+          };
+        }
+        return {
+          status: 'skipped',
+          code: 'integrations.generic-mcp.user-config-not-owned',
+          message: 'Generic MCP user configuration is not owned by Relay and was not discovered.',
+        };
       },
     };
   }

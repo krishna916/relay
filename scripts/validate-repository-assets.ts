@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { isAbsolute, join, relative, resolve } from 'node:path';
+import { isAbsolute, join, posix, relative, resolve, win32 } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { load as parseToml } from 'js-toml';
 import { parse as parseJsonc, type ParseError } from 'jsonc-parser';
@@ -191,16 +191,22 @@ function validatePlaceholders(files: readonly string[]): void {
 }
 
 function validateDoctorFixtures(files: readonly string[]): void {
-  const disallowed = [
-    /(?:[A-Za-z]:[\\/]|\/(?:Users|home|private|var)\/)/i,
+  const sensitive = [
     /(?:bearer|api[_-]?key|access[_-]?token|private[_-]?key|secret)/i,
     /(?:BEGIN [A-Z ]+ PRIVATE KEY|sk-[A-Za-z0-9_-]{10,})/,
   ];
+  const absolutePath =
+    /(?:[A-Za-z]:[\\/][^\s"'<>]+|\\\\[^\s"'<>]+|(?<!:)\/\/[^\s"'<>]+|\/(?!\/)[^\s"'<>]+)/g;
   for (const filePath of files) {
     if (!filePath.replaceAll('\\', '/').includes('tests/fixtures/doctor/')) continue;
     const content = readFileSync(filePath, 'utf-8');
-    for (const pattern of disallowed) {
+    for (const pattern of sensitive) {
       if (pattern.test(content)) fail(`Unsafe doctor fixture content found in ${filePath}`);
+    }
+    for (const match of content.matchAll(absolutePath)) {
+      const candidate = match[0].replace(/[),.;]+$/g, '');
+      if (posix.isAbsolute(candidate) || win32.isAbsolute(candidate))
+        fail(`Unsafe doctor fixture content found in ${filePath}`);
     }
   }
 }

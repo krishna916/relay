@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { loadMigrationManifest } from '../../database/migration.js';
 import { CONTRACT_SCHEMA_VERSION } from '../../interfaces/contracts/contract-version.js';
 import type { DoctorCheck } from './doctor-types.js';
@@ -14,42 +14,50 @@ interface CompatibilityManifest {
   readonly integrationTemplateVersion: number;
 }
 
-export function createCompatibilityCheck(input: {
+export interface CompatibilityAssetsInput {
   readonly applicationVersion: string;
+  readonly compatibilityManifestPath: string;
   readonly migrationsDir: string;
   readonly skillsDir: string;
   readonly integrationsDir: string;
-}): DoctorCheck {
+}
+
+export function validateCompatibilityAssets(input: CompatibilityAssetsInput): {
+  readonly schemaVersion: number;
+  readonly migrationCount: number;
+} {
+  const manifest = JSON.parse(
+    readFileSync(input.compatibilityManifestPath, 'utf8'),
+  ) as CompatibilityManifest;
+  if (!isManifest(manifest)) throw new Error('invalid manifest');
+  const migrations = loadMigrationManifest(input.migrationsDir);
+  const skill = readFileSync(join(input.skillsDir, 'relay-capture', 'SKILL.md'), 'utf8');
+  const template = JSON.parse(
+    readFileSync(join(input.integrationsDir, 'generic-mcp', 'server-config.json.example'), 'utf8'),
+  ) as unknown;
+  if (
+    !atLeast(input.applicationVersion, manifest.minimumPackageVersion) ||
+    manifest.mcpContractSchemaVersion !== CONTRACT_SCHEMA_VERSION ||
+    manifest.migrationManifestVersion !== 1 ||
+    manifest.migrationCount !== migrations.length ||
+    !hasSkillMetadata(skill, manifest.skillMetadataVersion) ||
+    !hasTemplateMetadata(template, manifest.integrationTemplateVersion)
+  )
+    throw new Error('incompatible assets');
+  return { schemaVersion: manifest.schemaVersion, migrationCount: migrations.length };
+}
+
+export function createCompatibilityCheck(input: CompatibilityAssetsInput): DoctorCheck {
   return {
     id: 'compatibility.assets',
     run: async () => {
       try {
-        const manifest = JSON.parse(
-          readFileSync(join(dirname(input.migrationsDir), 'compatibility.json'), 'utf8'),
-        ) as CompatibilityManifest;
-        if (!isManifest(manifest)) throw new Error('invalid manifest');
-        const migrations = loadMigrationManifest(input.migrationsDir);
-        const skill = readFileSync(join(input.skillsDir, 'relay-capture', 'SKILL.md'), 'utf8');
-        const template = JSON.parse(
-          readFileSync(
-            join(input.integrationsDir, 'generic-mcp', 'server-config.json.example'),
-            'utf8',
-          ),
-        ) as unknown;
-        if (
-          !atLeast(input.applicationVersion, manifest.minimumPackageVersion) ||
-          manifest.mcpContractSchemaVersion !== CONTRACT_SCHEMA_VERSION ||
-          manifest.migrationManifestVersion !== 1 ||
-          manifest.migrationCount !== migrations.length ||
-          !hasSkillMetadata(skill, manifest.skillMetadataVersion) ||
-          !hasTemplateMetadata(template, manifest.integrationTemplateVersion)
-        )
-          throw new Error('incompatible assets');
+        const details = validateCompatibilityAssets(input);
         return {
           status: 'healthy',
           code: 'compatibility.assets.current',
           message: 'Relay package, contracts, migrations, skills, and templates are compatible.',
-          details: { schemaVersion: manifest.schemaVersion, migrationCount: migrations.length },
+          details,
         };
       } catch {
         return {

@@ -75,7 +75,9 @@ export function createDoctorDependencies(output: {
   stdout: { write(text: string): unknown };
   stderr: { write(text: string): unknown };
 }): DoctorCommandDependencies {
-  const assets = resolvePackageAssets(pathToFileURL(process.argv[1] ?? import.meta.url).href);
+  const assets = resolvePackageAssets(
+    process.argv[1] === undefined ? import.meta.url : pathToFileURL(process.argv[1]).href,
+  );
   const runtimePaths = resolveRuntimePaths();
   const applicationVersion = readPackageVersion(assets);
   const metadataPath = resolveOwnershipMetadataPath(runtimePaths);
@@ -142,6 +144,7 @@ export function createDoctorDependencies(output: {
         generic,
         createCompatibilityCheck({
           applicationVersion,
+          compatibilityManifestPath: join(assets.packageRoot, 'assets', 'compatibility.json'),
           migrationsDir: assets.migrationsDir,
           skillsDir: assets.skillsDir,
           integrationsDir: assets.integrationsDir,

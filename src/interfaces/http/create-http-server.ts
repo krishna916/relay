@@ -79,7 +79,7 @@ export function resolveHttpPort(explicitPort?: number): number {
   const envPort = process.env.RELAY_HTTP_PORT;
   if (envPort) {
     const parsed = parseInt(envPort, 10);
-    if (isNaN(parsed) || parsed < 1 || parsed > 65535) {
+    if (isNaN(parsed) || parsed < 0 || parsed > 65535) {
       throw new RelayError(`Invalid RELAY_HTTP_PORT environment variable: ${envPort}.`);
     }
     return parsed;

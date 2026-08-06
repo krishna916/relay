@@ -230,6 +230,7 @@ export async function verifyInstalledDoctorSignals(input: {
     const mcpMarker = join(caseRoot, 'mcp-ready');
     const uiMarker = join(caseRoot, 'ui-started');
     const childMarker = join(caseRoot, 'mcp-child-pid');
+    let childPid: number | undefined;
     const configuredBefore = readFileSync(input.databasePath);
     const configuredMtime = statSync(input.databasePath).mtimeMs;
     const preservedBefore = (input.preservedPaths ?? [])
@@ -262,7 +263,7 @@ export async function verifyInstalledDoctorSignals(input: {
       stderr += chunk.toString();
     });
     try {
-      const childPid = Number(await waitForFile(childMarker));
+      childPid = Number(await waitForFile(childMarker));
       await waitForFile(mcpMarker);
       if (!child.kill(signal)) throw new Error(`Could not send ${signal} to installed doctor.`);
       const result = await waitForDoctorExit(child);
@@ -301,7 +302,18 @@ export async function verifyInstalledDoctorSignals(input: {
       }
     } finally {
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
-      rmSync(caseRoot, { recursive: true, force: true });
+      try {
+        if (childPid !== undefined && Number.isInteger(childPid) && childPid > 0) {
+          try {
+            process.kill(childPid, 'SIGKILL');
+          } catch {
+            /* The child may have exited during doctor cleanup. */
+          }
+          await waitForProcessExit(childPid);
+        }
+      } finally {
+        rmSync(caseRoot, { recursive: true, force: true });
+      }
     }
   }
 }

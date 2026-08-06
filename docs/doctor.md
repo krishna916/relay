@@ -65,6 +65,10 @@ support bundle is produced.
 - `integrations.*`: inspect only the explicitly recorded ownership path and
   use `relay setup --client ... --config-file <absolute-path>` when an entry
   needs to be re-established.
+- `integrations.<client>.config-unparsable`: repair the explicitly owned client
+  configuration so its format can be parsed safely.
+- `integrations.generic-mcp.template-unreadable`: reinstall the package because
+  the packaged generic MCP template is missing or unreadable.
 - `mcp.*` and `ui.*`: retry from the installed package, confirm the package
   assets are complete, and check that loopback startup is permitted.
 

@@ -31,6 +31,20 @@ export function inspectDatabaseReadOnly(input: {
   const availableByVersion = new Map(available.map((migration) => [migration.version, migration]));
   const db = input.openReadOnly(input.databasePath);
   try {
+    const ledger = db
+      .prepare(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '_relay_migrations' LIMIT 1",
+      )
+      .get();
+    if (ledger === undefined) {
+      return {
+        exists: true,
+        appliedMigrations: [],
+        availableMigrations: available.map((migration) => migration.filename),
+        pendingMigrations: available.map((migration) => migration.filename),
+        unknownMigrations: [],
+      };
+    }
     const rows = db
       .prepare('SELECT version, name, checksum FROM _relay_migrations ORDER BY version ASC')
       .all() as Array<{ version: number; name: string; checksum: string }>;

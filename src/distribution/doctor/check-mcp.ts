@@ -1,7 +1,12 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { writeFileSync } from 'node:fs';
-import { registerDoctorCleanup, registerDoctorTemporaryRoot } from './child-process-probe.js';
+import { join } from 'node:path';
+import {
+  DOCTOR_MCP_TIMEOUT_MS,
+  registerDoctorCleanup,
+  registerDoctorTemporaryRoot,
+} from './child-process-probe.js';
 import type { DoctorCheck } from './doctor-types.js';
 
 export interface InstalledRelayCommand {
@@ -36,7 +41,7 @@ export function createMcpHandshakeCheck(input: {
 }): DoctorCheck {
   return {
     id: 'mcp.handshake',
-    run: async () => {
+    run: async (signal) => {
       const root = await input.temporaryRootFactory();
       const registeredRoot = registerDoctorTemporaryRoot(root);
       const transport = new StdioClientTransport({
@@ -46,16 +51,12 @@ export function createMcpHandshakeCheck(input: {
         env: { ...process.env, RELAY_DB_PATH: joinDatabasePath(root.path) },
         stderr: 'pipe',
       });
-      let stderrBytes = 0;
-      transport.stderr?.on('data', (chunk: Buffer | string) => {
-        const remaining = Math.max(0, 32_768 - stderrBytes);
-        stderrBytes += Math.min(remaining, Buffer.byteLength(chunk));
-      });
       const unregisterCleanup = registerDoctorCleanup(() => transport.close());
       const client = new Client({ name: 'relay-doctor', version: '1.0.0' });
       let unregisterHold: (() => void) | undefined;
+      const requestOptions = signal === undefined ? undefined : { signal };
       try {
-        await withTimeout(client.connect(transport), 5_000);
+        await withTimeout(client.connect(transport, requestOptions), DOCTOR_MCP_TIMEOUT_MS, signal);
         if (doctorProbeHoldEnabled('mcp')) {
           const marker = process.env.RELAY_DOCTOR_TEST_MARKER;
           if (marker !== undefined) writeFileSync(marker, 'mcp-ready');
@@ -66,7 +67,9 @@ export function createMcpHandshakeCheck(input: {
           unregisterHold = registerDoctorCleanup(releaseHold);
           await hold;
         }
-        const tools = (await withTimeout(client.listTools(), 5_000)).tools.map((tool) => tool.name);
+        const tools = (
+          await withTimeout(client.listTools({}, requestOptions), DOCTOR_MCP_TIMEOUT_MS, signal)
+        ).tools.map((tool) => tool.name);
         const missing = REQUIRED_TOOLS.filter((name) => !tools.includes(name));
         if (missing.length > 0) {
           return {
@@ -110,21 +113,36 @@ function doctorProbeHoldEnabled(probe: 'mcp'): boolean {
 }
 
 function joinDatabasePath(root: string): string {
-  return `${root.replace(/[\\/]$/, '')}/relay.db`;
+  return join(root, 'relay.db');
 }
 
 class DoctorTimeout extends Error {}
 
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
+  let abort: (() => void) | undefined;
+  const aborted =
+    signal === undefined
+      ? undefined
+      : new Promise<never>((_, reject) => {
+          abort = () => reject(signal.reason ?? new Error('Doctor check aborted.'));
+          if (signal.aborted) abort();
+          else signal.addEventListener('abort', abort, { once: true });
+        });
   try {
     return await Promise.race([
       promise,
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(new DoctorTimeout()), timeoutMs);
       }),
+      ...(aborted === undefined ? [] : [aborted]),
     ]);
   } finally {
     if (timer !== undefined) clearTimeout(timer);
+    if (signal !== undefined && abort !== undefined) signal.removeEventListener('abort', abort);
   }
 }

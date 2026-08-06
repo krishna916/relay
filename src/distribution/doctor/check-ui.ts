@@ -1,12 +1,11 @@
 import type { ChildProcess } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
-import { createServer } from 'node:net';
 import { join } from 'node:path';
 import {
-  cleanupDoctorChildren,
   DOCTOR_UI_TIMEOUT_MS,
   registerDoctorTemporaryRoot,
   runChildProcessProbe,
+  terminateDoctorChild,
 } from './child-process-probe.js';
 import type { InstalledRelayCommand } from './check-mcp.js';
 import type { DoctorCheck } from './doctor-types.js';
@@ -21,17 +20,17 @@ export function createUiLoopbackCheck(input: {
 }): DoctorCheck {
   return {
     id: 'ui.loopback',
-    run: async () => {
+    run: async (signal) => {
       const root = await input.temporaryRootFactory();
       const registeredRoot = registerDoctorTemporaryRoot(root);
       let probe: Promise<Awaited<ReturnType<typeof runChildProcessProbe>>> | undefined;
+      let probeChild: ChildProcess | undefined;
       try {
         let resolveReady: ((url: string) => void) | undefined;
         let readinessBuffer = '';
         const ready = new Promise<string>((resolve) => {
           resolveReady = resolve;
         });
-        const port = await findFreePort();
         probe = runChildProcessProbe({
           command: input.installedCommand.command,
           args: [...input.installedCommand.prefixArgs, 'ui'],
@@ -39,11 +38,13 @@ export function createUiLoopbackCheck(input: {
           env: {
             ...process.env,
             RELAY_DB_PATH: join(root.path, 'relay.db'),
-            RELAY_HTTP_PORT: String(port),
+            RELAY_HTTP_PORT: '0',
           },
           timeoutMs: DOCTOR_UI_TIMEOUT_MS,
           maxCaptureBytes: 32_768,
+          ...(signal === undefined ? {} : { signal }),
           onSpawn: (child: ChildProcess) => {
+            probeChild = child;
             if (doctorProbeTestEnabled()) {
               const marker = process.env.RELAY_DOCTOR_TEST_UI_MARKER;
               if (marker !== undefined) writeFileSync(marker, 'ui-started');
@@ -75,6 +76,7 @@ export function createUiLoopbackCheck(input: {
           input.fetch,
           `${url}/api/health`,
           input.requestTimeoutMs ?? DOCTOR_UI_REQUEST_TIMEOUT_MS,
+          signal,
         );
         if (!health.ok)
           return {
@@ -123,7 +125,7 @@ export function createUiLoopbackCheck(input: {
           message: 'The installed Relay UI could not be started or reached safely.',
         };
       } finally {
-        await cleanupDoctorChildren();
+        if (probeChild !== undefined) await terminateDoctorChild(probeChild).catch(() => undefined);
         await probe?.catch(() => undefined);
         await registeredRoot.cleanup();
       }
@@ -141,8 +143,12 @@ async function fetchHealth(
   fetch: typeof globalThis.fetch,
   url: string,
   timeoutMs: number,
+  signal?: AbortSignal,
 ): Promise<{ response: Response; controller: AbortController }> {
   const controller = new AbortController();
+  const abort = (): void => controller.abort(signal?.reason);
+  if (signal?.aborted) abort();
+  else signal?.addEventListener('abort', abort, { once: true });
   let timer: NodeJS.Timeout | undefined;
   try {
     const response = await Promise.race([
@@ -157,6 +163,7 @@ async function fetchHealth(
     return { response, controller };
   } finally {
     if (timer !== undefined) clearTimeout(timer);
+    signal?.removeEventListener('abort', abort);
   }
 }
 
@@ -179,19 +186,4 @@ async function readHealthBody(
   } finally {
     if (timer !== undefined) clearTimeout(timer);
   }
-}
-
-async function findFreePort(): Promise<number> {
-  const server = createServer();
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => resolve());
-  });
-  const address = server.address();
-  const port = typeof address === 'object' && address !== null ? address.port : undefined;
-  await new Promise<void>((resolve, reject) =>
-    server.close((error) => (error ? reject(error) : resolve())),
-  );
-  if (port === undefined) throw new Error('Could not allocate a loopback port.');
-  return port;
 }
