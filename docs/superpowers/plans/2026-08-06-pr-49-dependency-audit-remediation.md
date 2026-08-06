@@ -28,11 +28,11 @@
 
 GitHub Actions run `31019463627` passes formatting, lint, typecheck, all 701 tests, coverage, build, package metadata, and asset validation. It fails only at `pnpm audit --audit-level high` for these high-severity advisories:
 
-| Package | Vulnerable resolved version | Patched floor | Advisory | Current path |
-|---|---:|---:|---|---|
-| `fast-uri` | `3.1.4` | `3.1.5` | `GHSA-7p8r-x3mc-p8w7` | `@modelcontextprotocol/sdk@1.29.0 > ajv@8.20.0 > fast-uri` |
-| `ip-address` | `10.2.2` | `10.3.1` | `GHSA-mwp4-54f8-5fhr` | `@modelcontextprotocol/sdk@1.29.0 > express-rate-limit@8.6.0 > ip-address` |
-| `brace-expansion` | `5.0.8` | `5.0.9` | `GHSA-rgw5-rvv9-x895` | ESLint / typescript-eslint / minimatch dependency paths |
+| Package           | Vulnerable resolved version | Patched floor | Advisory              | Current path                                                               |
+| ----------------- | --------------------------: | ------------: | --------------------- | -------------------------------------------------------------------------- |
+| `fast-uri`        |                     `3.1.4` |       `3.1.5` | `GHSA-7p8r-x3mc-p8w7` | `@modelcontextprotocol/sdk@1.29.0 > ajv@8.20.0 > fast-uri`                 |
+| `ip-address`      |                    `10.2.2` |      `10.3.1` | `GHSA-mwp4-54f8-5fhr` | `@modelcontextprotocol/sdk@1.29.0 > express-rate-limit@8.6.0 > ip-address` |
+| `brace-expansion` |                     `5.0.8` |       `5.0.9` | `GHSA-rgw5-rvv9-x895` | ESLint / typescript-eslint / minimatch dependency paths                    |
 
 The stable `@modelcontextprotocol/sdk` release available during planning is `1.30.0`. The repository currently declares `^1.29.0`. The currently declared `@typescript-eslint/*` version is already `^8.65.0`, so do not invent an unavailable stable parent upgrade for the `brace-expansion` advisory.
 
@@ -41,11 +41,13 @@ The stable `@modelcontextprotocol/sdk` release available during planning is `1.3
 ### Task 1: Capture the dependency graph and audit baseline
 
 **Files:**
+
 - No source changes.
 - Inspect: `package.json`
 - Inspect: `pnpm-lock.yaml`
 
 **Interfaces:**
+
 - Consumes: current PR branch and registry metadata.
 - Produces: exact before-state evidence used to choose upgrades and overrides.
 
@@ -59,6 +61,7 @@ git rev-parse HEAD
 ```
 
 Expected:
+
 - no uncommitted files;
 - HEAD is the latest PR branch commit.
 
@@ -95,6 +98,7 @@ pnpm why brace-expansion
 ```
 
 Expected:
+
 - `fast-uri@3.1.4` is reachable through MCP SDK / AJV paths;
 - `ip-address@10.2.2` is reachable through MCP SDK / express-rate-limit;
 - `brace-expansion@5.0.8` is reachable through ESLint/typescript-eslint/minimatch paths.
@@ -114,10 +118,12 @@ Expected: `.artifacts/` is ignored or remains untracked and is not staged.
 ### Task 2: Upgrade the direct MCP SDK dependency
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `pnpm-lock.yaml`
 
 **Interfaces:**
+
 - Consumes: existing MCP imports and tests.
 - Produces: a stable direct dependency on `@modelcontextprotocol/sdk@^1.30.0` and a regenerated lockfile.
 
@@ -130,6 +136,7 @@ pnpm up @modelcontextprotocol/sdk@^1.30.0
 ```
 
 Expected:
+
 - `package.json` changes `@modelcontextprotocol/sdk` from `^1.29.0` to `^1.30.0`;
 - `pnpm-lock.yaml` is regenerated;
 - no unrelated direct dependency range changes.
@@ -170,6 +177,7 @@ pnpm audit --audit-level high
 ```
 
 Interpretation:
+
 - If all high advisories disappear, skip Tasks 3 and 4 and continue to Task 6.
 - If one or more remain, continue with the exact package-specific override tasks below.
 
@@ -185,10 +193,12 @@ git commit -m "chore: upgrade MCP SDK for security fixes"
 ### Task 3: Override remaining MCP transitive vulnerabilities to patched versions
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `pnpm-lock.yaml`
 
 **Interfaces:**
+
 - Consumes: audit result after the SDK upgrade.
 - Produces: version-scoped overrides only for MCP transitive packages still resolved below patched floors.
 
@@ -209,6 +219,7 @@ In the existing `pnpm.overrides` object, preserve `tmp: 0.2.7` and add the relev
 ```
 
 Rules:
+
 - Omit `fast-uri` if the SDK upgrade already resolves every installed `fast-uri` to `>=3.1.5`.
 - Omit `ip-address` if the SDK upgrade already resolves every installed `ip-address` to `>=10.3.1`.
 - Do not add an override merely because it appears in this plan; add it only when `pnpm audit` and `pnpm why` prove it is still required.
@@ -234,6 +245,7 @@ pnpm list fast-uri ip-address --depth Infinity
 ```
 
 Expected:
+
 - no installed `fast-uri` in `>=3.0.0 <3.1.5`;
 - no installed `ip-address <=10.3.0`.
 
@@ -279,10 +291,12 @@ If no MCP override was required, do not create an empty commit.
 ### Task 4: Override the vulnerable brace-expansion v5 range
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `pnpm-lock.yaml`
 
 **Interfaces:**
+
 - Consumes: current ESLint/typescript-eslint dependency graph.
 - Produces: `brace-expansion@5.0.9` only for the vulnerable v4/v5 selector range, without forcing legacy major-version consumers to v5.
 
@@ -355,11 +369,13 @@ git commit -m "chore: pin patched brace expansion dependency"
 ### Task 5: Use advisory suppression only for an unresolved incompatible case
 
 **Files:**
+
 - Modify only if required: `package.json`
 - Create only if required: `docs/security/audit-exceptions.md`
 - Modify: `pnpm-lock.yaml` only if dependency attempts changed it
 
 **Interfaces:**
+
 - Consumes: evidence that a patched upgrade or override is unavailable or breaks a required supported contract.
 - Produces: one documented, GHSA-specific temporary exception.
 
@@ -421,6 +437,7 @@ pnpm audit --audit-level high
 ```
 
 Expected:
+
 - audit exits 0;
 - the ignored advisory is the only high advisory omitted;
 - a newly introduced high advisory would still fail the command.
@@ -437,11 +454,13 @@ git commit -m "chore: document temporary dependency audit exception"
 ### Task 6: Run reproducibility, full verification, and installed-package gates
 
 **Files:**
+
 - Verify: `package.json`
 - Verify: `pnpm-lock.yaml`
 - Verify if created: `docs/security/audit-exceptions.md`
 
 **Interfaces:**
+
 - Consumes: final dependency graph.
 - Produces: merge-readiness evidence.
 
@@ -487,6 +506,7 @@ git diff main...HEAD -- package.json pnpm-lock.yaml docs/security/audit-exceptio
 ```
 
 Expected:
+
 - MCP SDK is stable `1.30.x` according to the declared range;
 - vulnerable patched floors are respected;
 - no unrelated direct dependency upgrades;
@@ -507,9 +527,11 @@ Expected: no uncommitted files.
 ### Task 7: Push and verify GitHub Actions
 
 **Files:**
+
 - No additional source changes.
 
 **Interfaces:**
+
 - Consumes: locally verified commits.
 - Produces: final CI evidence on the exact PR head.
 
