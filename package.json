@@ -97,7 +97,7 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "better-sqlite3": "^13.0.1",
     "js-toml": "^1.2.1",
     "jsonc-parser": "3.3.1",
