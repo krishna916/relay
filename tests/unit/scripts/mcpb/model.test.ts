@@ -32,14 +32,14 @@ const sourceRuntimePackage: RuntimePackage = {
   type: 'module',
   engines: { node: '>=0' },
   dependencies: {
-    '@modelcontextprotocol/sdk': '1.29.0',
+    '@modelcontextprotocol/sdk': '1.30.0',
     'better-sqlite3': '13.0.1',
     zod: '4.4.3',
   },
 };
 const rootPackage: RootPackage = {
   dependencies: {
-    '@modelcontextprotocol/sdk': '1.29.0',
+    '@modelcontextprotocol/sdk': '1.30.0',
     'better-sqlite3': '13.0.1',
     zod: '4.4.3',
   },
@@ -89,7 +89,7 @@ describe('Linux MCPB package model', () => {
     ) as { pnpm?: { onlyBuiltDependencies?: string[] } };
 
     expect(packageJson.pnpm).toEqual({
-      overrides: { tmp: '0.2.7' },
+      overrides: { tmp: '0.2.7', 'brace-expansion@>=4.0.0 <5.0.9': '5.0.9' },
       onlyBuiltDependencies: ['better-sqlite3', 'esbuild'],
     });
     expect(runtimePackageJson.pnpm).toEqual({
@@ -113,8 +113,8 @@ describe('Linux MCPB package model', () => {
           '  .:',
           '    dependencies:',
           "      '@modelcontextprotocol/sdk':",
-          '        specifier: ^1.29.0',
-          '        version: 1.29.0',
+          '        specifier: ^1.30.0',
+          '        version: 1.30.0',
           '      better-sqlite3:',
           '        specifier: ^13.0.1',
           '        version: 13.0.1',

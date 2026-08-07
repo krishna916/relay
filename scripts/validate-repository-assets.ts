@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { isAbsolute, join, relative, resolve } from 'node:path';
+import { isAbsolute, join, posix, relative, resolve, win32 } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { load as parseToml } from 'js-toml';
 import { parse as parseJsonc, type ParseError } from 'jsonc-parser';
@@ -37,6 +37,7 @@ export const requiredDistributionAssets = [
   'tests/fixtures/distribution/config-examples/claude-code-conflict.json',
   'tests/fixtures/distribution/lifecycle-policy.json',
   'tests/fixtures/distribution/version-compatibility.json',
+  'assets/compatibility.json',
   'tests/fixtures/setup/codex/empty.toml',
   'tests/fixtures/setup/codex/unrelated.toml',
   'tests/fixtures/setup/codex/matching.toml',
@@ -185,6 +186,27 @@ function validatePlaceholders(files: readonly string[]): void {
       fail(
         `Unresolved placeholder marker ${match[0]} found in ${relative(process.cwd(), filePath) || filePath}`,
       );
+    }
+  }
+}
+
+function validateDoctorFixtures(files: readonly string[]): void {
+  const sensitive = [
+    /(?:bearer|api[_-]?key|access[_-]?token|private[_-]?key|secret)/i,
+    /(?:BEGIN [A-Z ]+ PRIVATE KEY|sk-[A-Za-z0-9_-]{10,})/,
+  ];
+  const absolutePath =
+    /(?:[A-Za-z]:[\\/][^\s"'<>]+|\\\\[^\s"'<>]+|(?<!:)\/\/[^\s"'<>]+|\/(?!\/)[^\s"'<>]+)/g;
+  for (const filePath of files) {
+    if (!filePath.replaceAll('\\', '/').includes('tests/fixtures/doctor/')) continue;
+    const content = readFileSync(filePath, 'utf-8');
+    for (const pattern of sensitive) {
+      if (pattern.test(content)) fail(`Unsafe doctor fixture content found in ${filePath}`);
+    }
+    for (const match of content.matchAll(absolutePath)) {
+      const candidate = match[0].replace(/[),.;]+$/g, '');
+      if (posix.isAbsolute(candidate) || win32.isAbsolute(candidate))
+        fail(`Unsafe doctor fixture content found in ${filePath}`);
     }
   }
 }
@@ -526,6 +548,7 @@ export function validateRepositoryAssets(options: ValidateRepositoryAssetsOption
 
   validateJsonFiles(allFiles);
   validatePlaceholders(allFiles);
+  validateDoctorFixtures(allFiles);
   validateMarkdownLinks(
     join(rootDir, 'README.md'),
     readFileSync(join(rootDir, 'README.md'), 'utf-8'),

@@ -16,6 +16,7 @@
   "homepage": "https://github.com/krishna916/relay#readme",
   "files": [
     "dist/",
+    "assets/compatibility.json",
     "assets/migrations/",
     "skills/",
     "integrations/",
@@ -30,7 +31,8 @@
   "packageManager": "pnpm@10.2.0",
   "pnpm": {
     "overrides": {
-      "tmp": "0.2.7"
+      "tmp": "0.2.7",
+      "brace-expansion@>=4.0.0 <5.0.9": "5.0.9"
     },
     "onlyBuiltDependencies": [
       "better-sqlite3",
@@ -96,7 +98,7 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "better-sqlite3": "^13.0.1",
     "js-toml": "^1.2.1",
     "jsonc-parser": "3.3.1",

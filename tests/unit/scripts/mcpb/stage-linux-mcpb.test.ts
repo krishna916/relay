@@ -26,11 +26,11 @@ async function fixtureRoot(): Promise<string> {
         bin: { relay: './dist/cli/main.js' },
         engines: { node: '>=24 <25' },
         pnpm: {
-          overrides: { tmp: '0.2.7' },
+          overrides: { tmp: '0.2.7', 'brace-expansion@>=4.0.0 <5.0.9': '5.0.9' },
           onlyBuiltDependencies: ['better-sqlite3', 'esbuild'],
         },
         dependencies: {
-          '@modelcontextprotocol/sdk': '1.29.0',
+          '@modelcontextprotocol/sdk': '1.30.0',
           'better-sqlite3': '13.0.1',
           zod: '4.4.3',
         },
@@ -38,7 +38,7 @@ async function fixtureRoot(): Promise<string> {
     ),
     writeFile(
       join(rootDir, 'pnpm-lock.yaml'),
-      "overrides:\n  tmp: 0.2.7\n\nimporters:\n\n  .:\n    dependencies:\n      '@modelcontextprotocol/sdk':\n        specifier: ^1.29.0\n        version: 1.29.0\n      better-sqlite3:\n        specifier: ^13.0.1\n        version: 13.0.1\n      zod:\n        specifier: ^4.4.3\n        version: 4.4.3\npackages:\n",
+      "overrides:\n  tmp: 0.2.7\n  'brace-expansion@>=4.0.0 <5.0.9': 5.0.9\n\nimporters:\n\n  .:\n    dependencies:\n      '@modelcontextprotocol/sdk':\n        specifier: ^1.30.0\n        version: 1.30.0\n      better-sqlite3:\n        specifier: ^13.0.1\n        version: 13.0.1\n      zod:\n        specifier: ^4.4.3\n        version: 4.4.3\npackages:\n",
     ),
     writeFile(join(rootDir, 'dist/mcp/main.js'), 'process.exit(0);'),
     writeFile(join(rootDir, 'dist/chunk-runtime.js'), 'export const runtime = true;'),
@@ -65,7 +65,7 @@ async function fixtureRoot(): Promise<string> {
         engines: { node: '>=24 <25' },
         pnpm: { onlyBuiltDependencies: ['better-sqlite3', 'esbuild'] },
         dependencies: {
-          '@modelcontextprotocol/sdk': '1.29.0',
+          '@modelcontextprotocol/sdk': '1.30.0',
           'better-sqlite3': '13.0.1',
           zod: '4.4.3',
         },

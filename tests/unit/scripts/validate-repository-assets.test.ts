@@ -222,6 +222,21 @@ describe('validateRepositoryAssets', () => {
     expect(() => validateRepositoryAssets({ rootDir })).toThrow(new RegExp('TO' + 'DO', 'i'));
   });
 
+  it.each([
+    ['/tmp/relay-doctor.db', 'POSIX absolute path'],
+    ['//server/share/relay-doctor.db', 'UNC slash path'],
+    ['\\\\server\\share\\relay-doctor.db', 'UNC backslash path'],
+  ])('rejects %s in doctor fixtures (%s)', (unsafePath) => {
+    const rootDir = createFixtureRoot();
+    createdRoots.push(rootDir);
+    mkdirSync(join(rootDir, 'tests/fixtures/doctor'), { recursive: true });
+    writeFileSync(
+      join(rootDir, 'tests/fixtures/doctor/path-fixture.txt'),
+      `path = ${unsafePath}\n`,
+    );
+    expect(() => validateRepositoryAssets({ rootDir })).toThrow(/Unsafe doctor fixture content/);
+  });
+
   it('rejects unresolved placeholder markers in committed html assets', () => {
     const rootDir = createFixtureRoot();
     createdRoots.push(rootDir);

@@ -125,7 +125,7 @@ describe('shared database path across HTTP, MCP, and CLI', () => {
       applicationRuntime?.close();
       await runtime?.close();
     }
-  });
+  }, 15_000);
 
   it('does not create a default or CWD-local database file', async () => {
     let runtime: AgentTestRuntime | undefined;

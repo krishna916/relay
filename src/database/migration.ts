@@ -11,13 +11,27 @@ export interface MigrationFile {
   readonly checksum: string;
 }
 
+export interface MigrationManifestEntry {
+  readonly version: number;
+  readonly name: string;
+  readonly filename: string;
+}
+
 export function computeChecksum(content: string): string {
   return createHash('sha256').update(content, 'utf-8').digest('hex');
 }
 
 export function loadMigrationFiles(migrationsDir: string): readonly MigrationFile[] {
+  const manifest = loadMigrationManifest(migrationsDir);
+  return manifest.map((entry) => {
+    const sql = readFileSync(join(migrationsDir, entry.filename), 'utf-8');
+    return { ...entry, sql, checksum: computeChecksum(sql) };
+  });
+}
+
+export function loadMigrationManifest(migrationsDir: string): readonly MigrationManifestEntry[] {
   const entries = readdirSync(migrationsDir, { withFileTypes: true });
-  const files: MigrationFile[] = [];
+  const files: MigrationManifestEntry[] = [];
   const seenVersions = new Set<number>();
 
   for (const entry of entries) {
@@ -40,11 +54,7 @@ export function loadMigrationFiles(migrationsDir: string): readonly MigrationFil
     }
     seenVersions.add(version);
 
-    const fullPath = join(migrationsDir, entry.name);
-    const sql = readFileSync(fullPath, 'utf-8');
-    const checksum = computeChecksum(sql);
-
-    files.push({ version, name, filename: entry.name, sql, checksum });
+    files.push({ version, name, filename: entry.name });
   }
 
   return files.sort((a, b) => a.version - b.version);

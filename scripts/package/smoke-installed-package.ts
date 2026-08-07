@@ -1,5 +1,14 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -161,6 +170,154 @@ async function waitForHttp(url: string): Promise<void> {
   throw new Error(`Installed UI did not become ready at ${url}.`);
 }
 
+async function waitForFile(path: string, timeoutMs = 15_000): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (existsSync(path)) return readFileSync(path, 'utf8');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`Timed out waiting for the doctor signal marker: ${path}`);
+}
+
+async function waitForProcessExit(pid: number, timeoutMs = 5_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      process.kill(pid, 0);
+    } catch {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`Doctor signal probe child remained alive: ${String(pid)}`);
+}
+
+async function waitForDoctorExit(
+  child: ReturnType<typeof spawn>,
+  timeoutMs = 15_000,
+): Promise<{ readonly status: number | null; readonly signal: NodeJS.Signals | null }> {
+  return await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL');
+      reject(new Error('Installed doctor did not exit after its termination signal.'));
+    }, timeoutMs);
+    child.once('close', (status, signal) => {
+      clearTimeout(timer);
+      resolve({ status, signal });
+    });
+  });
+}
+
+export async function verifyInstalledDoctorSignals(input: {
+  readonly commandPath: string;
+  readonly installedMain: string;
+  readonly cwd: string;
+  readonly databasePath: string;
+  readonly environment: Readonly<Record<string, string>>;
+  readonly preservedPaths?: readonly string[];
+}): Promise<void> {
+  // Windows emulates child SIGINT/SIGTERM with forceful termination, so Node
+  // cannot run the command's JavaScript signal handlers in this process shape.
+  // The command-level signal contract remains covered by unit tests; Linux CI
+  // exercises the real installed-process cases below.
+  if (process.platform === 'win32') return;
+
+  for (const [signal, expectedStatus] of [
+    ['SIGINT', 130],
+    ['SIGTERM', 143],
+  ] as const) {
+    const caseRoot = mkdtempSync(join(tmpdir(), 'relay-doctor-signal-case-'));
+    const mcpMarker = join(caseRoot, 'mcp-ready');
+    const uiMarker = join(caseRoot, 'ui-started');
+    const childMarker = join(caseRoot, 'mcp-child-pid');
+    let childPid: number | undefined;
+    const configuredBefore = readFileSync(input.databasePath);
+    const configuredMtime = statSync(input.databasePath).mtimeMs;
+    const preservedBefore = (input.preservedPaths ?? [])
+      .filter((path) => existsSync(path))
+      .map((path) => ({ path, bytes: readFileSync(path), mtime: statSync(path).mtimeMs }));
+    const temporaryBefore = new Set(
+      readdirSync(tmpdir()).filter((name) => name.startsWith('.relay-doctor-')),
+    );
+    const child = spawn(input.commandPath, ['doctor', '--output', 'json'], {
+      cwd: input.cwd,
+      env: {
+        ...process.env,
+        ...input.environment,
+        RELAY_DB_PATH: input.databasePath,
+        RELAY_DOCTOR_TEST_HOLD_PROBE: 'mcp',
+        RELAY_DOCTOR_TEST_MARKER: mcpMarker,
+        RELAY_DOCTOR_TEST_UI_MARKER: uiMarker,
+        RELAY_DOCTOR_TEST_CHILD_MARKER: childMarker,
+        RELAY_DOCTOR_TEST_SENTINEL: 'doctor-signal-secret',
+        RELAY_RUN_PACKAGE_SMOKE: '1',
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout?.on('data', (chunk: Buffer | string) => {
+      stdout += chunk.toString();
+    });
+    child.stderr?.on('data', (chunk: Buffer | string) => {
+      stderr += chunk.toString();
+    });
+    try {
+      childPid = Number(await waitForFile(childMarker));
+      await waitForFile(mcpMarker);
+      if (!child.kill(signal)) throw new Error(`Could not send ${signal} to installed doctor.`);
+      const result = await waitForDoctorExit(child);
+      if (result.status !== expectedStatus)
+        throw new Error(
+          `Installed doctor ${signal} returned ${String(result.status)} instead of ${String(expectedStatus)}.`,
+        );
+      if (stdout !== '') throw new Error(`Interrupted doctor emitted a report for ${signal}.`);
+      if (
+        stderr.includes(caseRoot) ||
+        stderr.includes(input.databasePath) ||
+        /^\s*at /m.test(stderr)
+      )
+        throw new Error(`Interrupted doctor leaked sensitive diagnostics for ${signal}.`);
+      if (stderr.includes('doctor-signal-secret') || stderr.includes('CREATE TABLE'))
+        throw new Error(`Interrupted doctor leaked test secrets for ${signal}.`);
+      if (existsSync(uiMarker))
+        throw new Error(`UI probe started after interrupted MCP probe for ${signal}.`);
+      await waitForProcessExit(childPid);
+      const remainingRoots = readdirSync(tmpdir()).filter(
+        (name) => name.startsWith('.relay-doctor-') && !temporaryBefore.has(name),
+      );
+      if (remainingRoots.length > 0)
+        throw new Error(`Doctor temporary roots remained after ${signal}.`);
+      if (!readFileSync(input.databasePath).equals(configuredBefore))
+        throw new Error(`Configured database changed after ${signal}.`);
+      if (statSync(input.databasePath).mtimeMs !== configuredMtime)
+        throw new Error(`Configured database mtime changed after ${signal}.`);
+      for (const preserved of preservedBefore) {
+        if (!existsSync(preserved.path))
+          throw new Error(`Preserved client or ownership file disappeared after ${signal}.`);
+        if (!readFileSync(preserved.path).equals(preserved.bytes))
+          throw new Error(`Preserved client or ownership file changed after ${signal}.`);
+        if (statSync(preserved.path).mtimeMs !== preserved.mtime)
+          throw new Error(`Preserved client or ownership mtime changed after ${signal}.`);
+      }
+    } finally {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+      try {
+        if (childPid !== undefined && Number.isInteger(childPid) && childPid > 0) {
+          try {
+            process.kill(childPid, 'SIGKILL');
+          } catch {
+            /* The child may have exited during doctor cleanup. */
+          }
+          await waitForProcessExit(childPid);
+        }
+      } finally {
+        rmSync(caseRoot, { recursive: true, force: true });
+      }
+    }
+  }
+}
+
 async function verifyMcp(
   commandPath: string,
   installedMain: string,
@@ -316,6 +473,63 @@ export async function verifyInstalledPackage(rootDir = process.cwd()): Promise<v
           `Installed configuration action failed (${action.join(' ')}): ${result.stderr}`,
         );
     }
+
+    const doctorJson = runCli(
+      commandPath,
+      unrelatedCwd,
+      databasePath,
+      ['doctor', '--output', 'json'],
+      setupEnvironment,
+    );
+    if (doctorJson.status !== 0 || doctorJson.stderr !== '')
+      throw new Error(`Installed doctor JSON failed: ${doctorJson.stderr}`);
+    const doctorReport = JSON.parse(doctorJson.stdout) as {
+      schemaVersion?: number;
+      checks?: Array<{ id?: string }>;
+    };
+    if (
+      doctorReport.schemaVersion !== 1 ||
+      JSON.stringify(doctorReport.checks?.map((check) => check.id)) !==
+        JSON.stringify([
+          'runtime.version',
+          'runtime.platform',
+          'package.assets',
+          'paths.resolution',
+          'paths.access',
+          'database.state',
+          'database.integrity',
+          'database.native-addon',
+          'integrations.codex',
+          'integrations.claude-code',
+          'integrations.generic-mcp',
+          'compatibility.assets',
+          'mcp.handshake',
+          'ui.loopback',
+        ])
+    ) {
+      throw new Error('Installed doctor JSON did not return the stable 14-check contract.');
+    }
+    const doctorHuman = runCli(
+      commandPath,
+      unrelatedCwd,
+      databasePath,
+      ['doctor'],
+      setupEnvironment,
+    );
+    if (
+      doctorHuman.status !== 0 ||
+      doctorHuman.stderr !== '' ||
+      !doctorHuman.stdout.includes('Doctor summary:')
+    )
+      throw new Error(`Installed doctor human output failed: ${doctorHuman.stderr}`);
+    await verifyInstalledDoctorSignals({
+      commandPath,
+      installedMain,
+      cwd: unrelatedCwd,
+      databasePath,
+      environment: setupEnvironment,
+      preservedPaths: [codexConfig, join(setupEnvironment.XDG_CONFIG_HOME, 'relay', 'config.json')],
+    });
 
     const capture = runCli(commandPath, unrelatedCwd, databasePath, [
       'task',
